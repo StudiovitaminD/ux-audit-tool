@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX Audit Capture Settings</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="settings-page">
+      <section class="panel wide">
+        <h1>UX Audit Capture Settings</h1>
+        <p>Control how much evidence the extension collects and whether journeys auto-capture on navigation.</p>
+
+        <label class="setting-row">
+          <span>Auto-capture when the audited tab finishes navigation</span>
+          <input id="autoCaptureOnNavigation" type="checkbox" />
+        </label>
+
+        <label class="setting-row">
+          <span>Include screenshot data URLs inside exported JSON</span>
+          <input id="includeScreenshotDataUrl" type="checkbox" />
+        </label>
+
+        <label class="setting-row">
+          <span>Visible text max length</span>
+          <input id="maxVisibleTextLength" type="number" min="500" step="100" />
+        </label>
+
+        <label class="setting-row">
+          <span>Max buttons per capture</span>
+          <input id="maxButtons" type="number" min="5" step="1" />
+        </label>
+
+        <label class="setting-row">
+          <span>Max links per capture</span>
+          <input id="maxLinks" type="number" min="5" step="1" />
+        </label>
+
+        <label class="setting-row">
+          <span>Max forms per capture</span>
+          <input id="maxForms" type="number" min="5" step="1" />
+        </label>
+
+        <label class="setting-row">
+          <span>Max tables per capture</span>
+          <input id="maxTables" type="number" min="1" step="1" />
+        </label>
+
+        <label class="setting-row">
+          <span>Max navigation labels per capture</span>
+          <input id="maxNavigationLabels" type="number" min="5" step="1" />
+        </label>
+
+        <div class="actions">
+          <button id="saveSettings" class="button" type="button">Save settings</button>
+        </div>
+        <p id="settingsMessage" class="flash" role="status"></p>
+      </section>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

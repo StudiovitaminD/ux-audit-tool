@@ -1,0 +1,393 @@
+import type { ReactNode } from "react";
+import { QUESTION_BANK } from "../../../../worker/src/question-bank";
+import { asString, stringifyValue, type AnyRecord } from "@/lib/report-model";
+
+export function normalizeList(value: unknown, limit = 8) {
+  if (Array.isArray(value)) return value.map(stringifyValue).filter(Boolean).slice(0, limit);
+  return String(value ?? "")
+    .split(/\n|\r|\u2022|\u2023|\u25E6|\u2027/)
+    .map((item) => item.trim().replace(/\.$/, ""))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+export function formatDate(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
+}
+
+export function Pill({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] px-2.5 py-1 text-xs text-[color:var(--ink-muted)] print-color-adjust">
+      {children}
+    </span>
+  );
+}
+
+export function SectionTitle({ children }: { children: ReactNode }) {
+  return <div className="text-sm font-semibold tracking-tight">{children}</div>;
+}
+
+export function Subtle({ children }: { children: ReactNode }) {
+  return <div className="text-sm text-[color:var(--ink-muted)]">{children}</div>;
+}
+
+export function BulletList({ items, emptyLabel }: { items: unknown; emptyLabel: string }) {
+  const values = normalizeList(items, 8);
+  if (!values.length) {
+    return <div className="text-sm text-[color:var(--ink-muted)]">{emptyLabel}</div>;
+  }
+
+  return (
+    <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
+      {values.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+export function ScorePill({ value }: { value: unknown }) {
+  const score = stringifyValue(value);
+  if (!score) return null;
+  return (
+    <span className="inline-flex items-center rounded-full border border-[color:var(--card-border)] bg-white/5 px-2 py-0.5 text-xs text-[color:var(--ink-muted)] print-color-adjust">
+      Score: {score}
+    </span>
+  );
+}
+
+export function priorityRank(value: unknown) {
+  const priority = asString(value).toUpperCase();
+  if (priority === "P1") return 1;
+  if (priority === "P2") return 2;
+  if (priority === "P3") return 3;
+  if (priority === "P4") return 4;
+  return 99;
+}
+
+function lookupQuestionOptions(bucketName: string, questionId: string) {
+  const byBucket = QUESTION_BANK[bucketName] || [];
+  const exact = byBucket.find((item) => item.id === questionId);
+  if (exact?.options?.length) return exact.options;
+
+  for (const questions of Object.values(QUESTION_BANK)) {
+    const found = questions.find((item) => item.id === questionId);
+    if (found?.options?.length) return found.options;
+  }
+
+  return [];
+}
+
+export function BucketAnswersCard({
+  bucket,
+  onAnswerChange,
+}: {
+  bucket: Record<string, unknown>;
+  onAnswerChange?: (
+    bucketName: string,
+    questionId: string,
+    selectedOption: number,
+    userReason?: string,
+    userEvidence?: string,
+  ) => void;
+}) {
+  const bucketName =
+    asString(bucket.bucket_name) || asString(bucket.section) || asString(bucket.bucket) || "Bucket";
+  const questions = Array.isArray(bucket.questions)
+    ? bucket.questions
+        .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>) : null))
+        .filter(Boolean) as Array<Record<string, unknown>>
+    : [];
+  return (
+    <div
+      className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
+      data-report-section
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-base font-semibold">{bucketName}</div>
+          <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
+            AI question-by-question reasoning for this bucket
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {asString(bucket.pillar) ? <Pill>{asString(bucket.pillar)}</Pill> : null}
+          {asString(bucket.priority) ? <Pill>{asString(bucket.priority)}</Pill> : null}
+          <Pill>{asString(bucket.score) ? `${asString(bucket.score)}/100` : "Not scored"}</Pill>
+        </div>
+      </div>
+
+      {questions.length ? (
+        <div className="mt-4 space-y-4">
+          {questions.map((question, index) => {
+            const questionId = asString(question.id);
+            const answerStatus = asString(question.answer_status);
+            const selectedOption = asString(question.selected_option);
+            const selectedMark = asString(question.mark || question.selected_option);
+            const options = lookupQuestionOptions(bucketName, questionId);
+            const isInsufficient = answerStatus === "insufficient_evidence";
+            const isScoringUnavailable = answerStatus === "scoring_unavailable";
+            const isNotScored = isInsufficient || isScoringUnavailable;
+
+            return (
+              <div
+                key={`${bucketName}-${questionId || index}`}
+                className="print-avoid-break rounded-xl border border-[color:var(--card-border)] bg-white/5 p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="text-sm font-semibold text-[color:var(--ink)]">
+                    {index + 1}. {asString(question.question) || "Question"}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {isInsufficient ? <Pill>Status: Insufficient evidence</Pill> : null}
+                    {isScoringUnavailable ? <Pill>Status: Scoring unavailable</Pill> : null}
+                    {!isNotScored && selectedOption ? (
+                      <span className="inline-flex items-center rounded-full border border-[color:var(--card-border)] bg-white/5 px-2 py-0.5 text-xs text-[color:var(--ink-muted)] print-color-adjust">
+                        Answer : {selectedOption}
+                      </span>
+                    ) : null}
+                    {isNotScored ? <Pill>Score: Not scored</Pill> : null}
+                  </div>
+                </div>
+
+                {options.length ? (
+                  <div className="mt-3">
+                    {onAnswerChange && questionId ? (
+                      <label className="mb-4 block text-sm">
+                        <div className="mb-1 font-medium text-[color:var(--ink-muted)]">
+                          {isNotScored ? "Select answer" : "Change answer"}
+                        </div>
+                        <select
+                          className="w-full rounded-lg border-2 border-emerald-600 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 shadow-[0_0_0_2px_rgba(16,185,129,0.08)]"
+                          value={selectedMark || selectedOption || ""}
+                          onChange={(event) =>
+                            onAnswerChange(
+                              bucketName,
+                              questionId,
+                              Number(event.target.value),
+                              asString(question.user_reason) || asString(question.observation),
+                              asString(question.user_evidence) || asString(question.evidence),
+                            )
+                          }
+                        >
+                          {options.map((option) => (
+                            <option key={`${questionId}-select-${option.mark}`} value={option.mark}>
+                              {option.mark}. {option.text}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : !isNotScored ? (
+                      <div className="rounded-lg border-2 border-emerald-600 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 shadow-[0_0_0_2px_rgba(16,185,129,0.08)]">
+                        {(() => {
+                          const active = options.find(
+                            (option) =>
+                              String(option.mark) === selectedOption ||
+                              String(option.mark) === selectedMark,
+                          );
+                          return active ? `${active.mark}. ${active.text}` : "No selected option";
+                        })()}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {isNotScored ? (
+                  <div className="mt-4 rounded-xl border border-amber-200/70 bg-amber-50/70 px-4 py-4 text-sm text-amber-900 print-color-adjust">
+                    <div className="font-medium">Selected option: None</div>
+                    <div className="mt-1">
+                      {asString(question.observation) ||
+                        (isScoringUnavailable
+                          ? "This question could not be scored because the audit model failed before producing a usable answer."
+                          : "This question cannot be answered reliably because the required screen or interaction was not captured.")}
+                    </div>
+                  </div>
+                ) : null}
+
+                {!isNotScored ? (
+                  <div className="mt-5">
+                    <div className="text-sm font-semibold tracking-tight text-[color:var(--ink)]">
+                      Evidence
+                    </div>
+                    {onAnswerChange && questionId ? (
+                      <textarea
+                        className="mt-2 min-h-[92px] w-full rounded-lg border border-[color:var(--card-border)] bg-white px-[5px] py-[5px] text-sm text-[color:var(--ink)]"
+                        defaultValue={asString(question.user_evidence) || asString(question.evidence)}
+                        placeholder="Add or edit evidence..."
+                        onBlur={(event) => {
+                          const activeSelection = Number(selectedMark || selectedOption || "");
+                          if (Number.isFinite(activeSelection) && activeSelection > 0) {
+                            onAnswerChange(
+                              bucketName,
+                              questionId,
+                              activeSelection,
+                              asString(question.user_reason) || asString(question.observation),
+                              event.currentTarget.value,
+                            );
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="mt-2 rounded-lg border border-[color:var(--card-border)] bg-white px-[5px] py-[5px] text-sm text-[color:var(--ink)]">
+                        {asString(question.evidence) || "—"}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                {!isNotScored ? (
+                  <div className="mt-5">
+                    <div className="text-sm font-semibold tracking-tight text-[color:var(--ink)]">
+                      Reason
+                    </div>
+                    {onAnswerChange && questionId ? (
+                      <textarea
+                        className="mt-2 min-h-[92px] w-full rounded-lg border border-[color:var(--card-border)] bg-white px-[5px] py-[5px] text-sm text-[color:var(--ink)]"
+                        defaultValue={asString(question.user_reason) || asString(question.observation)}
+                        placeholder="Add or edit reason..."
+                        onBlur={(event) => {
+                          const activeSelection = Number(selectedMark || selectedOption || "");
+                          if (Number.isFinite(activeSelection) && activeSelection > 0) {
+                            onAnswerChange(
+                              bucketName,
+                              questionId,
+                              activeSelection,
+                              event.currentTarget.value,
+                              asString(question.user_evidence) || asString(question.evidence),
+                            );
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="mt-2 rounded-lg border border-[color:var(--card-border)] bg-white px-[5px] py-[5px] text-sm text-[color:var(--ink)]">
+                        {asString(question.observation) || "—"}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mt-4 text-sm text-[color:var(--ink-muted)]">
+          No question-level AI answers were captured for this bucket.
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function FindingCard({ finding }: { finding: Record<string, unknown> }) {
+  const criteria = Array.isArray(finding.acceptance_criteria)
+    ? finding.acceptance_criteria.map(stringifyValue).filter(Boolean)
+    : [];
+
+  return (
+    <div
+      className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-4"
+      data-report-section
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm font-semibold">
+          {asString(finding.rank) || "—"}. {asString(finding.bucket) || "Finding"}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {asString(finding.severity) ? <Pill>{asString(finding.severity)}</Pill> : null}
+          {asString(finding.effort) ? <Pill>Effort: {asString(finding.effort)}</Pill> : null}
+          {asString(finding.priority_tier) ? <Pill>{asString(finding.priority_tier)}</Pill> : null}
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-3">
+        <div>
+          <SectionTitle>What we found</SectionTitle>
+          <Subtle>{asString(finding.what_we_found) || "—"}</Subtle>
+        </div>
+        <div>
+          <SectionTitle>Why it matters</SectionTitle>
+          <Subtle>{asString(finding.why_it_matters) || "—"}</Subtle>
+        </div>
+        <div>
+          <SectionTitle>Recommendation</SectionTitle>
+          <Subtle>{asString(finding.recommendation) || "—"}</Subtle>
+        </div>
+        {criteria.length ? (
+          <div>
+            <SectionTitle>Acceptance criteria</SectionTitle>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted)]">
+              {criteria.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export type ReportPage = {
+  key: string;
+  title: string;
+  body: ReactNode;
+  locked?: boolean;
+};
+
+export type SharedSectionProps = {
+  vm: {
+    productName: string;
+    productUrl: string;
+    generatedAt: string;
+    auditReason: string;
+    auditType: string;
+    isLimitedCoverage: boolean;
+    isScoringUnavailable: boolean;
+    hasPartialScoring: boolean;
+    overallScore: number | null;
+    overallHealth: string;
+    overallRisk: string;
+    captureCoverage: {
+      status: string;
+      summary: string;
+      loginPageCaptured: boolean;
+      authenticatedDashboardCaptured: boolean;
+      navigationCaptured: boolean;
+      internalProductScreensCaptured: number;
+      internalProductScreensTarget: number;
+      formsCaptured: boolean;
+      tablesCaptured: boolean;
+      dropdownCaptured: boolean;
+      errorEmptyLoadingCaptured: boolean;
+      browserSessionUsed: boolean;
+      guidedStepsAttempted: number;
+      guidedStepsCompleted: number;
+      questionsScoreable: number;
+      questionsTotal: number;
+      scoreEligible: boolean;
+      failedStepReasons: string[];
+      whatWasCaptured: string[];
+      whatWasMissing: string[];
+      suggestedNextSteps: string[];
+    };
+    pillarScores: Record<string, { score: number | null; evaluated: boolean }>;
+    scorecard: AnyRecord[];
+    bucketResults: AnyRecord[];
+    executiveSummary: AnyRecord;
+    sectionNarrative: {
+      delight_narrative: string;
+      impact_narrative: string;
+      accessibility_narrative: string;
+    };
+    findingsDetailed: AnyRecord[];
+    quickWinsTable: AnyRecord[];
+    roadmap: {
+      week_1_2: string[];
+      month_1: string[];
+      quarter_1: string[];
+    };
+    closingNote: string;
+  };
+};

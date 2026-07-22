@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX Audit Capture</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="popup">
+    <main class="panel">
+      <div class="panel-header">
+        <div>
+          <h1>UX Audit Capture</h1>
+          <p>Capture product screens and export JSON for the audit form.</p>
+        </div>
+        <button id="openOptions" class="button button-ghost" type="button">Settings</button>
+      </div>
+
+      <section class="card">
+        <div class="row-between">
+          <div>
+            <h2>Session</h2>
+            <p id="sessionStatus">Not started</p>
+          </div>
+          <label class="toggle">
+            <input id="journeyToggle" type="checkbox" />
+            <span>Record journey</span>
+          </label>
+        </div>
+        <div class="actions">
+          <button id="startAudit" class="button" type="button">Start Audit</button>
+          <button id="capturePage" class="button button-secondary" type="button">Capture this page</button>
+          <button id="stopAudit" class="button button-ghost" type="button">Stop</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row-between">
+          <div>
+            <h2>Captures</h2>
+            <p id="captureCount">0 pages captured</p>
+          </div>
+          <button id="clearCaptures" class="button button-ghost" type="button">Clear</button>
+        </div>
+        <div class="actions">
+          <button id="copyJson" class="button" type="button">Copy JSON</button>
+          <button id="downloadJson" class="button button-secondary" type="button">Download JSON</button>
+        </div>
+        <div id="capturesList" class="capture-list empty">No captures yet.</div>
+      </section>
+
+      <p id="flashMessage" class="flash" role="status"></p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
