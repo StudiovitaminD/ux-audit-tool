@@ -96,6 +96,11 @@ Open:
 npm run build
 ```
 
+## Related docs
+
+- `docs/report-export-flow.md` — how report rendering stays aligned across live, print, PDF, DOCX, and PPTX flows
+- `chrome-extension/README.md` — browser extension capture setup and usage
+
 ## Main APIs
 
 - `POST /api/audit`

@@ -15,9 +15,7 @@ This folder contains a real Chrome extension for the UX audit app.
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
 3. Click **Load unpacked**
-4. Select this folder:
-
-`/Users/studiovitamind/Documents/Codex/2026-04-29-build-a-modern-next-js-app/chrome-extension`
+4. Select the repo’s `chrome-extension` folder
 
 ## How to use
 

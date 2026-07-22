@@ -1,7 +1,26 @@
 {
-  "name": "2026-04-29-build-a-modern-next-js-app",
+  "name": "ux-audit-tool",
   "version": "0.1.0",
   "private": true,
+  "description": "AI-assisted UX audit platform for marketing websites and ecommerce reports.",
+  "homepage": "https://github.com/StudiovitaminD/ux-audit-tool",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/StudiovitaminD/ux-audit-tool.git"
+  },
+  "bugs": {
+    "url": "https://github.com/StudiovitaminD/ux-audit-tool/issues"
+  },
+  "keywords": [
+    "ux",
+    "audit",
+    "nextjs",
+    "ai",
+    "ecommerce",
+    "marketing-website",
+    "playwright",
+    "openrouter"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
