@@ -1,87 +1,85 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
+
+import frame14 from "../../../Frame 14.png";
+import companyLogo from "../../../Company logo.png";
+import companyLogo1 from "../../../Company logo-1.png";
+import companyLogo2 from "../../../Company logo-2.png";
+import companyLogo3 from "../../../Company logo-3.png";
+import companyLogo4 from "../../../Company logo-4.png";
+import companyLogo5 from "../../../Company logo-5.png";
+
+const logos = [
+  { src: companyLogo, alt: "Company logo" },
+  { src: companyLogo1, alt: "Company logo 1" },
+  { src: companyLogo2, alt: "Company logo 2" },
+  { src: companyLogo3, alt: "Company logo 3" },
+  { src: companyLogo4, alt: "Company logo 4" },
+  { src: companyLogo5, alt: "Company logo 5" },
+];
 
 export function LandingHero() {
   return (
-    <section className="landingRoot relative overflow-hidden px-6 py-12 sm:px-8 lg:px-12">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,128,95,0.22),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(110,231,183,0.18),transparent_20%)]" />
-      <div className="pointer-events-none absolute inset-x-0 top-20 h-96 bg-[radial-gradient(circle,_rgba(255,255,255,0.08),transparent_55%)] blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-[30%] h-72 w-72 rounded-full bg-[radial-gradient(circle,_rgba(30,99,255,0.18),transparent_60%)] blur-3xl" />
-      <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col justify-center gap-12 text-[color:var(--foreground)]">
-        <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-3 rounded-full border border-[color:var(--border)] bg-[color:var(--surface)]/80 px-4 py-2 text-sm uppercase tracking-[0.35em] text-[color:var(--muted)] shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
-              Premium UX audit intelligence
-            </div>
-            <div className="max-w-2xl space-y-6">
-              <h1 className="text-5xl font-semibold leading-tight tracking-[-0.05em] sm:text-6xl lg:text-7xl">
-                A cinematic UX audit experience, reimagined for leadership.
-              </h1>
-              <p className="max-w-2xl text-lg leading-8 text-[color:var(--muted-foreground)]">
-                Turn audit insight into an immersive, executive-ready experience with glowing metrics, interactive score tiles, and refined report storytelling.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-4">
+    <section className="relative w-full overflow-hidden bg-[#f8f4ed] text-[#161616]">
+      <div className="mx-auto max-w-[1440px] px-16 py-12 sm:py-16 lg:py-20">
+        <div
+          className="grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-10"
+          data-reveal
+        >
+          <div className="max-w-[580px]">
+            <h1
+              className="max-w-[11ch] text-[clamp(3.25rem,6vw,6.1rem)] font-semibold leading-[0.96] tracking-[-0.05em] text-[#111111]"
+              style={{ wordSpacing: "0.12em" }}
+            >
+              <span className="block">Navigating the</span>
+              <span className="block">digital landscape</span>
+              <span className="block">for success</span>
+            </h1>
+
+            <p className="mt-6 max-w-[36ch] text-[17px] leading-8 text-[#5b5b5b]">
+              Our digital UX audit platform helps teams spot friction fast, turn
+              findings into action, and present executive-ready recommendations.
+            </p>
+
+            <div className="mt-8">
               <Link
                 href="/audit"
-                className="inline-flex items-center justify-center rounded-full bg-[color:var(--accent)] px-7 py-3 text-sm font-semibold text-[color:var(--accent-foreground)] shadow-[0_24px_80px_rgba(255,128,95,0.24)] transition hover:-translate-y-0.5 hover:bg-[color:var(--accent)]/95"
+                className="inline-flex h-12 items-center rounded-full bg-[#111111] px-7 text-[15px] font-semibold text-white shadow-[0_16px_36px_rgba(17,17,17,0.16)] transition hover:-translate-y-0.5 hover:bg-[#1d1d1d]"
               >
-                Start audit
-              </Link>
-              <Link
-                href="/report"
-                className="inline-flex items-center justify-center rounded-full border border-[color:var(--border)] bg-[color:var(--card)] px-7 py-3 text-sm font-semibold text-[color:var(--foreground)] transition hover:-translate-y-0.5 hover:bg-[color:var(--surface)]"
-              >
-                View sample report
+                Start quick audit
               </Link>
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--card)]/85 p-6 shadow-[0_40px_120px_rgba(15,23,42,0.14)] backdrop-blur-3xl">
-            <div className="absolute -left-16 top-6 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(255,128,95,0.22),transparent_55%)] blur-3xl" />
-            <div className="absolute -right-16 bottom-8 h-36 w-36 rounded-full bg-[radial-gradient(circle,_rgba(110,231,183,0.22),transparent_55%)] blur-3xl" />
-            <div className="relative grid gap-6">
-              <div className="grid gap-5">
-                <div className="rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-                  <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Executive score</p>
-                  <div className="mt-4 flex items-end gap-3">
-                    <span className="text-6xl font-semibold text-[color:var(--foreground)]">67</span>
-                    <span className="text-sm text-[color:var(--muted-foreground)]">/100</span>
-                  </div>
-                  <p className="mt-4 text-sm leading-7 text-[color:var(--muted-foreground)]">A high-contrast score view that anchors the audit as a premium product experience.</p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {[
-                    { label: "Health", value: "Moderate risk" },
-                    { label: "Risk", value: "Conversion friction" },
-                    { label: "CX", value: "Audit-ready narrative" },
-                    { label: "Focus", value: "Leadership review" },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      className="rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--card)] p-5"
-                    >
-                      <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted)]">{item.label}</p>
-                      <p className="mt-3 text-base font-semibold text-[color:var(--foreground)]">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="relative flex justify-center lg:justify-end">
+            <div className="relative w-full max-w-[720px]">
+              <Image
+                src={frame14}
+                alt="UX audit dashboard illustration"
+                priority
+                className="h-auto w-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
 
-              <div className="grid gap-4 rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)]/80 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Snapshot</p>
-                    <p className="mt-3 text-lg font-semibold text-[color:var(--foreground)]">Critical issues in one view</p>
-                  </div>
-                  <span className="inline-flex rounded-full bg-[color:var(--accent)] px-3 py-1 text-xs font-semibold text-[color:var(--accent-foreground)]">Top priority</span>
+        <div className="mt-12 pt-8" data-reveal>
+          <div className="overflow-hidden">
+            <div className="tickerTrack flex w-max items-center gap-14">
+              {[...logos, ...logos].map((logo, index) => (
+                <div
+                  key={`${logo.alt}-${index}`}
+                  className="flex min-w-[180px] items-center justify-center opacity-90"
+                >
+                  <Image
+                    src={logo.src}
+                    alt={logo.alt}
+                    className="h-10 w-auto object-contain sm:h-11"
+                  />
                 </div>
-                <div className="grid gap-3 text-sm leading-7 text-[color:var(--muted-foreground)]">
-                  <p>Contact form validation and submission feedback are the biggest conversion blockers.</p>
-                  <p>Interactive audit preview with large score cues, vivid insights, and clear next-step direction.</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>

@@ -17,7 +17,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { email?: string; name?: string; password?: string } | null;
+    const body = (await req.json()) as {
+      email?: string;
+      name?: string;
+      password?: string;
+    } | null;
     const email = typeof body?.email === "string" ? body.email.trim() : "";
     const name = typeof body?.name === "string" ? body.name.trim() : "";
     const password = typeof body?.password === "string" ? body.password : "";

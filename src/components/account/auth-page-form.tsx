@@ -16,6 +16,17 @@ type AuthPageFormProps = {
   mode: "sign-in" | "sign-up";
 };
 
+function normalizePlan(value: string | null) {
+  return value === "paid" || value === "free" ? value : null;
+}
+
+function normalizeReportLimit(value: string | null) {
+  if (!value) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(1, Math.floor(parsed));
+}
+
 function normalizeReturnTo(value: string | null) {
   if (!value || !value.trim()) return "/audit";
   if (!value.startsWith("/")) return "/audit";
@@ -35,6 +46,14 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
 
   const returnTo = useMemo(
     () => normalizeReturnTo(searchParams.get("returnTo")),
+    [searchParams],
+  );
+  const selectedPlan = useMemo(
+    () => normalizePlan(searchParams.get("plan")),
+    [searchParams],
+  );
+  const selectedReportLimit = useMemo(
+    () => normalizeReportLimit(searchParams.get("reportLimit")),
     [searchParams],
   );
 
@@ -60,7 +79,13 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
 
     try {
       const next = isSignUp
-        ? await signUpWithPassword({ email, name, password })
+        ? await signUpWithPassword({
+            email,
+            name,
+            password,
+            plan: selectedPlan,
+            reportLimit: selectedReportLimit,
+          })
         : await signInWithPassword({ email, password });
       setSession(next);
       router.replace(returnTo);
@@ -88,6 +113,13 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
               ? "Create a server-backed account to keep your reports, track free usage, and unlock paid access when your email is added to the allowlist."
               : "Use your work email to restore your account session, reopen saved reports, and continue from where you left off."}
           </p>
+
+          {isSignUp && selectedReportLimit ? (
+            <div className="mt-5 rounded-2xl border border-black/8 bg-[color:var(--cream)]/40 px-4 py-3 text-sm leading-6 text-[color:var(--ink)]">
+              Selected plan: <span className="font-semibold">{selectedReportLimit} reports</span>
+              {selectedPlan === "paid" ? " on the paid plan." : "."} Your account will be capped at this volume after checkout.
+            </div>
+          ) : null}
 
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
             {isSignUp ? (

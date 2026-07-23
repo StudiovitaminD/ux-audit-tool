@@ -65,7 +65,7 @@ export function AuditAccessPanel() {
               ? "Sign in to activate a plan"
               : remaining === null
                 ? "Unlimited"
-                : `${remaining} of ${session.reportLimit} free reports left`}
+                : `${remaining} of ${session.reportLimit} reports left`}
           </div>
         </div>
         <div className="rounded-2xl border border-[color:var(--cream-dark)] bg-[color:var(--cream)]/50 p-4">

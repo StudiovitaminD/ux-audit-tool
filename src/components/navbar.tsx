@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createDefaultSession,
   fetchAppSession,
@@ -12,14 +12,13 @@ import {
 
 const navItems = [
   { label: "Features", href: "/#features" },
-  { label: "How it Works", href: "/#how-it-works" },
+  { label: "How It Works", href: "/#how-it-works" },
   { label: "Pricing", href: "/pricing" },
   { label: "Sample Report", href: "/report?demo=1" },
 ];
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuTitleId = useId();
   const [session, setSession] = useState<AppSession>(() => createDefaultSession());
 
   useEffect(() => {
@@ -35,8 +34,8 @@ export function Navbar() {
 
   useEffect(() => {
     if (!menuOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -45,130 +44,124 @@ export function Navbar() {
   async function handleSignOut() {
     const next = await signOutAppSession();
     setSession(next);
+    setMenuOpen(false);
   }
 
+  const isGuest = session.email === "guest@local.test";
+
   return (
-    <header className="nav">
-      <div className="container">
-        <div className="navInner">
-          <Link className="brand" href="/">
-            <span className="wordmark">
-              UX Aud<span className="wordmarkAccent">i</span>t
-            </span>
-          </Link>
+    <header className="relative z-40 w-full bg-[#f6f1e8] px-16 pt-5 text-[#191919]">
+      <div className="mx-auto flex max-w-none items-center justify-between gap-6 rounded-full border border-[#191919]/10 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
+        <Link href="/" className="flex items-center gap-2 text-sm font-bold tracking-[-0.03em] text-[#191919]">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#191919] text-xs font-semibold text-white">
+            UX
+          </span>
+          <span>AI UX Audit</span>
+        </Link>
 
-          <nav className="navLinks" aria-label="Primary">
-            {navItems.map((item) => (
-              <Link key={item.href} href={item.href} className="navLink">
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="navCtas">
-            <Link className="btnSecondary" href="/report">
-              Previous report
+        <nav className="hidden items-center gap-7 text-sm font-medium text-[#4d4d4d] lg:flex">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href} className="transition hover:text-[#191919]">
+              {item.label}
             </Link>
-            {session.email === "guest@local.test" ? (
-              <Link className="btnSecondary" href="/sign-in?returnTo=/audit">
-                Sign In
+          ))}
+        </nav>
+
+        <div className="hidden items-center gap-3 lg:flex">
+          {isGuest ? (
+            <Link
+              href="/sign-in?returnTo=/audit"
+              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
+            >
+              Sign in
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/report"
+                className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
+              >
+                Previous report
               </Link>
-            ) : (
               <button
                 type="button"
-                className="btnSecondary"
                 onClick={handleSignOut}
+                className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
               >
-                {session.email} · Sign Out
+                Sign out
               </button>
-            )}
-            <Link className="btnPrimary" href="/audit">
-              Start Audit <span aria-hidden="true">→</span>
-            </Link>
-            <button
-              type="button"
-              className="hamburger"
-              aria-label="Open menu"
-              aria-expanded={menuOpen}
-              aria-controls="mobile-menu"
-              onClick={() => setMenuOpen(true)}
-            >
-              <svg
-                aria-hidden="true"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <path
-                  d="M4 7h16M4 12h16M4 17h16"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          </div>
+            </>
+          )}
+
+          <Link
+            href="/audit"
+            className="inline-flex items-center rounded-full bg-[#191919] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+          >
+            Start audit <span className="ml-1.5" aria-hidden="true">→</span>
+          </Link>
         </div>
+
+        <button
+          type="button"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((value) => !value)}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#191919]/12 bg-white text-[#191919] lg:hidden"
+        >
+          <span className="text-lg leading-none">{menuOpen ? "×" : "≡"}</span>
+        </button>
       </div>
 
       {menuOpen ? (
-        <div
-          id="mobile-menu"
-          className="menuOverlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={menuTitleId}
-          onClick={() => setMenuOpen(false)}
-        >
-          <div className="menuPanel" onClick={(e) => e.stopPropagation()}>
-            <div className="menuTop">
-              <div id={menuTitleId} className="menuTitle">
-                Menu
-              </div>
-              <button
-                type="button"
-                className="hamburger"
-                aria-label="Close menu"
-                onClick={() => setMenuOpen(false)}
-              >
-                <svg
-                  aria-hidden="true"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <path
-                    d="M6 6l12 12M18 6L6 18"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="menuLinks" aria-label="Mobile primary">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="menuLink"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-            <div className="menuCtas">
+        <div className="mx-auto mt-3 max-w-none rounded-[28px] border border-[#191919]/10 bg-white p-5 shadow-[0_20px_50px_rgba(0,0,0,0.08)] lg:hidden">
+          <div className="flex flex-col gap-4 text-sm font-medium text-[#191919]">
+            {navItems.map((item) => (
               <Link
-                className="btnPrimary"
-                href="/audit"
+                key={item.href}
+                href={item.href}
                 onClick={() => setMenuOpen(false)}
+                className="rounded-2xl border border-[#191919]/8 px-4 py-3"
               >
-                Start Audit <span aria-hidden="true">→</span>
+                {item.label}
               </Link>
-            </div>
+            ))}
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3">
+            {isGuest ? (
+              <Link
+                href="/sign-in?returnTo=/audit"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex justify-center rounded-full border border-[#191919]/12 bg-white px-4 py-3 text-sm font-medium text-[#191919]"
+              >
+                Sign in
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/report"
+                  onClick={() => setMenuOpen(false)}
+                  className="inline-flex justify-center rounded-full border border-[#191919]/12 bg-white px-4 py-3 text-sm font-medium text-[#191919]"
+                >
+                  Previous report
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="inline-flex justify-center rounded-full border border-[#191919]/12 bg-white px-4 py-3 text-sm font-medium text-[#191919]"
+                >
+                  Sign out
+                </button>
+              </>
+            )}
+
+            <Link
+              href="/audit"
+              onClick={() => setMenuOpen(false)}
+              className="inline-flex justify-center rounded-full bg-[#191919] px-5 py-3 text-sm font-semibold text-white"
+            >
+              Start audit <span className="ml-1.5" aria-hidden="true">→</span>
+            </Link>
           </div>
         </div>
       ) : null}

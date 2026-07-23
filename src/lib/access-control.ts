@@ -41,7 +41,7 @@ export function canCreateReport(args: {
   reportLimit?: number;
 }) {
   const { role, reportsUsed, reportLimit = FREE_REPORT_LIMIT } = args;
-  if (role === "paid" || role === "admin") {
+  if (role === "admin") {
     return { allowed: true, remaining: Number.POSITIVE_INFINITY };
   }
 

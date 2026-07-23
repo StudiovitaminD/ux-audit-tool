@@ -1,205 +1,371 @@
-const pillars = [
-  { title: "Delight", score: 77, subtitle: "Experience quality" },
-  { title: "Impact", score: 66, subtitle: "Conversion momentum" },
-  { title: "Accessibility", score: 50, subtitle: "Inclusive reach" },
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+
+const services = [
+  {
+    title: "Search engine optimization",
+    tone: "light",
+    copy: "Improve structure, findability, and content clarity across key pages.",
+  },
+  {
+    title: "Pay-per-click advertising",
+    tone: "lime",
+    copy: "Spot friction in campaign landing journeys and boost conversion quality.",
+  },
+  {
+    title: "Social Media Marketing",
+    tone: "dark",
+    copy: "Review messaging consistency and CTA clarity across acquisition surfaces.",
+  },
+  {
+    title: "Email Marketing",
+    tone: "light",
+    copy: "Strengthen sequence clarity, form capture, and handoff experiences.",
+  },
+  {
+    title: "Content Creation",
+    tone: "lime",
+    copy: "Audit hierarchy, value proposition, and readability of core messaging.",
+  },
+  {
+    title: "Analytics and Tracking",
+    tone: "dark",
+    copy: "Connect UX issues to measurable conversion and engagement outcomes.",
+  },
 ];
 
-const timeline = [
+const caseStudies = [
+  "For a local restaurant, we improved a targeted PPC campaign and surfaced 18% more leads in the first month after UX fixes.",
+  "For a B2B software company, we reduced funnel drop-off and improved form completion after finding errors in the request journey.",
+  "For a national retail chain, we created a social-media-to-landing experience that improved engaged sessions and discovery.",
+];
+
+const processSteps = [
   {
-    label: "Week 1-2",
-    headline: "Immediate quick wins",
-    details: [
-      "Inline validation and form feedback",
-      "Critical CTA clarity and button states",
-    ],
+    title: "Consultation",
+    body: "We collect your product context, audit goals, audience, and available evidence. This keeps the report aligned with the real business need rather than generic UX feedback.",
   },
   {
-    label: "Month 1",
-    headline: "Conversion and trust",
-    details: [
-      "Navigation refinement and microcopy",
-      "High-impact accessibility fixes",
-    ],
+    title: "Research and Strategy Development",
+    body: "We review captured pages, competitive patterns, and journey expectations to frame what matters most for conversion, clarity, and trust.",
   },
   {
-    label: "Quarter 1",
-    headline: "Strategic experience lift",
-    details: [
-      "Roadmap alignment with product goals",
-      "Stakeholder-ready report storytelling",
-    ],
+    title: "Implementation",
+    body: "The audit engine scores bucket questions, builds findings, and assembles section-level summaries and exportable reports.",
+  },
+  {
+    title: "Monitoring and Optimization",
+    body: "We surface high-priority fixes, quick wins, and medium-term opportunities so product teams can sequence improvements logically.",
+  },
+  {
+    title: "Reporting and Communication",
+    body: "Executive summaries, narrative summaries, and bucket-level answers make the output easy to share across founders, product, and design teams.",
+  },
+  {
+    title: "Continual Improvement",
+    body: "As you capture better evidence and revisit the product, the reporting system supports iterative re-audits and stronger decision-making.",
   },
 ];
 
-const competitors = [
-  {
-    name: "Primary site",
-    score: "67",
-    focus: "Own UX experience",
-    badge: "Baseline",
-  },
-  {
-    name: "Competitor A",
-    score: "74",
-    focus: "Conversion clarity",
-    badge: "Faster discovery",
-  },
-  {
-    name: "Competitor B",
-    score: "58",
-    focus: "Accessibility gaps",
-    badge: "Ease of use",
-  },
+const team = [
+  { name: "John Smith", role: "CEO and Founder" },
+  { name: "Jane Doe", role: "Director of Operations" },
+  { name: "Michael Brown", role: "Senior SEO Specialist" },
+  { name: "Emily Johnson", role: "PPC Manager" },
+  { name: "Brian Williams", role: "Social Media Specialist" },
+  { name: "Sarah Kim", role: "Content Creator" },
 ];
+
+const testimonials = [
+  "The audit gave us a sharper picture of the journey gaps slowing down demos and contact conversion.",
+  "We used the report to align product, content, and performance marketing around the same improvements.",
+  "The executive summary made it easy to explain UX priorities to non-design stakeholders.",
+];
+
+function toneClasses(tone: "light" | "lime" | "dark") {
+  if (tone === "lime") return "bg-[#c7ff4f] text-[#191919]";
+  if (tone === "dark") return "bg-[#191a23] text-white";
+  return "bg-white text-[#191919]";
+}
 
 export function LandingSections() {
+  const [activeStep, setActiveStep] = useState(0);
+
   return (
-    <div className="relative mx-auto max-w-7xl px-6 pb-28 sm:px-8 lg:px-12">
-      <section className="mb-24 rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--card)]/85 p-8 shadow-[0_40px_120px_rgba(15,23,42,0.10)] backdrop-blur-3xl">
-        <div className="grid gap-8 lg:grid-cols-[1.4fr_0.6fr] lg:items-end">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Trusted by</p>
-            <h2 className="mt-4 text-4xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-5xl">
-              Built for product teams who need a report that feels deliberate and distinct.
-            </h2>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-[color:var(--muted-foreground)]">
-              From audit snapshot to roadmap, every section is designed to look like a product experience, not a feature list.
+    <div className="relative w-full bg-[#f6f1e8] px-16 pb-20 text-[#191919]">
+      <div className="mx-auto max-w-none space-y-20">
+        <section id="features" data-reveal>
+          <div className="mb-8 flex items-center gap-4">
+            <span className="rounded-md bg-[#c7ff4f] px-3 py-1 text-sm font-bold">
+              Services
+            </span>
+            <p className="max-w-[520px] text-sm text-[#555]">
+              Our digital marketing agency style, translated into a premium AI UX audit landing experience.
             </p>
           </div>
-          <div className="grid gap-3 text-sm text-[color:var(--muted)]">
-            <span className="rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3">Acme Inc.</span>
-            <span className="rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3">layer.dev</span>
-            <span className="rounded-full border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3">ShipFast</span>
-          </div>
-        </div>
-      </section>
 
-      <section className="mb-24 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-6">
-          <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Report snapshot</p>
-          <h2 className="text-4xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-5xl">
-            An interactive report preview with clear score signals and premium contrast.
-          </h2>
-          <p className="max-w-2xl text-base leading-8 text-[color:var(--muted-foreground)]">
-            The homepage now feels like the report itself: bold statistics, layered glass panels, and a cinematic visual system for product teams.
-          </p>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div className="glassPanel p-6">
-              <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Overall health</p>
-              <p className="mt-4 text-3xl font-semibold text-[color:var(--foreground)]">Moderate</p>
-              <p className="mt-3 text-sm leading-7 text-[color:var(--muted-foreground)]">Actionable insights prioritize the most impactful improvements first.</p>
-            </div>
-            <div className="glassPanel p-6">
-              <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Conversion risk</p>
-              <p className="mt-4 text-3xl font-semibold text-[color:var(--foreground)]">High</p>
-              <p className="mt-3 text-sm leading-7 text-[color:var(--muted-foreground)]">This report focuses on the experiences that are most likely to affect conversion.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)]/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.12)] backdrop-blur-3xl">
-          <div className="absolute left-6 top-6 h-24 w-24 rounded-full bg-[radial-gradient(circle,_rgba(255,128,95,0.2),transparent_55%)] blur-3xl" />
-          <div className="absolute right-6 bottom-6 h-24 w-24 rounded-full bg-[radial-gradient(circle,_rgba(96,165,250,0.22),transparent_55%)] blur-3xl" />
-          <div className="relative rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--card)] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-            <div className="grid gap-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Interactive preview</p>
-                  <p className="mt-2 text-2xl font-semibold text-[color:var(--foreground)]">UX score board</p>
-                </div>
-                <span className="rounded-full bg-[color:var(--accent)] px-3 py-1 text-xs font-semibold text-[color:var(--accent-foreground)]">Live</span>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-[1.5rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
-                  <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Score</p>
-                  <p className="mt-3 text-5xl font-semibold text-[color:var(--foreground)]">67</p>
-                  <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">A bold experience metric for stakeholder reporting.</p>
-                </div>
-                <div className="rounded-[1.5rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
-                  <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Snapshot</p>
-                  <p className="mt-3 text-sm leading-7 text-[color:var(--muted-foreground)]">
-                    Critical form validation and UX clarity issues are surfaced immediately in the report preview.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mb-24">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {pillars.map((pillar) => (
-            <div
-              key={pillar.title}
-              className="group relative overflow-hidden rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--card)] p-8 shadow-[0_30px_90px_rgba(15,23,42,0.1)] transition hover:-translate-y-1 hover:shadow-[0_30px_120px_rgba(15,23,42,0.14)]"
-            >
-              <div className="absolute right-6 top-6 h-24 w-24 rounded-full bg-[radial-gradient(circle,_rgba(255,128,95,0.12),transparent_55%)] blur-3xl" />
-              <div className="relative z-10">
-                <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">{pillar.title}</p>
-                <p className="mt-5 text-3xl font-semibold text-[color:var(--foreground)]">{pillar.score}</p>
-                <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">{pillar.subtitle}</p>
-                <div className="mt-6 h-3 rounded-full bg-[color:var(--surface)]">
-                  <div className="h-full rounded-full bg-[color:var(--accent)]" style={{ width: `${pillar.score}%` }} />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mb-24 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="glassPanel p-8">
-          <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Roadmap</p>
-          <h2 className="mt-4 text-4xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-5xl">
-            A timeline that feels like a modern strategy experience.
-          </h2>
-          <div className="mt-8 space-y-8">
-            {timeline.map((item) => (
-              <div key={item.label} className="relative pl-10">
-                <div className="absolute left-0 top-3 h-4 w-4 rounded-full bg-[color:var(--accent)] ring-4 ring-[color:var(--surface)]" />
-                <p className="text-sm uppercase tracking-[0.35em] text-[color:var(--muted)]">{item.label}</p>
-                <p className="mt-3 text-xl font-semibold text-[color:var(--foreground)]">{item.headline}</p>
-                <ul className="mt-4 space-y-2 text-sm leading-7 text-[color:var(--muted-foreground)]">
-                  {item.details.map((detail) => (
-                    <li key={detail} className="flex gap-3">
-                      <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[color:var(--accent)]" />
-                      <span>{detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--card)] p-8 shadow-[0_30px_90px_rgba(15,23,42,0.1)]">
-            <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--muted)]">Report preview</p>
-            <h3 className="mt-4 text-2xl font-semibold text-[color:var(--foreground)]">Roadmap and risk in a single view</h3>
-            <p className="mt-4 text-sm leading-7 text-[color:var(--muted-foreground)]">
-              Show clients exactly what to act on next, with a visual progression from quick wins to strategic investment.
-            </p>
-          </div>
-          <div className="grid gap-5">
-            {competitors.map((competitor) => (
-              <div key={competitor.name} className="rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-                <div className="flex items-center justify-between gap-4">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {services.map((service) => (
+              <article
+                key={service.title}
+                className={`rounded-[28px] border border-[#191919] p-6 shadow-[0_8px_0_rgba(25,25,25,0.08)] ${toneClasses(service.tone as "light" | "lime" | "dark")}`}
+              >
+                <div className="flex min-h-[190px] flex-col justify-between">
                   <div>
-                    <p className="text-sm uppercase tracking-[0.35em] text-[color:var(--muted)]">{competitor.name}</p>
-                    <p className="mt-3 text-xl font-semibold text-[color:var(--foreground)]">{competitor.focus}</p>
+                    <h3 className="max-w-[14ch] rounded-md bg-white/90 px-2 py-1 text-[1.55rem] font-semibold leading-[1.05] tracking-[-0.04em] text-[#191919]">
+                      {service.title}
+                    </h3>
+                    <p
+                      className={`mt-5 max-w-[30ch] text-sm leading-6 ${service.tone === "dark" ? "text-white/75" : "text-[#4d4d4d]"}`}
+                    >
+                      {service.copy}
+                    </p>
                   </div>
-                  <span className="rounded-full bg-[color:var(--accent)] px-3 py-1 text-xs font-semibold text-[color:var(--accent-foreground)]">{competitor.badge}</span>
+                  <div className="mt-8 flex items-center justify-between">
+                    <span className="inline-flex items-center gap-2 text-sm font-medium">
+                      <span className={`inline-block h-3 w-3 rounded-full ${service.tone === "dark" ? "bg-[#c7ff4f]" : "bg-[#191919]"}`} />
+                      Learn more
+                    </span>
+                    <span className="text-3xl opacity-55">✦</span>
+                  </div>
                 </div>
-                <div className="mt-5 flex items-center justify-between gap-6">
-                  <span className="text-5xl font-semibold text-[color:var(--foreground)]">{competitor.score}</span>
-                  <p className="text-sm text-[color:var(--muted-foreground)]">Score guide for comparison and positioning.</p>
-                </div>
-              </div>
+              </article>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section data-reveal>
+          <div className="grid gap-8 rounded-[34px] bg-[#ece8df] px-6 py-8 md:grid-cols-[1fr_0.45fr] md:px-10">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#6f6f6f]">
+                Let&apos;s make things happen
+              </p>
+              <h2 className="mt-3 text-[2rem] font-semibold tracking-[-0.05em] sm:text-[2.6rem]">
+                Turn your website into a clearer, faster, more convincing experience.
+              </h2>
+              <p className="mt-4 max-w-[54ch] text-[15px] leading-7 text-[#555]">
+                Contact us today to learn how our AI-assisted digital marketing and
+                UX audit platform can help your business grow and succeed online.
+              </p>
+              <Link
+                href="/audit"
+                className="mt-6 inline-flex rounded-xl bg-[#191a23] px-5 py-3 text-sm font-semibold text-white"
+              >
+                Get your audit proposal
+              </Link>
+            </div>
+            <div className="relative min-h-[220px]">
+              <div className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#191919]/15" />
+              <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#191a23]" />
+              <div className="absolute left-1/2 top-1/2 h-7 w-7 -translate-x-[22px] -translate-y-[12px] rounded-full bg-white" />
+              <div className="absolute left-1/2 top-1/2 h-7 w-7 translate-x-[2px] -translate-y-[12px] rounded-full bg-white" />
+              <div className="absolute bottom-4 left-8 text-5xl text-[#c7ff4f]">✦</div>
+            </div>
+          </div>
+        </section>
+
+        <section data-reveal>
+          <div className="mb-8 flex items-center gap-4">
+            <span className="rounded-md bg-[#c7ff4f] px-3 py-1 text-sm font-bold">
+              Case Studies
+            </span>
+            <p className="text-sm text-[#555]">
+              Explore real-life examples of our approach to UX and growth.
+            </p>
+          </div>
+          <div className="grid gap-5 lg:grid-cols-3">
+            {caseStudies.map((item, index) => (
+              <article
+                key={index}
+                className="rounded-[28px] bg-[#191a23] p-6 text-white shadow-[0_12px_40px_rgba(0,0,0,0.12)]"
+              >
+                <p className="text-sm leading-7 text-white/78">{item}</p>
+                <div className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#c7ff4f]">
+                  Learn more <span aria-hidden="true">→</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="how-it-works" data-reveal>
+          <div className="mb-8 flex items-center gap-4">
+            <span className="rounded-md bg-[#c7ff4f] px-3 py-1 text-sm font-bold">
+              Our Working Process
+            </span>
+            <p className="text-sm text-[#555]">
+              Step-by-step guidance to achieving your business goals.
+            </p>
+          </div>
+          <div className="space-y-4">
+            {processSteps.map((step, index) => {
+              const active = index === activeStep;
+              return (
+                <button
+                  key={step.title}
+                  type="button"
+                  onClick={() => setActiveStep(index)}
+                  className={`block w-full rounded-[24px] border border-[#191919] px-6 py-5 text-left shadow-[0_6px_0_rgba(25,25,25,0.06)] transition ${
+                    active ? "bg-[#c7ff4f]" : "bg-white hover:bg-[#f2f2f2]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="flex gap-4">
+                      <span className="min-w-[46px] text-[2rem] font-semibold tracking-[-0.04em]">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <div>
+                        <h3 className="text-[1.2rem] font-semibold tracking-[-0.03em]">
+                          {step.title}
+                        </h3>
+                        {active ? (
+                          <p className="mt-4 max-w-[80ch] text-sm leading-7 text-[#3f3f3f]">
+                            {step.body}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <span className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#191919]/25 bg-white text-xl">
+                      {active ? "−" : "+"}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section data-reveal>
+          <div className="mb-8 flex items-center gap-4">
+            <span className="rounded-md bg-[#c7ff4f] px-3 py-1 text-sm font-bold">
+              Team
+            </span>
+            <p className="text-sm text-[#555]">
+              Meet the skilled and experienced team behind successful audit strategy.
+            </p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {team.map((member) => (
+              <article
+                key={member.name}
+                className="rounded-[28px] border border-[#191919] bg-white p-5 shadow-[0_8px_0_rgba(25,25,25,0.06)]"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#c7ff4f] text-2xl">
+                    ✳
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">{member.name}</h3>
+                    <p className="text-sm text-[#5b5b5b]">{member.role}</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-[#555]">
+                  Expert review across UX, conversion, content, and customer
+                  journey clarity.
+                </p>
+              </article>
+            ))}
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Link
+              href="/sign-in"
+              className="inline-flex rounded-xl bg-[#191a23] px-5 py-3 text-sm font-semibold text-white"
+            >
+              See all team
+            </Link>
+          </div>
+        </section>
+
+        <section data-reveal>
+          <div className="mb-8 flex items-center gap-4">
+            <span className="rounded-md bg-[#c7ff4f] px-3 py-1 text-sm font-bold">
+              Testimonials
+            </span>
+            <p className="text-sm text-[#555]">
+              Hear from teams who used our UX audits to improve decision-making.
+            </p>
+          </div>
+          <div className="rounded-[34px] bg-[#191a23] px-6 py-8 text-white md:px-10">
+            <div className="grid gap-6 lg:grid-cols-3">
+              {testimonials.map((item, index) => (
+                <article
+                  key={index}
+                  className="rounded-[22px] border border-white/14 p-5"
+                >
+                  <p className="text-sm leading-7 text-white/78">{item}</p>
+                  <div className="mt-5 text-sm font-semibold text-[#c7ff4f]">
+                    John Smith
+                  </div>
+                  <div className="text-xs uppercase tracking-[0.1em] text-white/50">
+                    Marketing Director at XYZ Corp
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="docs" data-reveal>
+          <div className="mb-8 flex items-center gap-4">
+            <span className="rounded-md bg-[#c7ff4f] px-3 py-1 text-sm font-bold">
+              Contact Us
+            </span>
+            <p className="text-sm text-[#555]">
+              Connect with us. Let&apos;s discuss your digital marketing needs.
+            </p>
+          </div>
+          <div className="grid gap-8 rounded-[34px] bg-[#efebe4] px-6 py-8 md:grid-cols-[0.85fr_0.55fr] md:px-10">
+            <form className="space-y-4">
+              <div className="flex gap-6 text-sm font-medium text-[#333]">
+                <label className="flex items-center gap-2">
+                  <input type="radio" defaultChecked name="contactType" />
+                  Say Hi
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="contactType" />
+                  Get a Quote
+                </label>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Name</label>
+                <input
+                  className="w-full rounded-xl border border-[#191919]/15 bg-white px-4 py-3 outline-none"
+                  placeholder="Name"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Email*</label>
+                <input
+                  className="w-full rounded-xl border border-[#191919]/15 bg-white px-4 py-3 outline-none"
+                  placeholder="Email"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Message*</label>
+                <textarea
+                  rows={5}
+                  className="w-full rounded-xl border border-[#191919]/15 bg-white px-4 py-3 outline-none"
+                  placeholder="Message"
+                />
+              </div>
+              <button
+                type="button"
+                className="inline-flex rounded-xl bg-[#191a23] px-6 py-3 text-sm font-semibold text-white"
+              >
+                Send Message
+              </button>
+            </form>
+
+            <div className="relative min-h-[320px] overflow-hidden rounded-[28px] bg-white">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_27%,rgba(25,26,35,0.08)_28%,transparent_29%),repeating-conic-gradient(from_0deg,rgba(25,26,35,0.18)_0deg,rgba(25,26,35,0.18)_2deg,transparent_2deg,transparent_10deg)] opacity-70" />
+              <div className="absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-[#191a23]" />
+              <div className="absolute bottom-10 left-10 text-5xl text-[#c7ff4f]">✦</div>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

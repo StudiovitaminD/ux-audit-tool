@@ -118,7 +118,11 @@ async function createSessionForUser(args: { userId: string; email: string }) {
   };
 }
 
-export async function signUpAccount(params: { email: string; name: string; password: string }) {
+export async function signUpAccount(params: {
+  email: string;
+  name: string;
+  password: string;
+}) {
   const email = normalizeEmail(params.email);
   const name = params.name.trim() || email.split("@")[0] || "User";
   const db = getAdminFirestore();
@@ -154,6 +158,36 @@ export async function signUpAccount(params: { email: string; name: string; passw
   });
 
   return createSessionForUser({ userId, email });
+}
+
+export async function promoteAccountToPaid(params: {
+  userId: string;
+  reportLimit: number;
+  source?: string;
+}) {
+  const db = getAdminFirestore();
+  const ref = db.collection(USER_COLLECTION).doc(params.userId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new Error("Account not found.");
+  }
+
+  const current = (snap.data() ?? {}) as Record<string, unknown>;
+  const reportLimit = Math.max(1, Math.floor(params.reportLimit));
+  await ref.set(
+      {
+        role: (typeof current.role === "string" && current.role === "admin" ? current.role : "paid"),
+        plan: "paid",
+        reportLimit,
+        updatedAt: new Date().toISOString(),
+        paymentSource: params.source ?? "razorpay",
+        paidAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+
+  const updated = await ref.get();
+  return sessionFromUserRecord(params.userId, (updated.data() ?? {}) as Record<string, unknown>);
 }
 
 export async function signInAccount(params: { email: string; password: string }) {
@@ -226,7 +260,7 @@ export async function incrementServerSideReportUsage(userId: string) {
     if (!snap.exists) return;
     const rec = (snap.data() ?? {}) as Record<string, unknown>;
     const role = (typeof rec.role === "string" ? rec.role : "free") as AppRole;
-    if (role !== "free") return;
+    if (role === "admin") return;
     const reportsUsed = typeof rec.reportsUsed === "number" ? rec.reportsUsed : 0;
     tx.set(
       ref,

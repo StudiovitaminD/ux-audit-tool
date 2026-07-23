@@ -76,7 +76,13 @@ export async function fetchAppSession() {
   return fallback;
 }
 
-export async function signUpWithPassword(input: { email: string; name: string; password: string }) {
+export async function signUpWithPassword(input: {
+  email: string;
+  name: string;
+  password: string;
+  plan?: "free" | "paid" | null;
+  reportLimit?: number | null;
+}) {
   const response = await fetch("/api/account/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -129,9 +135,9 @@ export function writeAppSession(session: AppSession) {
 
 export function incrementReportUsage(session: AppSession) {
   const next =
-    session.role === "free"
-      ? { ...session, reportsUsed: session.reportsUsed + 1 }
-      : session;
+    session.role === "admin"
+      ? session
+      : { ...session, reportsUsed: session.reportsUsed + 1 };
   writeAppSession(next);
   return next;
 }
@@ -167,6 +173,6 @@ export function auditUserAccessFromSession(session: AppSession) {
 }
 
 export function reportsRemaining(session: AppSession) {
-  if (session.role === "paid" || session.role === "admin") return null;
+  if (session.role === "admin") return null;
   return Math.max(0, session.reportLimit - session.reportsUsed);
 }

@@ -1,12 +1,18 @@
+"use client";
+
 import { PropsWithChildren } from "react";
+import { usePathname } from "next/navigation";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 
 export function AppShell({ children }: PropsWithChildren) {
+  const pathname = usePathname();
+  const mainClassName = pathname === "/" ? "w-full p-0" : "mainContent";
+
   return (
     <div className="min-h-dvh">
       <Navbar />
-      <main id="main" className="mainContent">
+      <main id="main" className={mainClassName}>
         {children}
       </main>
       <Footer />

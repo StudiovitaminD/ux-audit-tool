@@ -176,9 +176,9 @@ export async function POST(req: Request) {
       reportsUsed: accountSession.reportsUsed,
       reportLimit: accountSession.reportLimit,
     });
-    if (!usageGate.allowed) {
-      return NextResponse.json(
-        { error: `Free plan includes ${accountSession.reportLimit} reports. Upgrade to unlock more audits.` },
+      if (!usageGate.allowed) {
+        return NextResponse.json(
+        { error: `This plan includes ${accountSession.reportLimit} reports. Upgrade to unlock more audits.` },
         { status: 403 },
       );
     }
@@ -260,7 +260,7 @@ export async function POST(req: Request) {
         },
       });
 
-      if (accountSession?.role === "free") {
+      if (accountSession?.role !== "admin") {
         await incrementServerSideReportUsage(accountSession.id);
       }
     } catch (writeError) {

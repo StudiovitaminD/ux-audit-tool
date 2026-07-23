@@ -134,6 +134,25 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
   .text-balance {
     text-wrap: balance;
   }
+
+  .tickerTrack {
+    animation: ticker 28s linear infinite;
+  }
+
+  @keyframes ticker {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tickerTrack {
+      animation: none;
+    }
+  }
 }
 
 .print-color-adjust {
