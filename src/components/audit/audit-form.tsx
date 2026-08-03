@@ -1510,10 +1510,7 @@ export function AuditForm() {
         {/* UPDATED: Step 1 always renders so the user can start immediately */}
         {activeStep === 1 ? (
           <Card className="p-5">
-            <CardHeader
-              title="Audit Details"
-              description="Product type, product name, platform + audit focus."
-            />
+            <CardHeader title="Audit Details" />
             <div className="grid gap-4 lg:grid-cols-3">
               <Field label="Product type" error={showErrorsForStep ? validation.productType : undefined}>
                 <Select
@@ -1679,10 +1676,7 @@ export function AuditForm() {
 
         {activeStep === 2 ? (
           <Card className="p-5">
-            <CardHeader
-              title="Audit Buckets"
-              description="Select the areas you want audited."
-            />
+            <CardHeader title="Audit Buckets" />
             <div className="mt-3">
               <BucketPicker
                 value={payload.selectedBuckets}
@@ -1700,8 +1694,7 @@ export function AuditForm() {
           <Card className="p-5">
             <CardHeader
               // UPDATED
-              title="Product details"
-              description="Help the agent understand what the product is and who it’s for."
+              title="Business Details"
             />
             <div className="space-y-4">
               {/* ADDED (SaaS only) */}
@@ -1791,10 +1784,7 @@ export function AuditForm() {
         {/* ADDED: Step 4 is Add User Persona */}
         {activeStep === 4 ? (
           <Card className="p-5">
-            <CardHeader
-              title="Add User Persona"
-              description="Add one or more complete persona cards, then fill in the supporting user details."
-            />
+            <CardHeader title="Add User Persona" />
             <div className="space-y-5">
               <div className="space-y-4">
                 {personaCards.map((persona, index) => (
@@ -1914,10 +1904,7 @@ export function AuditForm() {
         {/* UPDATED: Step 5 is Business competitors */}
         {activeStep === 5 ? (
           <Card className="p-5">
-            <CardHeader
-              title="Business competitors"
-              description="Add competitor names, URLs, and the comparison lens for each row."
-            />
+            <CardHeader title="Business competitors" />
             <div className="space-y-5">
               {payload.businessCompetitors.map((c, idx) => (
                 <div
@@ -2025,14 +2012,7 @@ export function AuditForm() {
         {/* UPDATED: Step 6 is Product URL + credentials */}
         {activeStep === 6 ? (
           <Card className="p-5">
-            <CardHeader
-              title="Product Access Details"
-              description={
-                isPublicAuditType(primaryType)
-                  ? "Add the product URL and upload screenshots. Critical-flow video is optional."
-                  : "The live URL the AI agent will open and navigate. If the product requires a login, provide credentials."
-              }
-            />
+            <CardHeader title="Product Access Details" />
             <div className="space-y-4">
               <Field
                 label="Product URL"
