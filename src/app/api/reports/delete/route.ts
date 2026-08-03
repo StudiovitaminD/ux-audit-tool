@@ -2,10 +2,15 @@ import {
   collectCloudinaryPublicIds,
   destroyCloudinaryAsset,
 } from "@/lib/cloudinary-cleanup";
+import { getAccountSessionFromRequest } from "@/lib/account-server";
 import { resolveReportSnapshot } from "@/lib/report-record";
 
 export async function POST(req: Request) {
   try {
+    const accountSession = await getAccountSessionFromRequest(req);
+    if (!accountSession) {
+      return Response.json({ error: "Please sign in first." }, { status: 401 });
+    }
     const body = (await req.json().catch(() => null)) as unknown | null;
     const requestPayload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
     const ids = Array.isArray(requestPayload.ids)
@@ -31,6 +36,13 @@ export async function POST(req: Request) {
         }
 
         const data = snapshot.data() ?? {};
+        const ownerMatches =
+          accountSession.role === "admin" ||
+          typeof data.created_by === "string" && data.created_by === accountSession.id ||
+          typeof data.user_email === "string" && data.user_email.toLowerCase() === accountSession.email.toLowerCase();
+        if (!ownerMatches) {
+          return { id, ok: false, error: "You do not have access to delete this report." };
+        }
         const publicIds = Array.from(new Set(collectCloudinaryPublicIds(data)));
         const assetErrors: string[] = [];
 

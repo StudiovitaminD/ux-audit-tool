@@ -144,18 +144,17 @@ const PILLAR_MAP: Record<string, string> = {
   "Content & UX Writing": "Delight",
   "Visual Hierarchy & Layout": "Delight",
   "Accessibility & Inclusivity": "Accessibility",
-  "Input, Errors & Validation": "Impact",
-  "Feedback & System States": "Impact",
+  "Input, Errors & Validation": "Accessibility",
+  "Feedback & System States": "Accessibility",
   "Consistency & UI Patterns": "Impact",
-  "Product Optimisation": "Impact",
+  "code optimisation": "Impact",
 };
 
 function getHealth(score: number) {
-  if (score >= 85) return { label: "Excellent", risk: "Optimised", priority: "P4" };
-  if (score >= 70) return { label: "Good", risk: "Low Risk", priority: "P3" };
-  if (score >= 55) return { label: "Moderate", risk: "Moderate", priority: "P2" };
-  if (score >= 40) return { label: "Poor", risk: "High", priority: "P1" };
-  return { label: "Critical", risk: "Critical", priority: "P1" };
+  if (score >= 85) return { label: "Exceptional", risk: "Optimised", priority: "P4" };
+  if (score >= 75) return { label: "Good", risk: "Low Risk", priority: "P3" };
+  if (score >= 50) return { label: "Average", risk: "Moderate", priority: "P2" };
+  return { label: "Needs Immediate Improvement", risk: "Critical", priority: "P1" };
 }
 
 function productTypeLabel(type: Intake["product_type"]) {
@@ -210,7 +209,7 @@ function bucketSpecificGuidance(bucket: string) {
     "Consistency & UI Patterns": [
       "Prefer evidence from repeated buttons, repeated labels, repeated tabs, and terminology consistency across pages.",
     ],
-    "Product Optimisation": [
+    "code optimisation": [
       "Use structural evidence for semantic-quality judgments and reserve mark 3 for runtime metrics that are not directly measurable from capture.",
     ],
   };
@@ -347,7 +346,11 @@ function summarizeEvidenceForBucket(evidence: EvidenceBundle | null, bucket: str
         if (page.buttons?.length) parts.push(`Buttons: ${takeTop(page.buttons, 5).join(" | ")}`);
       }
 
-      if (bucket === "Accessibility & Inclusivity" || bucket === "Input, Errors & Validation") {
+      if (
+        bucket === "Accessibility & Inclusivity" ||
+        bucket === "Input, Errors & Validation" ||
+        bucket === "Feedback & System States"
+      ) {
         if (page.formLabels?.length) parts.push(`Form labels: ${takeTop(page.formLabels, 5).join(" | ")}`);
         if (page.placeholders?.length) parts.push(`Placeholders: ${takeTop(page.placeholders, 4).join(" | ")}`);
       }
@@ -357,7 +360,7 @@ function summarizeEvidenceForBucket(evidence: EvidenceBundle | null, bucket: str
         if (page.emptyStateHints?.length) parts.push(`Empty-state text: ${takeTop(page.emptyStateHints, 4).join(" | ")}`);
       }
 
-      if (bucket === "Consistency & UI Patterns" || bucket === "Product Optimisation") {
+      if (bucket === "Consistency & UI Patterns" || bucket === "code optimisation") {
         if (page.tableHeaders?.length) parts.push(`Table headers: ${takeTop(page.tableHeaders, 5).join(" | ")}`);
         if (page.buttons?.length) parts.push(`Buttons: ${takeTop(page.buttons, 4).join(" | ")}`);
       }
@@ -1159,6 +1162,7 @@ async function writeNarrative(args: {
   evidence: EvidenceBundle | null;
   bucket_results: BucketResult[];
   overall_score: number;
+  modelOverride?: string;
 }) {
   const compactBuckets = args.bucket_results.map((b) => ({
     bucket: b.bucket_name,
@@ -1179,7 +1183,7 @@ async function writeNarrative(args: {
     '{ "executive_summary": {"one_line_verdict":"...","strongest_area":"...","main_issue":"...","top_problems":["..."],"whats_working":["..."],"first_priority":["..."],"top_3_quick_wins":["..."],"first_priority_recommendation":"..."}, "overall_assessment": "...", "top_risks": ["..."], "quick_wins": [{"title":"...","why":"...","effort":"S|M|L","impact":"Low|Med|High"}], "recommendations": [{"title":"...","details":"...","priority":"P1|P2|P3|P4","effort":"S|M|L","impact":"Low|Med|High"}], "strategic_insights": ["..."], "per_bucket_notes": [{"bucket":"...","summary":"...","biggest_risk":"...","best_opportunity":"..."}], "section_narrative": {"delight_narrative":["..."],"impact_narrative":["..."],"accessibility_narrative":["..."]}, "competitor_analysis": {"competitors":[{"name":"...","url":"...","compare_focus":"...","positioning":"...","primary_cta":"...","strengths":["..."],"gaps":["..."],"steal_this":["..."]}] } }';
 
   try {
-    const raw = await openRouterChat(prompt);
+    const raw = await openRouterChat(prompt, { modelOverride: args.modelOverride });
     const parsed = safeJsonParse(raw);
     if (parsed && typeof parsed === "object") return parsed as NarrativeReport;
 
@@ -1896,7 +1900,7 @@ function missingEvidenceForQuestion(
       return Array.from(missing);
     }
 
-    if (bucket === "Product Optimisation") {
+    if (bucket === "code optimisation") {
       const missing = new Set<string>();
       if (productType === "marketing_website" && !flags.homepage && !flags.marketing_page) {
         missing.add("marketing_page");
@@ -1932,20 +1936,15 @@ function missingEvidenceForQuestion(
     } else if (bucket === "Content & UX Writing" || bucket === "Visual Hierarchy & Layout") {
       required.add("homepage");
       required.add("marketing_page");
-    } else if (bucket === "Accessibility & Inclusivity") {
+    } else if (bucket === "Accessibility & Inclusivity" || bucket === "Input, Errors & Validation" || bucket === "Feedback & System States") {
       required.add("marketing_page");
       if (["A02", "A03"].includes(questionId)) required.add("keyboard_test");
       if (["A05", "A09"].includes(questionId)) required.add("mobile_test");
       if (questionId === "A07") required.add("zoom_test");
-    } else if (bucket === "Input, Errors & Validation") {
-      required.add("marketing_page");
-    } else if (bucket === "Feedback & System States") {
-      required.add("marketing_page");
-      required.add("error_state");
     } else if (bucket === "Consistency & UI Patterns") {
       required.add("marketing_page");
       required.add("expanded_navigation");
-    } else if (bucket === "Product Optimisation") {
+    } else if (bucket === "code optimisation") {
       required.add("marketing_page");
     }
   } else if (productType === "ecommerce") {
@@ -1956,20 +1955,15 @@ function missingEvidenceForQuestion(
     } else if (bucket === "Content & UX Writing" || bucket === "Visual Hierarchy & Layout") {
       required.add("homepage");
       required.add("product_page");
-    } else if (bucket === "Accessibility & Inclusivity") {
+    } else if (bucket === "Accessibility & Inclusivity" || bucket === "Input, Errors & Validation" || bucket === "Feedback & System States") {
       required.add("product_page");
       if (["A02", "A03"].includes(questionId)) required.add("keyboard_test");
       if (["A05", "A09"].includes(questionId)) required.add("mobile_test");
       if (questionId === "A07") required.add("zoom_test");
-    } else if (bucket === "Input, Errors & Validation") {
-      required.add("product_page");
-    } else if (bucket === "Feedback & System States") {
-      required.add("product_page");
-      required.add("error_state");
     } else if (bucket === "Consistency & UI Patterns") {
       required.add("listing_page");
       required.add("expanded_navigation");
-    } else if (bucket === "Product Optimisation") {
+    } else if (bucket === "code optimisation") {
       required.add("homepage");
       required.add("product_page");
     }
@@ -1981,21 +1975,15 @@ function missingEvidenceForQuestion(
     } else if (bucket === "Content & UX Writing" || bucket === "Visual Hierarchy & Layout") {
       required.add("dashboard");
       required.add("internal_product_screen");
-    } else if (bucket === "Accessibility & Inclusivity") {
+    } else if (bucket === "Accessibility & Inclusivity" || bucket === "Input, Errors & Validation" || bucket === "Feedback & System States") {
       required.add("internal_product_screen");
       if (["A02", "A03"].includes(questionId)) required.add("keyboard_test");
       if (["A05", "A09"].includes(questionId)) required.add("mobile_test");
       if (questionId === "A07") required.add("zoom_test");
-    } else if (bucket === "Input, Errors & Validation") {
-      required.add("form_screen");
-      if (["E03", "E04", "E06", "E07", "E08", "E09"].includes(questionId)) required.add("error_state");
-    } else if (bucket === "Feedback & System States") {
-      required.add("internal_product_screen");
-      required.add("error_state");
     } else if (bucket === "Consistency & UI Patterns") {
       required.add("internal_product_screen");
       required.add("expanded_navigation");
-    } else if (bucket === "Product Optimisation") {
+    } else if (bucket === "code optimisation") {
       if (["P01", "P02", "P03", "P08", "P09"].includes(questionId)) {
         required.add("mobile_test");
       }
@@ -2483,6 +2471,7 @@ export async function finalizeAudit(args: {
   intake: Intake;
   evidence: EvidenceBundle | null;
   bucket_results: BucketResult[];
+  modelOverride?: string;
 }) {
   const onlyResults = args.bucket_results;
   const scoredBuckets = onlyResults.filter((bucket) => bucket.bucket_status === "scored");
@@ -2625,6 +2614,7 @@ export async function finalizeAudit(args: {
         evidence: args.evidence,
         bucket_results: onlyResults,
         overall_score: overallScore ?? 0,
+        modelOverride: args.modelOverride,
       }).catch(() => null);
 
   const executiveSummaryFromNarrative =
@@ -2881,6 +2871,11 @@ export async function runAudit(rawBody: unknown) {
   );
 
   const onlyResults = bucketResults.map((b) => b.bucketResult);
-  const report = await finalizeAudit({ intake, evidence, bucket_results: onlyResults });
+  const report = await finalizeAudit({
+    intake,
+    evidence,
+    bucket_results: onlyResults,
+    modelOverride,
+  });
   return { intake, report };
 }

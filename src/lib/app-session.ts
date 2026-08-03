@@ -7,7 +7,9 @@ import {
   type PlanType,
 } from "@/lib/access-control";
 
-const STORAGE_KEY = "ux_audit:app_session_v1";
+export const SESSION_STORAGE_KEY = "ux_audit:app_session_v1";
+export const SESSION_CHANGE_EVENT = "ux-audit:session-changed";
+const LOCAL_ADMIN_EMAILS = new Set(["innovation@vitamin-d.in"]);
 
 export type AppSession = {
   id: string;
@@ -42,7 +44,7 @@ export function readAppSession(): AppSession {
   if (typeof window === "undefined") return createDefaultSession();
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
     if (!raw) {
       const fallback = createDefaultSession();
       writeAppSession(fallback);
@@ -58,7 +60,28 @@ export function readAppSession(): AppSession {
   }
 }
 
-export async function fetchAppSession() {
+export function buildOptimisticAppSession(input: {
+  email: string;
+  name?: string | null;
+  plan?: PlanType | null;
+}) {
+  const email = input.email.trim().toLowerCase();
+  const role = LOCAL_ADMIN_EMAILS.has(email) ? "admin" : "free";
+  const plan = role === "admin" ? "paid" : input.plan ?? "free";
+
+  return createDefaultSession({
+    email,
+    name: input.name?.trim() || undefined,
+    role,
+    plan,
+    reportsUsed: 0,
+    reportLimit: role === "admin" ? Number.POSITIVE_INFINITY : FREE_REPORT_LIMIT,
+  });
+}
+
+export async function fetchAppSession(options?: { expectedStorageValue?: string | null }) {
+  const expectedStorageValue =
+    options && "expectedStorageValue" in options ? options.expectedStorageValue : null;
   const response = await fetch("/api/account/session", {
     method: "GET",
     credentials: "include",
@@ -69,10 +92,34 @@ export async function fetchAppSession() {
     throw new Error("Failed to fetch account session.");
   }
   if (data?.session) {
-    writeAppSession(data.session);
+    if (
+      typeof window !== "undefined" &&
+      (expectedStorageValue === null || window.localStorage.getItem(SESSION_STORAGE_KEY) === expectedStorageValue)
+    ) {
+      writeAppSession(data.session);
+    }
     return createDefaultSession(data.session);
   }
-  const fallback = readAppSession();
+  if (typeof window !== "undefined") {
+    const storedRaw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (storedRaw) {
+      try {
+        const stored = JSON.parse(storedRaw) as Partial<AppSession>;
+        if (stored.email && stored.email !== "guest@local.test") {
+          return createDefaultSession(stored);
+        }
+      } catch {
+        // Ignore malformed cache and fall through to guest fallback.
+      }
+    }
+  }
+  const fallback = createDefaultSession();
+  if (
+    typeof window !== "undefined" &&
+    (expectedStorageValue === null || window.localStorage.getItem(SESSION_STORAGE_KEY) === expectedStorageValue)
+  ) {
+    writeAppSession(fallback);
+  }
   return fallback;
 }
 
@@ -130,7 +177,8 @@ export async function signOutAppSession() {
 
 export function writeAppSession(session: AppSession) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event(SESSION_CHANGE_EVENT));
 }
 
 export function incrementReportUsage(session: AppSession) {

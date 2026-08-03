@@ -1,25 +1,29 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  createDefaultSession,
+  SESSION_CHANGE_EVENT,
+  buildOptimisticAppSession,
   fetchAppSession,
   readAppSession,
+  SESSION_STORAGE_KEY,
+  writeAppSession,
   signOutAppSession,
   type AppSession,
 } from "@/lib/app-session";
 
 const navItems = [
-  { label: "Features", href: "/#features" },
-  { label: "How It Works", href: "/#how-it-works" },
+  { label: "Home", href: "/" },
   { label: "Pricing", href: "/pricing" },
   { label: "Sample Report", href: "/report?demo=1" },
 ];
 
 export function Navbar() {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [session, setSession] = useState<AppSession>(() => createDefaultSession());
+  const [session, setSession] = useState<AppSession>(() => readAppSession());
 
   useEffect(() => {
     document.documentElement.classList.remove("dark");
@@ -28,8 +32,25 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
+    const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
     setSession(readAppSession());
-    void fetchAppSession().then(setSession).catch(() => undefined);
+    void fetchAppSession({ expectedStorageValue: storageSnapshot })
+      .then((next) => {
+        if (window.localStorage.getItem(SESSION_STORAGE_KEY) === storageSnapshot) {
+          setSession(next);
+        }
+      })
+      .catch(() => undefined);
+
+    const syncSession = () => {
+      setSession(readAppSession());
+    };
+    window.addEventListener("storage", syncSession);
+    window.addEventListener(SESSION_CHANGE_EVENT, syncSession);
+    return () => {
+      window.removeEventListener("storage", syncSession);
+      window.removeEventListener(SESSION_CHANGE_EVENT, syncSession);
+    };
   }, []);
 
   useEffect(() => {
@@ -42,25 +63,33 @@ export function Navbar() {
   }, [menuOpen]);
 
   async function handleSignOut() {
-    const next = await signOutAppSession();
+    const next = buildOptimisticAppSession({ email: "guest@local.test" });
     setSession(next);
+    writeAppSession(next);
+    void signOutAppSession().catch(() => undefined);
     setMenuOpen(false);
+    router.replace("/");
+    router.refresh();
   }
 
   const isGuest = session.email === "guest@local.test";
+  const showAdminLink = session.role === "admin";
+  const visibleNavItems = showAdminLink
+    ? [...navItems, { label: "Dashboard", href: "/admin" }]
+    : navItems;
 
   return (
-    <header className="relative z-40 w-full bg-[#f6f1e8] px-16 pt-5 text-[#191919]">
-      <div className="mx-auto flex max-w-none items-center justify-between gap-6 rounded-full border border-[#191919]/10 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
+    <header className="fixed inset-x-0 top-0 z-50 w-full bg-[#f6f1e8] px-16 pt-5 text-[#191919]">
+      <div className="mx-auto flex max-w-none items-center justify-between gap-6 rounded-full border border-[#101010]/10 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
         <Link href="/" className="flex items-center gap-2 text-sm font-bold tracking-[-0.03em] text-[#191919]">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#191919] text-xs font-semibold text-white">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#101010] text-xs font-semibold text-white">
             UX
           </span>
           <span>AI UX Audit</span>
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm font-medium text-[#4d4d4d] lg:flex">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link key={item.href} href={item.href} className="transition hover:text-[#191919]">
               {item.label}
             </Link>
@@ -95,7 +124,7 @@ export function Navbar() {
 
           <Link
             href="/audit"
-            className="inline-flex items-center rounded-full bg-[#191919] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+            className="inline-flex items-center rounded-full bg-[#101010] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5"
           >
             Start audit <span className="ml-1.5" aria-hidden="true">→</span>
           </Link>
@@ -106,16 +135,16 @@ export function Navbar() {
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((value) => !value)}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#191919]/12 bg-white text-[#191919] lg:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#101010]/12 bg-white text-[#101010] lg:hidden"
         >
           <span className="text-lg leading-none">{menuOpen ? "×" : "≡"}</span>
         </button>
       </div>
 
       {menuOpen ? (
-        <div className="mx-auto mt-3 max-w-none rounded-[28px] border border-[#191919]/10 bg-white p-5 shadow-[0_20px_50px_rgba(0,0,0,0.08)] lg:hidden">
-          <div className="flex flex-col gap-4 text-sm font-medium text-[#191919]">
-            {navItems.map((item) => (
+        <div className="mx-auto mt-3 max-w-none rounded-[28px] border border-[#101010]/10 bg-white p-5 shadow-[0_20px_50px_rgba(0,0,0,0.08)] lg:hidden">
+          <div className="flex flex-col gap-4 text-sm font-medium text-[#101010]">
+            {visibleNavItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -154,6 +183,16 @@ export function Navbar() {
                 </button>
               </>
             )}
+
+            {showAdminLink ? (
+              <Link
+                href="/admin"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex justify-center rounded-full border border-[#191919]/12 bg-white px-4 py-3 text-sm font-medium text-[#191919]"
+              >
+                Admin
+              </Link>
+            ) : null}
 
             <Link
               href="/audit"

@@ -8,10 +8,10 @@ const PILLAR_MAP: Record<string, string> = {
   "Content & UX Writing": "Delight",
   "Visual Hierarchy & Layout": "Delight",
   "Accessibility & Inclusivity": "Accessibility",
-  "Input, Errors & Validation": "Impact",
-  "Feedback & System States": "Impact",
+  "Input, Errors & Validation": "Accessibility",
+  "Feedback & System States": "Accessibility",
   "Consistency & UI Patterns": "Impact",
-  "Product Optimisation": "Impact",
+  "code optimisation": "Impact",
 };
 
 function getHealth(score: number) {
@@ -258,14 +258,13 @@ export function aggregateScores(scored: {
   };
 }
 
-export async function writeNarrative(env: WorkerEnv, scored: any) {
+export async function writeNarrative(env: WorkerEnv, scored: any, modelOverride?: string) {
   // Keep it lightweight (mini only). Uses the same shape you used in n8n, but without forcing hallucinated "browsing".
   const systemPrompt =
     "You are a senior UX lead writing a client-ready audit report. Be specific and actionable. Output ONLY valid JSON.";
 
   const prompt = `${systemPrompt}\n\nReturn JSON with keys: executive_summary, section_narrative, findings_detailed, quick_wins_table, roadmap, closing_note.\n\nInput JSON:\n${JSON.stringify(scored).slice(0, 28000)}\n`;
-  const raw = await openRouterChat(env, { prompt });
+  const raw = await openRouterChat(env, { prompt, model: modelOverride });
   const parsed = safeJsonParse(raw);
   return parsed && typeof parsed === "object" ? parsed : {};
 }
-

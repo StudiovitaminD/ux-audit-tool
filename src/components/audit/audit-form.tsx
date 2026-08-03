@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -28,6 +28,7 @@ import {
   createDefaultSession,
   fetchAppSession,
   readAppSession,
+  SESSION_STORAGE_KEY,
   type AppSession,
   writeAppSession,
 } from "@/lib/app-session";
@@ -102,6 +103,94 @@ function sanitizeDraftPayload(value: unknown): AuditPayload {
   };
 }
 
+function createFreshAuditPayload(): AuditPayload {
+  if (typeof structuredClone === "function") {
+    return structuredClone(AUDIT_DEFAULTS);
+  }
+  return JSON.parse(JSON.stringify(AUDIT_DEFAULTS)) as AuditPayload;
+}
+
+type PersonaCard = {
+  primaryUser: string;
+  userAge: string;
+  userGender: string;
+  userLanguage: string;
+  primaryUserIntent: string;
+  userGeography: string;
+  primaryUserGoal: string;
+};
+
+function createEmptyPersonaCard(): PersonaCard {
+  return {
+    primaryUser: "",
+    userAge: "",
+    userGender: "",
+    userLanguage: "",
+    primaryUserIntent: "",
+    userGeography: "",
+    primaryUserGoal: "",
+  };
+}
+
+function serializePersonaCard(card: PersonaCard) {
+  return [
+    `Primary users: ${card.primaryUser}`.trim(),
+    `Age group: ${card.userAge}`.trim(),
+    `User gender: ${card.userGender}`.trim(),
+    `User language: ${card.userLanguage}`.trim(),
+    `User preferred Platform: ${card.primaryUserIntent}`.trim(),
+    `User geography: ${card.userGeography}`.trim(),
+    `User Goal: ${card.primaryUserGoal}`.trim(),
+  ].join("\n");
+}
+
+function parsePersonaCard(value: string): PersonaCard | null {
+  const card = createEmptyPersonaCard();
+  const lines = value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return null;
+
+  for (const line of lines) {
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex < 0) continue;
+    const label = line.slice(0, separatorIndex).trim().toLowerCase();
+    const valueText = line.slice(separatorIndex + 1).trim();
+    if (!valueText) continue;
+    if (label === "primary users") card.primaryUser = valueText;
+    if (label === "age group") card.userAge = valueText;
+    if (label === "user gender") card.userGender = valueText;
+    if (label === "user language") card.userLanguage = valueText;
+    if (label === "user preferred platform") card.primaryUserIntent = valueText;
+    if (label === "user geography") card.userGeography = valueText;
+    if (label === "user goal") card.primaryUserGoal = valueText;
+  }
+
+  return Object.values(card).some((field) => field.trim().length > 0) ? card : null;
+}
+
+function personaCardsFromPayload(payload: AuditPayload): PersonaCard[] {
+  const parsedCards = payload.userPersona
+    .map((entry) => parsePersonaCard(entry))
+    .filter((entry): entry is PersonaCard => entry !== null);
+
+  if (parsedCards.length > 0) return parsedCards;
+
+  return [
+    {
+      primaryUser: payload.primaryUser,
+      userAge: payload.userAge,
+      userGender: payload.userGender,
+      userLanguage: payload.userLanguage,
+      primaryUserIntent: payload.primaryUserIntent,
+      userGeography: payload.userGeography,
+      primaryUserGoal: payload.primaryUserGoal,
+    },
+  ];
+}
+
 const allProductTypes: AuditSelectOption[] = [
   // UPDATED
   { label: "SaaS / Platform", value: "saas" },
@@ -153,9 +242,6 @@ const primaryPlatforms: AuditSelectOption[] = [
   { label: "Desktop", value: "desktop" },
   { label: "Mobile", value: "mobile_web" },
   { label: "Both Desktop + Mobile", value: "desktop_and_mobile_web" },
-  { label: "Android", value: "android" },
-  { label: "iOS", value: "ios" },
-  { label: "Both Android + iOS", value: "android_and_ios" },
 ];
 
 // ADDED
@@ -164,37 +250,6 @@ const frequencyOfUseOptions: AuditSelectOption[] = [
   { label: "A few times a week", value: "weekly" },
   { label: "A few times a month", value: "monthly" },
   { label: "Rarely", value: "rarely" },
-];
-
-const productStages: AuditSelectOption[] = [
-  // UPDATED
-  { label: "Prototype", value: "prototype" },
-  { label: "MVP / Early beta", value: "mvp_early_beta" },
-  { label: "Public launch", value: "public_launch" },
-  { label: "Growth — scaling users", value: "growth_scaling_users" },
-  { label: "Mature product", value: "mature_product" },
-  { label: "Repositioning", value: "repositioning" },
-  { label: "Major redesign", value: "major_redesign" },
-];
-
-// ADDED
-const ecommerceStoreStages: AuditSelectOption[] = [
-  { label: "Just launched", value: "just_launched" },
-  { label: "Established store", value: "established_store" },
-  { label: "Mature brand / high volume", value: "mature_store" },
-  { label: "Rebranding / redesign", value: "rebranding_redesign" },
-  { label: "Scaling to new markets", value: "scaling_new_markets" },
-  { label: "Expanding catalog", value: "expanding_catalog" },
-];
-
-// ADDED
-const websiteStages: AuditSelectOption[] = [
-  { label: "New website", value: "new_website" },
-  { label: "Existing site being redesigned", value: "existing_redesign" },
-  { label: "Mature website", value: "mature_website" }, // UPDATED
-  { label: "Preparing for a campaign", value: "campaign_prep" },
-  { label: "Rebranding", value: "rebranding" },
-  { label: "SEO / content scale-up", value: "seo_content_scale" },
 ];
 
 function isUrlLike(value: string) {
@@ -238,12 +293,20 @@ const accessModeOptions: AuditSelectOption[] = [
   { label: "Use saved session", value: "use_saved_session" },
   { label: "Internal routes only", value: "internal_routes_only" },
   { label: "Screenshot upload only", value: "screenshot_upload_only" },
-  { label: "Browser extension capture", value: "browser_extension_capture" },
+  { label: "Direct audit using URL", value: "browser_extension_capture" },
 ];
 
 function accessModeOptionsFor(
   type: AuditPayload["product"]["type"],
 ): AuditSelectOption[] {
+  if (type === "saas") {
+    return accessModeOptions.filter(
+      (option) =>
+        option.value === "screenshot_upload_only" ||
+        option.value === "browser_extension_capture",
+    );
+  }
+
   if (type === "marketing_website" || type === "ecommerce") {
     return accessModeOptions.filter(
       (option) =>
@@ -285,7 +348,7 @@ export function AuditForm() {
   const searchParams = useSearchParams();
   const sourceReport = searchParams.get("sourceReport");
   const isReauditMode = !!sourceReport;
-  const [payload, setPayload] = useState<AuditPayload>(AUDIT_DEFAULTS);
+  const [payload, setPayload] = useState<AuditPayload>(() => createFreshAuditPayload());
   const [appSession, setAppSession] = useState<AppSession>(() => createDefaultSession());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -303,6 +366,10 @@ export function AuditForm() {
   // ADDED: report creating overlay copy rotation
   const [creatingIdx, setCreatingIdx] = useState(0);
   const [prefillLoading, setPrefillLoading] = useState(false);
+  const [personaCards, setPersonaCards] = useState<PersonaCard[]>(() => [
+    createEmptyPersonaCard(),
+  ]);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   // ADDED
   const primaryType = payload.product.type;
@@ -320,7 +387,7 @@ export function AuditForm() {
   );
   const defaultAccessMode =
     primaryType === "marketing_website" || primaryType === "ecommerce"
-      ? "browser_extension_capture"
+      ? "screenshot_upload_only"
       : "auto_login";
   const accessLabel =
     primaryType === "marketing_website"
@@ -384,8 +451,10 @@ export function AuditForm() {
     writeAppSession(patched);
     setAppSession(patched);
     setPayload((prev) => ({ ...prev, userAccess: auditUserAccessFromSession(patched) }));
-    void fetchAppSession()
+    const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    void fetchAppSession({ expectedStorageValue: storageSnapshot })
       .then((serverSession) => {
+        if (window.localStorage.getItem(SESSION_STORAGE_KEY) !== storageSnapshot) return;
         setAppSession(serverSession);
         setPayload((prev) => ({ ...prev, userAccess: auditUserAccessFromSession(serverSession) }));
       })
@@ -396,7 +465,11 @@ export function AuditForm() {
     if (!payload.product.type) return;
     if (canAccessProductType(appSession.role, payload.product.type)) return;
     const fallbackType = (allowedProductTypes[0] as AuditPayload["product"]["type"]) || "";
-    setError(null);
+    setError(
+      appSession.role === "admin"
+        ? null
+        : "This audit type is not available on your current plan. We’ve switched you to an allowed audit type so you can keep going.",
+    );
     setPayload((p) => ({
       ...p,
       product: { ...p.product, type: fallbackType, context: [] },
@@ -410,7 +483,6 @@ export function AuditForm() {
       productStage: "",
       dynamic_answers: { saas: {}, ecommerce: {}, marketing: {} },
     }));
-    setActiveStep(1);
     setAttemptedSteps([]);
   }, [allowedProductTypes, appSession.role, payload.product.type]);
 
@@ -492,6 +564,54 @@ export function AuditForm() {
         primaryType === "saas" ? prev.internalRoutesText : "",
     }));
   }, [accessOptions, defaultAccessMode, payload.accessMode, primaryType]);
+
+  useEffect(() => {
+    if (!isPublicAuditType(primaryType)) return;
+    if (payload.accessMode === "screenshot_upload_only") return;
+    setPayload((prev) => ({
+      ...prev,
+      accessMode: "screenshot_upload_only",
+      auth: {
+        ...prev.auth,
+        requiresLogin: false,
+        usernameOrEmail: "",
+        password: "",
+      },
+    }));
+  }, [payload.accessMode, primaryType]);
+
+  useEffect(() => {
+    const nextPrimary = personaCards[0] ?? createEmptyPersonaCard();
+    const nextUserPersona = personaCards.map((card) => serializePersonaCard(card));
+
+    setPayload((prev) => {
+      if (
+        prev.primaryUser === nextPrimary.primaryUser &&
+        prev.userAge === nextPrimary.userAge &&
+        prev.userGender === nextPrimary.userGender &&
+        prev.userLanguage === nextPrimary.userLanguage &&
+        prev.primaryUserIntent === nextPrimary.primaryUserIntent &&
+        prev.userGeography === nextPrimary.userGeography &&
+        prev.primaryUserGoal === nextPrimary.primaryUserGoal &&
+        prev.userPersona.length === nextUserPersona.length &&
+        prev.userPersona.every((entry, index) => entry === nextUserPersona[index])
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        primaryUser: nextPrimary.primaryUser,
+        userAge: nextPrimary.userAge,
+        userGender: nextPrimary.userGender,
+        userLanguage: nextPrimary.userLanguage,
+        primaryUserIntent: nextPrimary.primaryUserIntent,
+        userGeography: nextPrimary.userGeography,
+        primaryUserGoal: nextPrimary.primaryUserGoal,
+        userPersona: nextUserPersona,
+      };
+    });
+  }, [personaCards]);
 
   function deepMerge<T>(base: T, patch: unknown): T {
     if (!patch || typeof patch !== "object") return base;
@@ -705,6 +825,7 @@ export function AuditForm() {
       if (!parsed || typeof parsed !== "object") return;
       const sanitized = sanitizeDraftPayload(parsed);
       setPayload(sanitized);
+      setPersonaCards(personaCardsFromPayload(sanitized));
       localStorage.setItem(
         DRAFT_KEY,
         JSON.stringify({ ...sanitized, draftVersion: DRAFT_VERSION }),
@@ -729,6 +850,7 @@ export function AuditForm() {
         if (cancelled) return;
         const nextPayload = prefillAuditPayload(data);
         setPayload(nextPayload);
+        setPersonaCards(personaCardsFromPayload(nextPayload));
         setActiveStep(1);
         setAttemptedSteps([]);
         try {
@@ -772,22 +894,31 @@ export function AuditForm() {
 
   // ADDED
   const steps = useMemo<Step[]>(() => {
-    return [
-      // UPDATED: Product type lives under “Primary audit details”
-      { id: 1, title: "Primary audit details", required: true },
-      // UPDATED
-      { id: 2, title: "Product details", required: true },
+    const baseSteps: Step[] = [
+      // UPDATED: Product type lives under “Audit Details”
+      { id: 1, title: "Audit Details", required: true },
       // ADDED
-      { id: 3, title: "User and business Details", required: true },
-      { id: 4, title: "Product URL + credentials", required: true },
-      { id: 5, title: "Audit flow", required: true },
+      { id: 2, title: "Audit buckets", required: true },
+      // UPDATED
+      { id: 3, title: "Business details", required: true },
+      // ADDED
+      { id: 4, title: "Add User Persona", required: true },
+      { id: 5, title: "Business competitors", required: true },
+      { id: 6, title: "Product Access Details", required: true },
     ];
-  }, []); // UPDATED
+    return primaryType === "saas"
+      ? [...baseSteps, { id: 7, title: "Audit flow", required: true }]
+      : baseSteps;
+  }, [primaryType]); // UPDATED
 
   // ADDED
   const maxStep = steps[steps.length - 1]?.id ?? 1;
   // ADDED
   const showErrorsForStep = attemptedSteps.includes(activeStep);
+
+  useEffect(() => {
+    if (activeStep > maxStep) setActiveStep(maxStep);
+  }, [activeStep, maxStep]);
 
   // ADDED
   const setProductType = useCallback((nextType: AuditPayload["product"]["type"]) => {
@@ -823,8 +954,12 @@ export function AuditForm() {
   // ADDED
   function resetAll() {
     setError(null);
+    setExtractError(null);
+    setTranscriptFileName(null);
+    setCustomAuditGoal("");
+    setPersonaCards([createEmptyPersonaCard()]);
     setPayload({
-      ...AUDIT_DEFAULTS,
+      ...createFreshAuditPayload(),
       userAccess: auditUserAccessFromSession(appSession),
     });
     setActiveStep(1);
@@ -835,6 +970,26 @@ export function AuditForm() {
     } catch {
       // ignore
     }
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "auto" });
+      formRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+    });
+  }
+
+  function updatePersonaCard(index: number, patch: Partial<PersonaCard>) {
+    setPersonaCards((cards) => {
+      const next = [...cards];
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
+  }
+
+  function addPersonaCard() {
+    setPersonaCards((cards) => [...cards, createEmptyPersonaCard()]);
+  }
+
+  function removePersonaCard(index: number) {
+    setPersonaCards((cards) => (cards.length > 1 ? cards.filter((_, itemIdx) => itemIdx !== index) : cards));
   }
 
   // ADDED
@@ -900,7 +1055,7 @@ export function AuditForm() {
     else if (!isUrlLike(payload.productUrl))
       errors.productUrl = "Enter a valid URL (including https://).";
     // ADDED
-    if (payload.artifacts.loomLink && !isUrlLike(payload.artifacts.loomLink)) {
+    if (!isPublicAuditType(primaryType) && payload.artifacts.loomLink && !isUrlLike(payload.artifacts.loomLink)) {
       errors.loomLink = "Enter a valid Loom link (including https://).";
     }
 
@@ -918,20 +1073,11 @@ export function AuditForm() {
       errors.primaryUser = "Primary user is required.";
     if (!payload.primaryUserGoal.trim())
       errors.primaryUserGoal = "Primary user goal is required.";
-    // ADDED (product context required fields)
-    if (!payload.constraints.trim()) errors.constraints = "Product constraints are required.";
     if (!payload.primaryPlatform) errors.primaryPlatform = "Select a primary platform.";
     if (payload.product.type === "saas") {
-      if (!payload.productStage) errors.productStage = "Select a product stage.";
       if (!payload.frequencyOfUse) errors.frequencyOfUse = "Select frequency of use.";
       if (!payload.dynamic_answers.saas.q16_solo_or_collab?.trim())
         errors.saasUsageMode = "Select usage mode.";
-    } else if (payload.product.type === "ecommerce") {
-      if (!payload.dynamic_answers.ecommerce.store_stage?.trim())
-        errors.storeStage = "Select a store stage.";
-    } else if (payload.product.type === "marketing_website") {
-      if (!payload.dynamic_answers.marketing.site_goal?.trim())
-        errors.siteGoal = "Select a website goal.";
     }
     if (!payload.differentiation.trim())
       errors.differentiation = "Product differentiation is required.";
@@ -945,51 +1091,45 @@ export function AuditForm() {
 
     const hasFlow = payload.auditFlowText.trim().length > 0;
     if (!hasFlow) errors.auditFlows = "Add at least one audit flow.";
-    const hasGuidedSteps = payload.guidedCaptureSteps.some(
-      (step) =>
-        step.stepName.trim() ||
-        step.targetText.trim() ||
-        step.targetSelector.trim() ||
-        step.expectedText.trim() ||
-        step.expectedHeading.trim() ||
-        step.expectedUrlContains.trim(),
-    );
-    const hasInternalRoutes = payload.internalRoutesText
-      .split("\n")
-      .some((line) => line.trim().startsWith("/"));
-    if (payload.artifacts.loomLink.trim() && !hasGuidedSteps && !hasInternalRoutes) {
-      errors.guidedCaptureSteps =
-        primaryType === "marketing_website" || primaryType === "ecommerce"
-          ? "Loom video could not be read automatically. Please add manual capture steps or labeled screenshots."
-          : "Loom video could not be read automatically. Please add manual guided capture steps or internal routes.";
-    }
+    if (!isPublicAuditType(primaryType)) {
+      const hasGuidedSteps = payload.guidedCaptureSteps.some(
+        (step) =>
+          step.stepName.trim() ||
+          step.targetText.trim() ||
+          step.targetSelector.trim() ||
+          step.expectedText.trim() ||
+          step.expectedHeading.trim() ||
+          step.expectedUrlContains.trim(),
+      );
+      const hasInternalRoutes = payload.internalRoutesText
+        .split("\n")
+        .some((line) => line.trim().startsWith("/"));
+      if (payload.artifacts.loomLink.trim() && !hasGuidedSteps && !hasInternalRoutes) {
+        errors.guidedCaptureSteps =
+          "Loom video could not be read automatically. Please add manual guided capture steps or internal routes.";
+      }
 
-    if (payload.accessMode === "auto_login" && payload.auth.requiresLogin) {
-      if (!payload.auth.usernameOrEmail.trim()) errors.authUser = "Username or email is required.";
-      if (!payload.auth.password.trim()) errors.authPass = "Password is required.";
-    }
+      if (payload.accessMode === "auto_login" && payload.auth.requiresLogin) {
+        if (!payload.auth.usernameOrEmail.trim()) errors.authUser = "Username or email is required.";
+        if (!payload.auth.password.trim()) errors.authPass = "Password is required.";
+      }
 
-    if (
-      primaryType === "saas" &&
-      payload.accessMode === "internal_routes_only" &&
-      !hasInternalRoutes
-    ) {
-      errors.internalRoutes = "Add at least one internal route for route-based capture.";
-    }
+      if (
+        primaryType === "saas" &&
+        payload.accessMode === "internal_routes_only" &&
+        !hasInternalRoutes
+      ) {
+        errors.internalRoutes = "Add at least one internal route for route-based capture.";
+      }
 
-    if (
-      payload.accessMode === "screenshot_upload_only" &&
-      payload.artifacts.screenshots.length === 0
-    ) {
-      errors.screenshots = "Upload at least one labeled screenshot for screenshot-only audits.";
-    }
-
-    if (
-      payload.accessMode === "browser_extension_capture" &&
-      !isPublicAuditType(primaryType) &&
-      !hasExtensionEvidence(payload)
-    ) {
-      errors.extensionEvidence = "Add at least one extension-captured page, screenshot, or uploaded video before submitting.";
+      if (
+        payload.accessMode === "browser_extension_capture" &&
+        !hasExtensionEvidence(payload)
+      ) {
+        errors.extensionEvidence = "Add at least one extension-captured page, screenshot, or uploaded video before submitting.";
+      }
+    } else if (payload.artifacts.screenshots.length === 0) {
+      errors.screenshots = "Upload at least one screenshot for website and ecommerce audits.";
     }
 
     payload.competitors.forEach((c, idx) => {
@@ -1013,20 +1153,13 @@ export function AuditForm() {
     // UPDATED: step 1 is primary audit details (type + required audit focus)
     if (
       payload.product.type &&
-      payload.auditGoals.length > 0 &&
-      payload.selectedBuckets.length > 0
+      payload.productName.trim() &&
+      payload.primaryPlatform &&
+      payload.auditGoals.length > 0
     )
       done.add(1);
-    // UPDATED: step 2 includes product details
-    const stageOk =
-      payload.product.type === "saas"
-        ? !!payload.productStage
-        : payload.product.type === "ecommerce"
-          ? !!payload.dynamic_answers.ecommerce.store_stage?.trim()
-          : payload.product.type === "marketing_website"
-            ? !!payload.dynamic_answers.marketing.site_goal?.trim()
-            : false;
-
+    // ADDED: step 2 is audit buckets
+    if (payload.selectedBuckets.length > 0) done.add(2);
     const saasExtraOk =
       payload.product.type !== "saas"
         ? true
@@ -1034,29 +1167,38 @@ export function AuditForm() {
           !!payload.dynamic_answers.saas.q16_solo_or_collab?.trim();
 
     if (
-      payload.productName.trim() &&
       payload.productOneLiner.trim() &&
-      payload.constraints.trim() &&
-      payload.primaryPlatform &&
-      stageOk &&
       saasExtraOk &&
       payload.differentiation.trim()
     )
-      done.add(2);
+      done.add(3);
 
-    // ADDED: step 3 is user + business details
-    if (payload.primaryUser.trim() && payload.primaryUserGoal.trim()) done.add(3);
-    // UPDATED: step 4 is url + credentials
-    if (
+    // ADDED: step 4 is user + business details
+    if (payload.primaryUser.trim() && payload.primaryUserGoal.trim()) done.add(4);
+    // UPDATED: step 5 is business competitors
+    const filledBusinessCompetitors = payload.businessCompetitors.filter(
+      (c) => c.name.trim() || c.url.trim() || c.compareFocus.trim(),
+    );
+    const businessCompetitorsOk =
+      filledBusinessCompetitors.length > 0 &&
+      filledBusinessCompetitors.every((c) => !!c.name.trim() && !!c.url.trim() && isUrlLike(c.url));
+    if (businessCompetitorsOk) done.add(5);
+    // UPDATED: step 6 is product access details
+    if (isPublicAuditType(primaryType)) {
+      if (payload.productUrl.trim() && isUrlLike(payload.productUrl) && payload.artifacts.screenshots.length > 0) {
+        done.add(6);
+      }
+    } else if (
       payload.productUrl.trim() &&
       isUrlLike(payload.productUrl) &&
       (payload.accessMode !== "auto_login" ||
         !payload.auth.requiresLogin ||
         (payload.auth.usernameOrEmail.trim() && payload.auth.password.trim()))
-    )
-      done.add(4);
-    // UPDATED: step 5 is audit flow
-    if (payload.auditFlowText.trim()) done.add(5);
+    ) {
+      done.add(6);
+    }
+    // UPDATED: step 7 is audit flow
+    if (payload.auditFlowText.trim()) done.add(7);
     return done;
   }, [payload]);
 
@@ -1101,8 +1243,7 @@ export function AuditForm() {
       .map((s) => s.id)
       .filter((id) => !completion.has(id));
     if (missingRequiredSteps.length > 0) {
-      setActiveStep(missingRequiredSteps[0]);
-      // ADDED: reveal validation on missing steps
+      setError("Please complete the required sections before sending the audit.");
       setAttemptedSteps((prev) => {
         const next = new Set(prev);
         missingRequiredSteps.forEach((id) => next.add(id));
@@ -1180,7 +1321,13 @@ export function AuditForm() {
       const reportId = rec && typeof rec.reportId === "string" ? rec.reportId : null;
       if (!reportId) throw new Error("Missing reportId from server");
       clearLastReport();
-      void fetchAppSession().then(setAppSession).catch(() => undefined);
+      const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
+      void fetchAppSession({ expectedStorageValue: storageSnapshot })
+        .then((next) => {
+          if (window.localStorage.getItem(SESSION_STORAGE_KEY) !== storageSnapshot) return;
+          setAppSession(next);
+        })
+        .catch(() => undefined);
       // UPDATED: async job flow — report is generated in background
       router.push(`/report?rid=${encodeURIComponent(reportId)}`);
     } catch (err) {
@@ -1202,17 +1349,9 @@ export function AuditForm() {
   // ADDED
   const isAllRequiredComplete = firstMissingRequiredStep === null;
 
-  // ADDED
-  const maxAllowedStep = isReauditMode
-    ? maxStep
-    : firstMissingRequiredStep
-      ? firstMissingRequiredStep
-      : maxStep;
-
   function goto(step: number) {
     setError(null);
-    // UPDATED: prevent locked steps from becoming active
-    setActiveStep(Math.min(step, maxAllowedStep));
+    setActiveStep(Math.min(step, maxStep));
   }
 
   function next() {
@@ -1228,7 +1367,7 @@ export function AuditForm() {
       );
       return;
     }
-    setActiveStep((s) => Math.min(maxAllowedStep, s + 1));
+    setActiveStep((s) => Math.min(maxStep, s + 1));
   }
 
   function back() {
@@ -1237,7 +1376,7 @@ export function AuditForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-12">
+    <form ref={formRef} onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-12">
       {prefillLoading ? (
         <div className="lg:col-span-12 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-4 text-sm text-[color:var(--ink-muted)]">
           Prefilling audit form from previous report…
@@ -1286,7 +1425,7 @@ export function AuditForm() {
             Founder Context Intake
           </div>
           <div className="mt-2 text-lg font-semibold tracking-tight">
-            5 steps · ~5 minutes
+            7 steps
           </div>
           <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
             Fill this once. Your agent reads it and runs the audit.
@@ -1308,21 +1447,16 @@ export function AuditForm() {
             {steps.map((s) => {
               const done = completion.has(s.id);
               const active = activeStep === s.id;
-              // UPDATED: lock steps beyond what’s currently allowed
-              const locked = s.id > maxAllowedStep;
               return (
                 <button
                   key={s.id}
                   type="button"
                   onClick={() => goto(s.id)}
-                  // UPDATED: allow step 1 even before product type is selected
-                  disabled={(s.id !== 1 && !primaryType) || locked}
                   className={[
                     "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all border border-transparent",
                     active
                       ? "bg-[color:var(--cream-dark)] dark:bg-[color:var(--white)] border-[color:var(--cream-mid)] text-[color:var(--ink)] shadow-sm font-semibold scale-[1.02]"
                       : "hover:bg-[color:var(--cream-dark)]/50 dark:hover:bg-[color:var(--white)]/50 text-[color:var(--ink-muted)] hover:text-[color:var(--ink)]",
-                    ((s.id !== 1 && !primaryType) || locked) ? "opacity-40 cursor-not-allowed" : "",
                   ].join(" ")}
                 >
                   <div
@@ -1342,11 +1476,6 @@ export function AuditForm() {
                       {stepLabel(s)}
                     </div>
                   </div>
-                  {locked && (
-                    <svg className="w-3.5 h-3.5 text-[color:var(--ink-faint)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  )}
                 </button>
               );
             })}
@@ -1382,37 +1511,75 @@ export function AuditForm() {
         {activeStep === 1 ? (
           <Card className="p-5">
             <CardHeader
-              title="01 / 05 — Primary audit details"
-              description="Product type + audit focus."
+              title="Audit Details"
+              description="Product type, product name, platform + audit focus."
             />
-            <Field
-              label="Product type"
-              error={showErrorsForStep ? validation.productType : undefined}
-            >
-              <Select
-                value={payload.product.type}
-                onChange={(e) =>
-                  setProductType(
-                    e.target.value as AuditPayload["product"]["type"],
-                  )
-                }
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Field label="Product type" error={showErrorsForStep ? validation.productType : undefined}>
+                <Select
+                  value={payload.product.type}
+                  onChange={(e) =>
+                    setProductType(e.target.value as AuditPayload["product"]["type"])
+                  }
+                >
+                  <option value="">Select…</option>
+                  {productTypes.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field label="Product name" error={showErrorsForStep ? validation.productName : undefined}>
+                <TextInput
+                  value={payload.productName}
+                  onChange={(e) =>
+                    setPayload((p) => ({ ...p, productName: e.target.value }))
+                  }
+                  placeholder="e.g. Notion, Stripe, Figma"
+                />
+              </Field>
+
+              <Field
+                label="Primary platform"
+                error={showErrorsForStep ? validation.primaryPlatform : undefined}
               >
-                <option value="">Select…</option>
-                {productTypes.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            {appSession.role !== "admin" ? (
-              <div className="mt-3 rounded-xl border border-[color:var(--cream-dark)] bg-[color:var(--cream)] p-4 text-sm text-[color:var(--ink-muted)]">
-                SaaS audits are currently admin-only while that audit path is still in progress. Free and paid users can run `marketing_website` and `ecommerce` audits here.
-              </div>
-            ) : null}
+                <Select
+                  value={payload.primaryPlatform}
+                  onChange={(e) =>
+                    setPayload((p) => ({ ...p, primaryPlatform: e.target.value }))
+                  }
+                >
+                  <option value="">Select…</option>
+                  {primaryPlatforms.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
 
             {/* ADDED: moved from previous “Primary goal of audit” step */}
             <div className="mt-5 space-y-5">
+              <Field label="Product context (optional)">
+                <MultiSelect
+                  options={productContextsFor(primaryType)}
+                  values={payload.product.context}
+                  onChange={(values) =>
+                    setPayload((p) => ({
+                      ...p,
+                      product: {
+                        ...p.product,
+                        context: values as AuditPayload["product"]["context"],
+                      },
+                    }))
+                  }
+                  placeholder=""
+                />
+              </Field>
+
               <Field
                 label="Primary audit goal(s)"
                 error={showErrorsForStep ? validation.auditGoals : undefined}
@@ -1506,178 +1673,37 @@ export function AuditForm() {
                   placeholder=""
                 />
               </Field>
-
-              <div>
-                <div className="text-sm font-semibold">
-                  Buckets to evaluate (select what you want audited)
-                </div>
-                <div className="mt-3">
-                  <BucketPicker
-                    value={payload.selectedBuckets}
-                    onChange={(next) =>
-                      setPayload((p) => ({ ...p, selectedBuckets: next }))
-                    }
-                    error={showErrorsForStep ? validation.selectedBuckets : undefined}
-                  />
-                </div>
-              </div>
-
-              {/* UPDATED: moved to “Reason for Audit” above buckets */}
             </div>
           </Card>
         ) : null}
 
-        {/* UPDATED: Step 2 is Product context */}
-        {primaryType && activeStep === 2 ? (
+        {activeStep === 2 ? (
+          <Card className="p-5">
+            <CardHeader
+              title="Audit Buckets"
+              description="Select the areas you want audited."
+            />
+            <div className="mt-3">
+              <BucketPicker
+                value={payload.selectedBuckets}
+                onChange={(next) =>
+                  setPayload((p) => ({ ...p, selectedBuckets: next }))
+                }
+                error={showErrorsForStep ? validation.selectedBuckets : undefined}
+              />
+            </div>
+          </Card>
+        ) : null}
+
+        {/* UPDATED: Step 3 is Product context */}
+        {activeStep === 3 ? (
           <Card className="p-5">
             <CardHeader
               // UPDATED
-              title="02 / 05 — Product details"
+              title="Product details"
               description="Help the agent understand what the product is and who it’s for."
             />
             <div className="space-y-4">
-              {/* UPDATED: context lives here (optional) */}
-              <Field label="Product context (optional)">
-                <MultiSelect
-                  options={productContextsFor(primaryType)}
-                  values={payload.product.context}
-                  onChange={(values) =>
-                    setPayload((p) => ({
-                      ...p,
-                      product: {
-                        ...p.product,
-                        context: values as AuditPayload["product"]["context"],
-                      },
-                    }))
-                  }
-                  placeholder=""
-                />
-              </Field>
-
-              <Field
-                label={primaryType === "saas" ? "Product name" : "Brand name"}
-                error={showErrorsForStep ? validation.productName : undefined}
-              >
-                <TextInput
-                  value={payload.productName}
-                  onChange={(e) =>
-                    setPayload((p) => ({ ...p, productName: e.target.value }))
-                  }
-                  placeholder={
-                    primaryType === "saas"
-                      ? "e.g. Notion, Stripe, Figma"
-                      : "e.g. Nike, Sephora, Vitamin D"
-                  }
-                />
-              </Field>
-
-              {/* ADDED */}
-              <Field
-                label="One-sentence description"
-                error={showErrorsForStep ? validation.productOneLiner : undefined}
-              >
-                <Textarea
-                  value={payload.productOneLiner}
-                  onChange={(e) =>
-                    setPayload((p) => ({ ...p, productOneLiner: e.target.value }))
-                  }
-                  placeholder="e.g. A team wiki where projects, docs, and tasks live together."
-                />
-              </Field>
-
-              {/* UPDATED: moved “Primary user” + “Primary user goal” to User/Business step */}
-
-              {/* ADDED */}
-              <Field
-                label="Product constraints"
-                error={showErrorsForStep ? validation.constraints : undefined}
-              >
-                <Textarea
-                  value={payload.constraints}
-                  onChange={(e) =>
-                    setPayload((p) => ({ ...p, constraints: e.target.value }))
-                  }
-                  placeholder=""
-                />
-              </Field>
-
-              {/* ADDED */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  label="Product stage"
-                  error={
-                    showErrorsForStep
-                      ? primaryType === "saas"
-                        ? validation.productStage
-                        : primaryType === "ecommerce"
-                          ? validation.storeStage
-                          : validation.siteGoal
-                      : undefined
-                  }
-                >
-                  {primaryType === "saas" ? (
-                    <Select
-                      value={payload.productStage}
-                      onChange={(e) =>
-                        setPayload((p) => ({ ...p, productStage: e.target.value }))
-                      }
-                    >
-                      <option value="">Select…</option>
-                      {productStages.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </Select>
-                  ) : primaryType === "ecommerce" ? (
-                    <Select
-                      value={payload.dynamic_answers.ecommerce.store_stage ?? ""}
-                      onChange={(e) => updateDynamic({ store_stage: e.target.value })}
-                    >
-                      <option value="">Select…</option>
-                      {/* UPDATED */}
-                      {ecommerceStoreStages.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </Select>
-                  ) : (
-                    <Select
-                      value={payload.dynamic_answers.marketing.site_goal ?? ""}
-                      onChange={(e) => updateDynamic({ site_goal: e.target.value })}
-                    >
-                      <option value="">Select…</option>
-                      {/* UPDATED */}
-                      {websiteStages.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-
-                <Field
-                  label="Primary platform"
-                  error={showErrorsForStep ? validation.primaryPlatform : undefined}
-                >
-                  <Select
-                    value={payload.primaryPlatform}
-                    onChange={(e) =>
-                      setPayload((p) => ({ ...p, primaryPlatform: e.target.value }))
-                    }
-                  >
-                    <option value="">Select…</option>
-                    {primaryPlatforms.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
-
               {/* ADDED (SaaS only) */}
               {primaryType === "saas" ? (
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -1718,15 +1744,42 @@ export function AuditForm() {
                 </div>
               ) : null}
 
-              {/* ADDED */}
-              <Field
-                label="Product differentiation"
-                error={showErrorsForStep ? validation.differentiation : undefined}
-              >
+              <div className="space-y-4">
+                <Field
+                  label="Business differentiation"
+                  error={showErrorsForStep ? validation.differentiation : undefined}
+                >
+                  <Textarea
+                    value={payload.differentiation}
+                    onChange={(e) =>
+                      setPayload((p) => ({ ...p, differentiation: e.target.value }))
+                    }
+                    placeholder=""
+                  />
+                </Field>
+
+                <Field label="Business Objective">
+                  <Textarea
+                    value={payload.primaryBusinessObjective}
+                    onChange={(e) =>
+                      setPayload((p) => ({
+                        ...p,
+                        primaryBusinessObjective: e.target.value,
+                      }))
+                    }
+                    placeholder=""
+                  />
+                </Field>
+              </div>
+
+              <Field label="Business Future goals">
                 <Textarea
-                  value={payload.differentiation}
+                  value={payload.businessFutureGoals}
                   onChange={(e) =>
-                    setPayload((p) => ({ ...p, differentiation: e.target.value }))
+                    setPayload((p) => ({
+                      ...p,
+                      businessFutureGoals: e.target.value,
+                    }))
                   }
                   placeholder=""
                 />
@@ -1735,171 +1788,168 @@ export function AuditForm() {
           </Card>
         ) : null}
 
-        {/* ADDED: Step 3 is User and business Details */}
-        {primaryType && activeStep === 3 ? (
+        {/* ADDED: Step 4 is Add User Persona */}
+        {activeStep === 4 ? (
           <Card className="p-5">
             <CardHeader
-              title="03 / 05 — User and business Details"
-              description="User + business context for the audit."
+              title="Add User Persona"
+              description="Add one or more complete persona cards, then fill in the supporting user details."
             />
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  label="Primary users (Who is this for?)"
-                  error={showErrorsForStep ? validation.primaryUser : undefined}
-                >
-                  <TextInput
-                    value={payload.primaryUser}
-                    onChange={(e) =>
-                      setPayload((p) => ({ ...p, primaryUser: e.target.value }))
-                    }
-                    placeholder=""
-                  />
-                </Field>
-                <Field label="Primary User Intent">
-                  <TextInput
-                    value={payload.primaryUserIntent}
-                    onChange={(e) =>
-                      setPayload((p) => ({
-                        ...p,
-                        primaryUserIntent: e.target.value,
-                      }))
-                    }
-                    placeholder=""
-                  />
-                </Field>
-              </div>
-
-              {/* ADDED */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="User age">
-                  <TextInput
-                    value={payload.userAge}
-                    onChange={(e) =>
-                      setPayload((p) => ({ ...p, userAge: e.target.value }))
-                    }
-                    placeholder=""
-                  />
-                </Field>
-                <Field label="User gender">
-                  <Select
-                    value={payload.userGender}
-                    onChange={(e) =>
-                      setPayload((p) => ({ ...p, userGender: e.target.value }))
-                    }
+            <div className="space-y-5">
+              <div className="space-y-4">
+                {personaCards.map((persona, index) => (
+                  <div
+                    key={index}
+                    className="rounded-2xl border border-[#e5e0d4] bg-white/70 p-5 sm:p-6"
                   >
-                    <option value="">Select…</option>
-                    {/* UPDATED */}
-                    <option value="women">Women</option>
-                    <option value="men">Men</option>
-                    <option value="both">Both (men & women)</option>
-                    <option value="non_binary">Non-binary</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
-                    <option value="other">Other</option>
-                  </Select>
-                </Field>
-                <Field label="User geography">
-                  <TextInput
-                    value={payload.userGeography}
-                    onChange={(e) =>
-                      setPayload((p) => ({ ...p, userGeography: e.target.value }))
-                    }
-                    placeholder=""
-                  />
-                </Field>
-                <Field label="User language">
-                  <TextInput
-                    value={payload.userLanguage}
-                    onChange={(e) =>
-                      setPayload((p) => ({ ...p, userLanguage: e.target.value }))
-                    }
-                    placeholder=""
-                  />
-                </Field>
-              </div>
-
-              {/* UPDATED: removed Primary User Goal; user persona is full width */}
-              <Field
-                label="Primary User Goal"
-                error={showErrorsForStep ? validation.primaryUserGoal : undefined}
-              >
-                <TextInput
-                  value={payload.primaryUserGoal}
-                  onChange={(e) =>
-                    setPayload((p) => ({ ...p, primaryUserGoal: e.target.value }))
-                  }
-                  placeholder=""
-                />
-              </Field>
-
-              {/* UPDATED: user persona uses audit-flow style inputs */}
-              <Field label="User persona">
-                <div className="space-y-3">
-                  {payload.userPersona.map((line, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <div className="grid size-10 shrink-0 place-items-center rounded-xl border border-[color:var(--card-border)] bg-white/60 text-sm font-semibold text-zinc-600 dark:bg-white/5 dark:text-zinc-300">
-                        {idx + 1}
+                    <div className="mb-5 flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-lg font-bold text-[color:var(--ink)]">
+                          {String(index + 1).padStart(2, "0")} User persona
+                        </div>
                       </div>
-                      <TextInput
-                        value={line}
-                        onChange={(e) =>
-                          setPayload((p) => {
-                            const next = [...p.userPersona];
-                            next[idx] = e.target.value;
-                            return { ...p, userPersona: next };
-                          })
-                        }
-                        placeholder=""
-                      />
                       <Button
                         type="button"
                         variant="ghost"
-                        className="h-10 px-3"
-                        onClick={() =>
-                          setPayload((p) => {
-                            const next = p.userPersona.filter((_, i) => i !== idx);
-                            return { ...p, userPersona: next.length ? next : [""] };
-                          })
-                        }
-                        disabled={payload.userPersona.length === 1}
-                        aria-label="Remove persona line"
-                        title="Remove"
+                        size="sm"
+                        className="h-8 w-8 rounded-full border-0 px-0 text-lg leading-none text-neutral-400 hover:text-red-500"
+                        onClick={() => removePersonaCard(index)}
+                        disabled={personaCards.length <= 1}
+                        aria-label={`Remove persona ${String(index + 1).padStart(2, "0")}`}
                       >
-                        ✕
+                        ×
                       </Button>
                     </div>
-                  ))}
 
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() =>
-                      setPayload((p) => ({ ...p, userPersona: [...p.userPersona, ""] }))
-                    }
-                  >
-                    + Add another persona line
-                  </Button>
-                </div>
-              </Field>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      <Field
+                        label="Primary users (Who is this for?)"
+                        error={showErrorsForStep && index === 0 ? validation.primaryUser : undefined}
+                      >
+                        <TextInput
+                          value={persona.primaryUser}
+                          onChange={(e) =>
+                            updatePersonaCard(index, { primaryUser: e.target.value })
+                          }
+                          placeholder=""
+                        />
+                      </Field>
+                      <Field label="Age group">
+                        <TextInput
+                          value={persona.userAge}
+                          onChange={(e) => updatePersonaCard(index, { userAge: e.target.value })}
+                          placeholder=""
+                        />
+                      </Field>
+                      <Field label="User gender">
+                        <Select
+                          value={persona.userGender}
+                          onChange={(e) =>
+                            updatePersonaCard(index, { userGender: e.target.value })
+                          }
+                        >
+                          <option value="">Select…</option>
+                          <option value="women">Female</option>
+                          <option value="men">Male</option>
+                          <option value="both">Both</option>
+                        </Select>
+                      </Field>
+                      <Field label="User language">
+                        <TextInput
+                          value={persona.userLanguage}
+                          onChange={(e) =>
+                            updatePersonaCard(index, { userLanguage: e.target.value })
+                          }
+                          placeholder=""
+                        />
+                      </Field>
+                      <Field label="User preferred Platform">
+                        <TextInput
+                          value={persona.primaryUserIntent}
+                          onChange={(e) =>
+                            updatePersonaCard(index, { primaryUserIntent: e.target.value })
+                          }
+                          placeholder=""
+                        />
+                      </Field>
+                      <Field label="User geography">
+                        <TextInput
+                          value={persona.userGeography}
+                          onChange={(e) =>
+                            updatePersonaCard(index, { userGeography: e.target.value })
+                          }
+                          placeholder=""
+                        />
+                      </Field>
+                    </div>
 
-              <Field label="Primary Business Objective">
-                <Textarea
-                  value={payload.primaryBusinessObjective}
-                  onChange={(e) =>
-                    setPayload((p) => ({
-                      ...p,
-                      primaryBusinessObjective: e.target.value,
-                    }))
-                  }
-                  placeholder=""
-                />
-              </Field>
+                    <div className="mt-4">
+                      <Field
+                        label="User Goal"
+                        error={showErrorsForStep && index === 0 ? validation.primaryUserGoal : undefined}
+                      >
+                        <Textarea
+                          rows={4}
+                          value={persona.primaryUserGoal}
+                          onChange={(e) =>
+                            updatePersonaCard(index, { primaryUserGoal: e.target.value })
+                          }
+                          placeholder=""
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-              <div className="space-y-3">
-                <div className="text-sm font-semibold">Business competitors</div>
-                {payload.businessCompetitors.map((c, idx) => (
-                  <div key={idx} className="grid gap-3 sm:grid-cols-3">
-                    <Field label={`Competitor ${String(idx + 1).padStart(2, "0")} name`}>
+              <div className="flex justify-start">
+                <Button type="button" variant="secondary" size="sm" onClick={addPersonaCard}>
+                  Add persona
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        {/* UPDATED: Step 5 is Business competitors */}
+        {activeStep === 5 ? (
+          <Card className="p-5">
+            <CardHeader
+              title="Business competitors"
+              description="Add competitor names, URLs, and the comparison lens for each row."
+            />
+            <div className="space-y-5">
+              {payload.businessCompetitors.map((c, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-[#e5e0d4] bg-white/70 p-4 sm:p-5"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="text-sm font-medium text-neutral-500">
+                      Competitor {String(idx + 1).padStart(2, "0")}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 rounded-full border-0 px-0 text-lg leading-none text-neutral-400 hover:text-red-500"
+                      onClick={() =>
+                        setPayload((p) => ({
+                          ...p,
+                          businessCompetitors:
+                            p.businessCompetitors.length > 1
+                              ? p.businessCompetitors.filter((_, itemIdx) => itemIdx !== idx)
+                              : p.businessCompetitors,
+                        }))
+                      }
+                      disabled={payload.businessCompetitors.length <= 1}
+                      aria-label={`Remove competitor ${String(idx + 1).padStart(2, "0")}`}
+                    >
+                      ×
+                    </Button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Field label="Competitor name">
                       <TextInput
                         value={c.name}
                         onChange={(e) =>
@@ -1913,7 +1963,7 @@ export function AuditForm() {
                       />
                     </Field>
                     <Field
-                      label={`Competitor ${String(idx + 1).padStart(2, "0")} URL`}
+                      label="Competitor URL"
                       error={
                         showErrorsForStep
                           ? validation[`businessCompetitorUrl${idx}`]
@@ -1949,31 +1999,39 @@ export function AuditForm() {
                       />
                     </Field>
                   </div>
-                ))}
-              </div>
-
-              <Field label="Business Future goals">
-                <Textarea
-                  value={payload.businessFutureGoals}
-                  onChange={(e) =>
-                    setPayload((p) => ({
-                      ...p,
-                      businessFutureGoals: e.target.value,
-                    }))
-                  }
-                  placeholder=""
-                />
-              </Field>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex justify-start">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  setPayload((p) => ({
+                    ...p,
+                    businessCompetitors: [
+                      ...p.businessCompetitors,
+                      { name: "", url: "", compareFocus: "" },
+                    ],
+                  }))
+                }
+              >
+                + Add more competitor
+              </Button>
             </div>
           </Card>
         ) : null}
 
-        {/* UPDATED: Step 4 is Product URL + credentials */}
-        {primaryType && activeStep === 4 ? (
+        {/* UPDATED: Step 6 is Product URL + credentials */}
+        {activeStep === 6 ? (
           <Card className="p-5">
             <CardHeader
-              title="04 / 05 — Product URL + credentials"
-              description="The live URL the AI agent will open and navigate. If the product requires a login, provide credentials."
+              title="Product Access Details"
+              description={
+                isPublicAuditType(primaryType)
+                  ? "Add the product URL and upload screenshots. Critical-flow video is optional."
+                  : "The live URL the AI agent will open and navigate. If the product requires a login, provide credentials."
+              }
             />
             <div className="space-y-4">
               <Field
@@ -1989,365 +2047,291 @@ export function AuditForm() {
                 />
               </Field>
 
-              <Field label={accessLabel}>
-                <Select
-                  value={payload.accessMode}
-                  onChange={(e) =>
-                    setPayload((p) => ({
-                      ...p,
-                      accessMode: e.target.value as AuditAccessMode,
-                      auth: {
-                        ...p.auth,
-                        requiresLogin:
-                          e.target.value !== "screenshot_upload_only" &&
-                          e.target.value !== "internal_routes_only"
-                            ? p.auth.requiresLogin
-                            : false,
-                      },
-                    }))
-                  }
-                >
-                  {accessOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              {isPublicAuditType(primaryType) ? (
+                <>
+                  <Field label="Screenshots">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-xl file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 dark:text-zinc-300 dark:file:bg-white dark:file:text-zinc-950 dark:hover:file:bg-zinc-200"
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length === 0) return;
+                        await uploadScreenshots(files);
+                        e.currentTarget.value = "";
+                      }}
+                    />
 
-              <div className="rounded-xl border border-[color:var(--card-border)] bg-white/60 p-4 text-sm text-zinc-600 dark:bg-white/5 dark:text-zinc-300">
-                {primaryType === "marketing_website" || primaryType === "ecommerce" ? (
-                  <span>
-                    This audit will use public-page evidence first. Add labeled screenshots and
-                    browser-extension JSON to score the site without login or internal routes.
-                  </span>
-                ) : payload.accessMode === "auto_login" ? (
-                  <span>
-                    The tool will try to sign in automatically, capture internal screens, and
-                    save a reusable auth session when login succeeds.
-                  </span>
-                ) : payload.accessMode === "manual_browser_login" ? (
-                  <span>
-                    Manual browser login is prepared as a guided mode. For now, pair it with guided
-                    capture steps or uploaded screenshots so the audit can continue with reliable
-                    evidence.
-                  </span>
-                ) : payload.accessMode === "use_saved_session" ? (
-                  <span>
-                    The tool will try to restore a previously saved authenticated session for this
-                    domain before running capture.
-                  </span>
-                ) : payload.accessMode === "internal_routes_only" ? (
-                  <span>The tool will skip generic exploration and try only the internal routes you provide below.</span>
-                ) : payload.accessMode === "screenshot_upload_only" ? (
-                  <span>
-                    The tool will build a Limited Coverage or evidence-only audit from your labeled
-                    screenshots instead of trying live browser capture.
-                  </span>
-                ) : (
-                  <span>
-                    The audit will rely on extension-captured evidence first. Browserbase is treated
-                    as an optional fallback only and is not required for scoring.
-                  </span>
-                )}
-              </div>
+                    {uploadingScreenshots ? (
+                      <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        Uploading screenshots…
+                      </div>
+                    ) : null}
 
-              {/* ADDED */}
-              <Field label="Screenshots">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-xl file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 dark:text-zinc-300 dark:file:bg-white dark:file:text-zinc-950 dark:hover:file:bg-zinc-200"
-                  onChange={async (e) => {
-                    const files = Array.from(e.target.files ?? []);
-                    if (files.length === 0) return;
-                    await uploadScreenshots(files);
-                    e.currentTarget.value = "";
-                  }}
-                />
+                    {payload.artifacts.screenshots.length > 0 ? (
+                      <div className="mt-2 space-y-2">
+                        {payload.artifacts.screenshots.map((s, idx) => (
+                          <div
+                            key={`${s.name}-${idx}`}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">{s.name}</div>
+                              <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                {Math.round(s.size / 1024)} KB · {s.label || "other"}
+                              </div>
+                            </div>
+                            <Select
+                              value={s.label || "other"}
+                              onChange={(e) =>
+                                setPayload((p) => ({
+                                  ...p,
+                                  artifacts: {
+                                    ...p.artifacts,
+                                    screenshots: p.artifacts.screenshots.map((shot, i) =>
+                                      i === idx
+                                        ? {
+                                            ...shot,
+                                            label: e.target.value as UploadedScreenshotLabel,
+                                          }
+                                        : shot,
+                                    ),
+                                  },
+                                }))
+                              }
+                            >
+                              {screenshotLabelOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setPayload((p) => ({
+                                  ...p,
+                                  artifacts: {
+                                    ...p.artifacts,
+                                    screenshots: p.artifacts.screenshots.filter(
+                                      (_, i) => i !== idx,
+                                    ),
+                                  },
+                                }))
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </Field>
 
-                {uploadingScreenshots ? (
-                  <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                    Uploading screenshots…
+                </>
+              ) : (
+                <>
+                  <Field label={accessLabel}>
+                    <Select
+                      value={payload.accessMode}
+                      onChange={(e) =>
+                        setPayload((p) => ({
+                          ...p,
+                          accessMode: e.target.value as AuditAccessMode,
+                          auth: {
+                            ...p.auth,
+                            requiresLogin:
+                              e.target.value !== "screenshot_upload_only" &&
+                              e.target.value !== "internal_routes_only"
+                                ? p.auth.requiresLogin
+                                : false,
+                          },
+                        }))
+                      }
+                    >
+                      {accessOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+
+                  <div className="rounded-xl border border-[color:var(--card-border)] bg-white/60 p-4 text-sm text-zinc-600 dark:bg-white/5 dark:text-zinc-300">
+                    {payload.accessMode === "auto_login" ? (
+                      <span>
+                        The tool will try to sign in automatically, capture internal screens, and
+                        save a reusable auth session when login succeeds.
+                      </span>
+                    ) : payload.accessMode === "manual_browser_login" ? (
+                      <span>
+                        Manual browser login is prepared as a guided mode. For now, pair it with guided
+                        capture steps or uploaded screenshots so the audit can continue with reliable
+                        evidence.
+                      </span>
+                    ) : payload.accessMode === "use_saved_session" ? (
+                      <span>
+                        The tool will try to restore a previously saved authenticated session for this
+                        domain before running capture.
+                      </span>
+                    ) : payload.accessMode === "internal_routes_only" ? (
+                      <span>The tool will skip generic exploration and try only the internal routes you provide below.</span>
+                    ) : payload.accessMode === "screenshot_upload_only" ? (
+                      <span>
+                        The tool will build a Limited Coverage or evidence-only audit from your labeled
+                        screenshots instead of trying live browser capture.
+                      </span>
+                    ) : (
+                      <span>
+                        The audit will rely on extension-captured evidence first. Browserbase is treated
+                        as an optional fallback only and is not required for scoring.
+                      </span>
+                    )}
                   </div>
-                ) : null}
 
-                {payload.artifacts.screenshots.length > 0 ? (
-                  <div className="mt-2 space-y-2">
-                    {payload.artifacts.screenshots.map((s, idx) => (
-                      <div
-                        key={`${s.name}-${idx}`}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5"
-                      >
+                  {/* ADDED */}
+                  <Field label="Screenshots">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-xl file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 dark:text-zinc-300 dark:file:bg-white dark:file:text-zinc-950 dark:hover:file:bg-zinc-200"
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length === 0) return;
+                        await uploadScreenshots(files);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+
+                    {uploadingScreenshots ? (
+                      <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        Uploading screenshots…
+                      </div>
+                    ) : null}
+
+                    {payload.artifacts.screenshots.length > 0 ? (
+                      <div className="mt-2 space-y-2">
+                        {payload.artifacts.screenshots.map((s, idx) => (
+                          <div
+                            key={`${s.name}-${idx}`}
+                            className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">{s.name}</div>
+                              <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                {Math.round(s.size / 1024)} KB · {s.label || "other"}
+                              </div>
+                            </div>
+                            <Select
+                              value={s.label || "other"}
+                              onChange={(e) =>
+                                setPayload((p) => ({
+                                  ...p,
+                                  artifacts: {
+                                    ...p.artifacts,
+                                    screenshots: p.artifacts.screenshots.map((shot, i) =>
+                                      i === idx
+                                        ? {
+                                            ...shot,
+                                            label: e.target.value as UploadedScreenshotLabel,
+                                          }
+                                        : shot,
+                                    ),
+                                  },
+                                }))
+                              }
+                            >
+                              {screenshotLabelOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setPayload((p) => ({
+                                  ...p,
+                                  artifacts: {
+                                    ...p.artifacts,
+                                    screenshots: p.artifacts.screenshots.filter(
+                                      (_, i) => i !== idx,
+                                    ),
+                                  },
+                                }))
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </Field>
+
+                  {/* ADDED */}
+                  <Field label="Critical-flow video (optional)">
+                    <input
+                      type="file"
+                      accept="video/*"
+                      className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-xl file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 dark:text-zinc-300 dark:file:bg-white dark:file:text-zinc-950 dark:hover:file:bg-zinc-200"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        await uploadCriticalFlowVideo(file);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+
+                    {uploadingVideo ? (
+                      <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        Uploading video…
+                      </div>
+                    ) : null}
+
+                    {payload.artifacts.criticalFlowVideo ? (
+                      <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5">
                         <div className="min-w-0">
-                          <div className="truncate font-medium">{s.name}</div>
+                          <div className="truncate font-medium">
+                            {payload.artifacts.criticalFlowVideo.name}
+                          </div>
                           <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                            {Math.round(s.size / 1024)} KB · {s.label || "other"}
+                            {payload.artifacts.criticalFlowVideo.type || "video"}
                           </div>
                         </div>
-                        <Select
-                          value={s.label || "other"}
-                          onChange={(e) =>
-                            setPayload((p) => ({
-                              ...p,
-                              artifacts: {
-                                ...p.artifacts,
-                                screenshots: p.artifacts.screenshots.map((shot, i) =>
-                                  i === idx
-                                    ? {
-                                        ...shot,
-                                        label: e.target.value as UploadedScreenshotLabel,
-                                      }
-                                    : shot,
-                                ),
-                              },
-                            }))
-                          }
-                        >
-                          {screenshotLabelOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </Select>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
+                          onClick={() => {
                             setPayload((p) => ({
                               ...p,
-                              artifacts: {
-                                ...p.artifacts,
-                                screenshots: p.artifacts.screenshots.filter(
-                                  (_, i) => i !== idx,
-                                ),
-                              },
-                            }))
-                          }
+                              artifacts: { ...p.artifacts, criticalFlowVideo: null },
+                            }));
+                            setVideoFileName(null);
+                          }}
                         >
                           Remove
                         </Button>
                       </div>
-                    ))}
-                  </div>
-                ) : null}
-              </Field>
-
-              {/* ADDED */}
-              <Field label="Critical-flow video (optional)">
-                <input
-                  type="file"
-                  accept="video/*"
-                  className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-xl file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 dark:text-zinc-300 dark:file:bg-white dark:file:text-zinc-950 dark:hover:file:bg-zinc-200"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    await uploadCriticalFlowVideo(file);
-                    e.currentTarget.value = "";
-                  }}
-                />
-
-                {uploadingVideo ? (
-                  <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                    Uploading video…
-                  </div>
-                ) : null}
-
-                {payload.artifacts.criticalFlowVideo ? (
-                  <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5">
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">{payload.artifacts.criticalFlowVideo.name}</div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {payload.artifacts.criticalFlowVideo.type || "video"}
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setPayload((p) => ({
-                          ...p,
-                          artifacts: { ...p.artifacts, criticalFlowVideo: null },
-                        }));
-                        setVideoFileName(null);
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ) : null}
-              </Field>
-
-              <Field
-                label="Browser extension evidence (JSON)"
-                hint="Paste the JSON captures from your extension. Each item can include screenshot URL, URL, title, headings, visible text, buttons, links, forms, tables, navigation labels, dropdown/modal state, DOM summary, and a screen type label."
-                error={showErrorsForStep ? validation.extensionEvidence : undefined}
-              >
-                <div className="mb-2 rounded-xl border border-[color:var(--card-border)] bg-white/60 p-3 text-sm text-zinc-600 dark:bg-white/5 dark:text-zinc-300">
-                  <div className="font-medium text-[color:var(--ink)]">{extensionWorkflowTitle}</div>
-                  <ol className="mt-2 list-decimal space-y-1 pl-5">
-                    {extensionWorkflowSteps.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ol>
-                </div>
-                <Textarea
-                  rows={10}
-                  value={payload.artifacts.extensionCaptureJson}
-                  onChange={(e) =>
-                    setPayload((p) => ({
-                      ...p,
-                      artifacts: { ...p.artifacts, extensionCaptureJson: e.target.value },
-                    }))
-                  }
-                  placeholder={extensionJsonPlaceholder}
-                />
-              </Field>
-
-              <Field
-                label="Loom video link"
-                error={showErrorsForStep ? validation.loomLink : undefined}
-              >
-                <TextInput
-                  value={payload.artifacts.loomLink}
-                  onChange={(e) =>
-                    setPayload((p) => ({
-                      ...p,
-                      artifacts: { ...p.artifacts, loomLink: e.target.value },
-                    }))
-                  }
-                  placeholder="https://www.loom.com/share/…"
-                />
-              </Field>
-
-              {/* ADDED */}
-              <Field
-                label="Notes for the AI"
-              >
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[color:var(--card-border)] bg-white/60 px-3 py-2 text-sm dark:bg-white/5">
-                    <input
-                      type="file"
-                      accept=".txt,.md,text/plain"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        const text = await f.text();
-                        setTranscriptFileName(f.name);
-                        setPayload((p) => ({
-                          ...p,
-                          artifacts: { ...p.artifacts, notes: text },
-                        }));
-                      }}
-                    />
-                    Upload transcript
-                  </label>
-                  {transcriptFileName ? (
-                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                      Loaded: {transcriptFileName}
-                    </div>
-                  ) : null}
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={extracting}
-                    onClick={extractIntakeFromTranscript}
-                  >
-                    {extracting ? "Extracting…" : "Extract from transcript"}
-                  </Button>
-                  {extractError ? (
-                    <div className="w-full text-xs text-red-600 dark:text-red-400">
-                      {extractError}
-                    </div>
-                  ) : null}
-                </div>
-                <Textarea
-                  value={payload.artifacts.notes}
-                  onChange={(e) =>
-                    setPayload((p) => ({
-                      ...p,
-                      artifacts: { ...p.artifacts, notes: e.target.value },
-                    }))
-                  }
-                  placeholder=""
-                />
-              </Field>
-
-              {primaryType === "saas" ? (
-                <>
-                  <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                    <input
-                      type="checkbox"
-                      checked={payload.auth.requiresLogin}
-                      onChange={(e) =>
-                        setPayload((p) => ({
-                          ...p,
-                          auth: { ...p.auth, requiresLogin: e.target.checked },
-                        }))
-                      }
-                    />
-                    Product requires login to access
-                  </label>
-
-                  {payload.auth.requiresLogin && payload.accessMode === "auto_login" ? (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field
-                        label="Email / Username"
-                        error={showErrorsForStep ? validation.authUser : undefined}
-                      >
-                        <TextInput
-                          value={payload.auth.usernameOrEmail}
-                          onChange={(e) =>
-                            setPayload((p) => ({
-                              ...p,
-                              auth: { ...p.auth, usernameOrEmail: e.target.value },
-                            }))
-                          }
-                          placeholder="test@example.com"
-                          autoComplete="username"
-                        />
-                      </Field>
-                      <Field
-                        label="Password"
-                        error={showErrorsForStep ? validation.authPass : undefined}
-                      >
-                        <TextInput
-                          type="password"
-                          value={payload.auth.password}
-                          onChange={(e) =>
-                            setPayload((p) => ({
-                              ...p,
-                              auth: { ...p.auth, password: e.target.value },
-                            }))
-                          }
-                          placeholder="••••••••"
-                          autoComplete="current-password"
-                        />
-                      </Field>
-                    </div>
-                  ) : null}
-
-                  <div className="rounded-xl border border-white/10 bg-white/70 p-4 text-sm text-zinc-600 dark:bg-white/5 dark:text-zinc-300">
-                    Note: credentials are used only by the AI agent to navigate
-                    authenticated flows. Your workflow should treat this data as
-                    sensitive.
-                  </div>
+                    ) : null}
+                  </Field>
                 </>
-              ) : null}
+              )}
             </div>
           </Card>
         ) : null}
 
-        {primaryType && activeStep === 5 ? (
+        {primaryType === "saas" && activeStep === 7 ? (
           <Card className="p-5">
             <CardHeader
-              title="05 / 05 — Audit flow"
+              title="Audit flow"
               description="Describe the full audit flow, exploration steps, required screenshots, and anything the agent must check before scoring."
             />
             <div className="space-y-3">
@@ -2654,8 +2638,8 @@ Audit Flow for SCY Platform
           ) : null}
         </div>
 
-        {primaryType && activeStep === 5 ? (
-        <Card className="p-5">
+        {primaryType === "saas" && activeStep === 7 ? (
+          <Card className="p-5">
           <CardHeader
             title="Submit"
             description={

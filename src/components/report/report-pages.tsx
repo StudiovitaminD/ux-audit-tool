@@ -1,6 +1,5 @@
 import { asString, type AnyRecord, type ReportViewModel } from "@/lib/report-model";
 import { OverviewSection } from "./sections/OverviewSection";
-import { ExecutiveSummarySection } from "./sections/ExecutiveSummarySection";
 import { NarrativeSummarySection } from "./sections/NarrativeSummarySection";
 import { CompetitorAnalysisSection } from "./sections/CompetitorAnalysisSection";
 import { AIBucketAnswersSection } from "./sections/AIBucketAnswersSection";
@@ -50,14 +49,8 @@ export function buildReportPages({
       locked: isLocked("overview"),
     },
     {
-      key: "executive_summary",
-      title: "Executive Summary",
-      body: <ExecutiveSummarySection vm={vm} />,
-      locked: isLocked("executive_summary"),
-    },
-    {
       key: "narrative_summary",
-      title: "Narrative Summary",
+      title: "Summary",
       body: <NarrativeSummarySection vm={vm} />,
       locked: isLocked("narrative_summary"),
     },

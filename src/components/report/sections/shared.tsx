@@ -340,6 +340,7 @@ export type SharedSectionProps = {
   vm: {
     productName: string;
     productUrl: string;
+    productType: string;
     generatedAt: string;
     auditReason: string;
     auditType: string;

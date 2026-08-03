@@ -11,7 +11,6 @@ export const FREE_REPORT_LIMIT = 3;
 
 export const LOCKED_PREVIEW_PAGE_KEYS = [
   "narrative_summary",
-  "competitor_analysis",
   "ai_bucket_answers",
   "critical_findings",
   "quick_wins_roadmap",

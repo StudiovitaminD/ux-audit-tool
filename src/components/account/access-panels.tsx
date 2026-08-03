@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { createDefaultSession, fetchAppSession, readAppSession, reportsRemaining, type AppSession } from "@/lib/app-session";
+import {
+  SESSION_CHANGE_EVENT,
+  SESSION_STORAGE_KEY,
+  fetchAppSession,
+  readAppSession,
+  reportsRemaining,
+  type AppSession,
+} from "@/lib/app-session";
 
 function roleLabel(session: AppSession) {
   if (session.email === "guest@local.test") return "Guest";
@@ -12,11 +19,28 @@ function roleLabel(session: AppSession) {
 }
 
 export function AuditAccessPanel() {
-  const [session, setSession] = useState<AppSession>(() => createDefaultSession());
+  const [session, setSession] = useState<AppSession>(() => readAppSession());
 
   useEffect(() => {
+    const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
     setSession(readAppSession());
-    void fetchAppSession().then(setSession).catch(() => undefined);
+    void fetchAppSession({ expectedStorageValue: storageSnapshot })
+      .then((next) => {
+        if (window.localStorage.getItem(SESSION_STORAGE_KEY) === storageSnapshot) {
+          setSession(next);
+        }
+      })
+      .catch(() => undefined);
+
+    const syncSession = () => {
+      setSession(readAppSession());
+    };
+    window.addEventListener("storage", syncSession);
+    window.addEventListener(SESSION_CHANGE_EVENT, syncSession);
+    return () => {
+      window.removeEventListener("storage", syncSession);
+      window.removeEventListener(SESSION_CHANGE_EVENT, syncSession);
+    };
   }, []);
 
   const remaining = useMemo(() => reportsRemaining(session), [session]);
@@ -80,16 +104,7 @@ export function AuditAccessPanel() {
         </div>
       </div>
 
-      {session.email === "guest@local.test" ? (
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link href="/sign-in?returnTo=/audit" className="btnPrimary">
-            Sign in
-          </Link>
-          <Link href="/sign-up?returnTo=/audit" className="btnSecondary">
-            Sign up
-          </Link>
-        </div>
-      ) : session.plan === "free" && session.role !== "admin" ? (
+      {session.plan === "free" && session.role !== "admin" ? (
         <div className="mt-4 flex flex-wrap gap-3">
           <Link href="/pricing" className="btnSecondary">
             View plans

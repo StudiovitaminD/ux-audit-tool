@@ -131,6 +131,11 @@ export function LiveReport({
 
   const current = pages[page] ?? pages[0];
   const currentPageLocked = Boolean(current?.locked);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [page]);
+
   const isDirty = useMemo(
     () => JSON.stringify(editableReport) !== JSON.stringify(baseReport),
     [editableReport, baseReport],
@@ -264,7 +269,41 @@ export function LiveReport({
         data-total-pages={pages.length}
       >
         <div
-          className="no-print rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5"
+          className="mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-8 print-report-root"
+          data-report-live-page
+          data-report-page-title={current.title}
+        >
+          <div className="relative">
+            <div
+              className={currentPageLocked ? "pointer-events-none select-none blur-md opacity-60" : ""}
+            >
+              <div className="mb-5 text-2xl font-semibold text-[color:var(--ink)]">
+                {current.title}
+              </div>
+              {current.title === "Overview" ? (
+                <div className="mb-5 text-sm leading-7 text-[color:var(--ink-muted)]">
+                  This report is based on an expert review using a structured UX Audit Framework.
+                  It provides an indicative assessment of the user experience with an estimated 70%
+                  accuracy level and is intended to guide design decisions.
+                </div>
+              ) : null}
+              {current.body}
+            </div>
+            {currentPageLocked ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="max-w-md rounded-2xl border border-[color:var(--cream-dark)] bg-white/95 p-6 text-center shadow-lg">
+                  <div className="text-lg font-semibold">Full report locked</div>
+                  <div className="mt-2 text-sm text-[color:var(--ink-muted)]">
+                    This page is part of the paid report. Upgrade or sign in with a paid account to unlock full analysis and exports.
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div
+          className="no-print mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5"
           data-report-pagination
         >
           <div className="flex items-center justify-between gap-3">
@@ -274,7 +313,6 @@ export function LiveReport({
             >
               Page {page + 1} / {pages.length}
             </div>
-            <div className="text-sm font-semibold">{current.title}</div>
             <div className="flex items-center gap-2" data-report-pagination-controls>
               <button
                 type="button"
@@ -301,27 +339,6 @@ export function LiveReport({
                 Next →
               </button>
             </div>
-          </div>
-        </div>
-        <div
-          className="mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-8 print-report-root"
-          data-report-live-page
-          data-report-page-title={current.title}
-        >
-          <div className="relative">
-            <div className={currentPageLocked ? "pointer-events-none select-none blur-md opacity-60" : ""}>
-              {current.body}
-            </div>
-            {currentPageLocked ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="max-w-md rounded-2xl border border-[color:var(--cream-dark)] bg-white/95 p-6 text-center shadow-lg">
-                  <div className="text-lg font-semibold">Full report locked</div>
-                  <div className="mt-2 text-sm text-[color:var(--ink-muted)]">
-                    This page is part of the paid report. Upgrade or sign in with a paid account to unlock full analysis and exports.
-                  </div>
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
       </div>

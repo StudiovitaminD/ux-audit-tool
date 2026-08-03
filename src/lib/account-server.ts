@@ -47,6 +47,8 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+const DEFAULT_ADMIN_EMAILS = new Set(["innovation@vitamin-d.in"]);
+
 function emailHash(email: string) {
   return createHash("sha256").update(normalizeEmail(email)).digest("hex").slice(0, 24);
 }
@@ -56,7 +58,8 @@ function adminEmailSet() {
     String(process.env.ADMIN_EMAILS || "")
       .split(",")
       .map((item) => item.trim().toLowerCase())
-      .filter(Boolean),
+      .filter(Boolean)
+      .concat(Array.from(DEFAULT_ADMIN_EMAILS)),
   );
 }
 
@@ -79,8 +82,13 @@ function resolveRoleAndPlan(email: string): { role: AppRole; plan: PlanType } {
 export function sessionFromUserRecord(userId: string, rec: Record<string, unknown>): AccountSession {
   const email = typeof rec.email === "string" ? rec.email : "";
   const name = typeof rec.name === "string" && rec.name.trim() ? rec.name.trim() : "User";
-  const role = (typeof rec.role === "string" ? rec.role : "free") as AppRole;
-  const plan = (typeof rec.plan === "string" ? rec.plan : "free") as PlanType;
+  const normalizedEmail = normalizeEmail(email);
+  const role = adminEmailSet().has(normalizedEmail)
+    ? "admin"
+    : ((typeof rec.role === "string" ? rec.role : "free") as AppRole);
+  const plan = role === "admin"
+    ? "paid"
+    : (typeof rec.plan === "string" ? rec.plan : "free") as PlanType;
   const reportsUsed = typeof rec.reportsUsed === "number" ? rec.reportsUsed : 0;
   const reportLimit = typeof rec.reportLimit === "number" ? rec.reportLimit : FREE_REPORT_LIMIT;
   const reportAccessLevel = getReportAccessLevel(plan);
@@ -196,26 +204,48 @@ export async function signInAccount(params: { email: string; password: string })
   const userId = emailHash(email);
   const userRef = db.collection(USER_COLLECTION).doc(userId);
   const userSnap = await userRef.get();
+  const now = new Date().toISOString();
+
   if (!userSnap.exists) {
-    throw new Error("Account not found. Please sign up first.");
-  }
+    const roleAndPlan = resolveRoleAndPlan(email);
+    if (roleAndPlan.role !== "admin") {
+      throw new Error("Account not found. Please sign up first.");
+    }
 
-  const rec = (userSnap.data() ?? {}) as Record<string, unknown>;
-  const passwordHash = typeof rec.passwordHash === "string" ? rec.passwordHash : "";
-  if (!passwordHash) {
-    throw new Error("This account does not have a password yet. Please sign up again.");
-  }
-  if (!verifyPassword(params.password, passwordHash)) {
-    throw new Error("Invalid email or password.");
-  }
+    const passwordHash = hashPassword(params.password);
+    await userRef.set(
+      {
+        email,
+        name: email.split("@")[0] || "User",
+        role: roleAndPlan.role,
+        plan: roleAndPlan.plan,
+        reportsUsed: 0,
+        reportLimit: FREE_REPORT_LIMIT,
+        passwordHash,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: now,
+      },
+      { merge: true },
+    );
+  } else {
+    const rec = (userSnap.data() ?? {}) as Record<string, unknown>;
+    const passwordHash = typeof rec.passwordHash === "string" ? rec.passwordHash : "";
+    if (!passwordHash) {
+      throw new Error("This account does not have a password yet. Please sign up again.");
+    }
+    if (!verifyPassword(params.password, passwordHash)) {
+      throw new Error("Invalid email or password.");
+    }
 
-  await userRef.set(
-    {
-      updatedAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-    },
-    { merge: true },
-  );
+    await userRef.set(
+      {
+        updatedAt: now,
+        lastLoginAt: now,
+      },
+      { merge: true },
+    );
+  }
 
   return createSessionForUser({ userId, email });
 }

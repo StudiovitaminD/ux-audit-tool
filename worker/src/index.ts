@@ -6,6 +6,8 @@ import { collectEvidence } from "./evidence.js";
 import { auditOneBucket, aggregateScores, writeNarrative } from "./audit.js";
 import { QUESTION_BANK } from "./question-bank.js";
 
+const FREE_AUDIT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+
 function json(res: http.ServerResponse, status: number, body: unknown) {
   const data = Buffer.from(JSON.stringify(body));
   res.statusCode = status;
@@ -148,7 +150,11 @@ async function runJob(env: ReturnType<typeof getEnv>, reportId: string) {
   };
 
   const scored = aggregateScores({ meta, bucketResults });
-  const narrative = await writeNarrative(env, scored);
+  const narrativeModel =
+    typeof doc.model_tier === "string" && doc.model_tier === "free_limited"
+      ? FREE_AUDIT_MODEL
+      : env.OPENROUTER_MODEL;
+  const narrative = await writeNarrative(env, scored, narrativeModel);
 
   const merged = {
     ...scored,

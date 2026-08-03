@@ -107,17 +107,14 @@ function buildDocxXml(report: unknown, reportId: string) {
   parts.push(spacer());
 
   parts.push(paragraph("Overview", "Heading1"));
-  parts.push(paragraph(`Report type: ${vm.auditType || "UX Audit Report"}`));
+  parts.push(paragraph(`Product type: ${vm.productType || vm.auditType || "UX Audit Report"}`));
   parts.push(paragraph(`Overall score: ${vm.overallScore ?? "—"}/100`));
-  parts.push(paragraph(`Health: ${vm.overallHealth || "—"}`));
-  parts.push(paragraph(`Risk: ${vm.overallRisk || "—"}`));
-  parts.push(spacer());
-
-  parts.push(paragraph("Executive Summary", "Heading1"));
-  parts.push(paragraph(asString(vm.executiveSummary.one_line_verdict) || "Summary not available."));
-  normalizeList(vm.executiveSummary.top_3_problems, 5).forEach((item) =>
-    parts.push(bulletParagraph(item)),
-  );
+  parts.push(paragraph(`Experiences: ${vm.overallHealth || "—"}`));
+  parts.push(paragraph("Business Metrics", "Heading2"));
+  parts.push(bulletParagraph("Conversion Rate"));
+  parts.push(bulletParagraph("Drop-off Rate"));
+  parts.push(bulletParagraph("Task Completion Rate"));
+  parts.push(bulletParagraph("Customer Satisfaction"));
   parts.push(spacer());
 
   parts.push(paragraph("Score Card", "Heading1"));
@@ -137,7 +134,7 @@ function buildDocxXml(report: unknown, reportId: string) {
   );
   parts.push(spacer());
 
-  parts.push(paragraph("Narrative Summary", "Heading1"));
+  parts.push(paragraph("Summary", "Heading1"));
   parts.push(paragraph("Delight", "Heading2"));
   parts.push(paragraph(vm.sectionNarrative.delight_narrative || "Narrative not available."));
   parts.push(paragraph("Impact", "Heading2"));
@@ -151,14 +148,13 @@ function buildDocxXml(report: unknown, reportId: string) {
     parts.push(
       table(
         [
-          ["Competitor", "Compare Focus", "Primary CTA"],
+          ["Competitor", "Primary CTA"],
           ...competitors.map((item) => [
             asString(item.name) || "—",
-            asString(item.compare_focus) || "—",
             asString((item.signals as Record<string, unknown> | undefined)?.primary_cta) || "—",
           ]),
         ],
-        [2200, 3400, 3200],
+        [5200, 3200],
       ),
     );
   } else {
@@ -230,15 +226,14 @@ function buildDocxXml(report: unknown, reportId: string) {
     parts.push(
       table(
         [
-          ["Finding", "Recommendation", "Effort", "ETA"],
+          ["Finding", "Recommendation", "ETA"],
           ...quickWins.map((item) => [
             asString(item.finding) || "—",
             asString(item.recommendation) || "—",
-            asString(item.effort) || "—",
             asString(item.estimated_time) || "—",
           ]),
         ],
-        [2600, 4200, 1100, 1100],
+        [3000, 5000, 1100],
       ),
     );
   } else {
@@ -258,6 +253,14 @@ function buildDocxXml(report: unknown, reportId: string) {
     parts.push(paragraph("Closing Note", "Heading1"));
     parts.push(paragraph(vm.closingNote));
   }
+
+  parts.push(spacer());
+  parts.push(paragraph("Disclaimer", "Heading1"));
+  parts.push(
+    paragraph(
+      "This report is based on an expert review using a structured UX Audit Framework. It provides an indicative assessment of the user experience with an estimated 70% accuracy level and is intended to guide design decisions.",
+    ),
+  );
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"

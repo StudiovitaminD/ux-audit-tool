@@ -15,15 +15,12 @@ export function CompetitorAnalysisSection({
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-        <div className="text-sm font-semibold">Competitor comparison snapshot</div>
         <div className="mt-4 overflow-auto">
-          <table className="w-full min-w-[880px] text-left text-sm">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
               <tr>
                 <th className="py-2 pr-4">Competitor</th>
-                <th className="py-2 pr-4">Compare focus</th>
                 <th className="py-2 pr-4">Positioning</th>
-                <th className="py-2 pr-4">Primary CTA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--card-border)]/60">
@@ -41,13 +38,7 @@ export function CompetitorAnalysisSection({
                       </div>
                     </td>
                     <td className="py-3 pr-4 text-[color:var(--muted)]">
-                      {asString(competitor.compare_focus) || "—"}
-                    </td>
-                    <td className="py-3 pr-4 text-[color:var(--muted)]">
                       {asString(competitor.positioning || signals.positioning) || "—"}
-                    </td>
-                    <td className="py-3 pr-4 font-medium">
-                      {asString(competitor.primary_cta || signals.primary_cta) || "—"}
                     </td>
                   </tr>
                 );
@@ -64,26 +55,26 @@ export function CompetitorAnalysisSection({
             className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
           >
             {(() => {
+              const brandName = asString(competitor.name) || `Competitor ${index + 1}`;
               return (
                 <>
-            {asString(competitor.screenshot) ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={asString(competitor.screenshot)}
-                alt={`${asString(competitor.name)} screenshot`}
-                className="mb-4 h-40 w-full rounded-xl border border-[color:var(--card-border)] object-cover"
-              />
-            ) : (
-              <div className="mb-4 flex h-40 w-full items-center justify-center rounded-xl border border-[color:var(--card-border)] bg-white/5 text-sm text-[color:var(--muted)]">
-                Screenshot unavailable
-              </div>
-            )}
-            <div className="text-sm font-semibold">
-              {asString(competitor.name) || `Competitor ${index + 1}`}
-            </div>
-            <div className="mt-1 text-xs uppercase tracking-wider text-[color:var(--muted)]">
-              {asString(competitor.compare_focus) || "—"}
-            </div>
+                  <div className="relative mb-4 h-40 w-full overflow-hidden rounded-xl border border-[color:var(--card-border)] bg-white/5">
+                    <div className="absolute left-3 top-3 z-10 rounded-full border border-[color:var(--card-border)] bg-white/90 px-3 py-1 text-xs font-semibold text-[color:var(--ink)] shadow-sm">
+                      {brandName}
+                    </div>
+                    {asString(competitor.screenshot) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={asString(competitor.screenshot)}
+                        alt={`${brandName} screenshot`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--muted)]">
+                        Screenshot unavailable
+                      </div>
+                    )}
+                  </div>
 
             {asString(competitor.positioning) ? (
               <div className="mt-3 text-sm text-[color:var(--muted)]">

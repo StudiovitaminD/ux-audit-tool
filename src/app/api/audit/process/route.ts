@@ -527,6 +527,7 @@ export async function POST(req: Request) {
         intake: intakeObj,
         evidence: evidenceBundle,
         bucket_results: results,
+        modelOverride: activeModel,
       });
 
       await ref.set(

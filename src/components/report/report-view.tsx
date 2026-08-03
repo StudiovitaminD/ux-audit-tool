@@ -940,6 +940,10 @@ export function ReportView() {
     else if (kind === "pdf") setDownloadingPdf(true);
     else setDownloadingPptx(true);
     try {
+      if (kind === "pdf") {
+        window.location.assign(`/api/report/${encodeURIComponent(reportId)}/pdf`);
+        return;
+      }
       const isPptxWithOverride = kind === "pptx" && reportOverride !== undefined;
       const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/${kind}`, isPptxWithOverride
         ? {
@@ -967,7 +971,7 @@ export function ReportView() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       setDownloadError(e instanceof Error ? e.message : "Download failed");
     } finally {

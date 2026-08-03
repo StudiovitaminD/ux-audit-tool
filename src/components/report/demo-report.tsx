@@ -42,7 +42,6 @@ type Roadmap = {
 type DemoCompetitor = {
   name: string;
   url: string;
-  compare_focus: string;
   positioning: string;
   primary_cta: string;
   strengths: string[];
@@ -51,12 +50,180 @@ type DemoCompetitor = {
   screenshot?: string;
 };
 
+function formatPriority(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "—";
+  const lower = raw.toLowerCase();
+  return lower.startsWith("p") ? lower : `p${lower}`;
+}
+
+function experienceLabelFromScore(value: unknown) {
+  const match = String(value ?? "").match(/(\d+(?:\.\d+)?)/);
+  const score = match ? Number(match[1]) : Number.NaN;
+  if (!Number.isFinite(score)) return "—";
+  if (score >= 85) return "Exceptional";
+  if (score >= 75) return "Good";
+  if (score >= 50) return "Average";
+  return "Needs Immediate Improvement";
+}
+
+function normalizeKey(value: unknown) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+const PILLAR_BUCKETS = {
+  Accessibility: [
+    "Accessibility & Inclusivity",
+    "Input, Errors & Validation",
+    "Feedback & System States",
+  ],
+  Impact: ["Navigation & Findability", "Visual Hierarchy & Layout", "code optimisation"],
+  Delight: ["Content & UX Writing", "Consistency & UI Patterns"],
+} as const;
+
+const SUMMARY_PILLAR_BUCKETS = {
+  Delight: ["Content & UX Writing", "Consistency & UI Patterns"],
+  Impact: ["Navigation & Findability", "Visual Hierarchy & Layout", "code optimisation"],
+  Accessibility: ["Accessibility & Inclusivity", "Input, Errors & Validation", "Feedback & System States"],
+} as const;
+
+const SUMMARY_BUCKET_DETAILS = {
+  "Accessibility & Inclusivity": {
+    topProblems: [
+      "Persistent labels are missing, so placeholder-only fields lose context while typing.",
+      "Tap targets and icon controls need larger hit areas on mobile devices.",
+      "Color-only error treatment makes validation harder to perceive for some users.",
+    ],
+    whatsWorking: [
+      "Core form structure is still simple enough to scan quickly.",
+      "The page hierarchy keeps the main actions visible and understandable.",
+      "Basic content labels are present, which gives us a good foundation to improve from.",
+    ],
+  },
+  "Input, Errors & Validation": {
+    topProblems: [
+      "Forms need pre-submission format hints so users know what to enter before errors appear.",
+      "Inline validation is missing, so users only discover mistakes after submitting.",
+      "Submitted values are not preserved on error, forcing unnecessary re-entry.",
+    ],
+    whatsWorking: [
+      "The form flow is straightforward and easy to follow from start to finish.",
+      "The issue is clear enough that the fix path is well defined.",
+      "This bucket has a strong opportunity for quick, high-confidence improvements.",
+    ],
+  },
+  "Feedback & System States": {
+    topProblems: [
+      "Loading indicators are missing during transitions and submission states.",
+      "Users do not get immediate confirmation that their action is being processed.",
+      "The interface risks duplicate clicks when submit actions do not change state.",
+    ],
+    whatsWorking: [
+      "The experience already has clear action points where feedback can be added.",
+      "System states are easy to improve without reworking the full layout.",
+      "There is a solid baseline for adding better confirmation and progress cues.",
+    ],
+  },
+  "Navigation & Findability": {
+    topProblems: [
+      "Navigation labels need to stay concise and scannable for faster wayfinding.",
+      "Key destinations should be easier to reach without extra browsing effort.",
+      "Supporting labels should reduce the chance of users missing critical pages.",
+    ],
+    whatsWorking: [
+      "The main navigation structure is already simple and familiar.",
+      "Users can understand the primary site areas without a steep learning curve.",
+      "This bucket benefits from a strong information architecture foundation.",
+    ],
+  },
+  "Visual Hierarchy & Layout": {
+    topProblems: [
+      "Important content needs stronger emphasis so the eye knows where to go first.",
+      "Spacing and grouping should guide scanning more clearly.",
+      "Secondary content can compete too much when the visual rhythm is flat.",
+    ],
+    whatsWorking: [
+      "The page already has a coherent structure that we can refine.",
+      "The current layout gives us a clear base for hierarchy improvements.",
+      "Typography and grouping can be tuned without changing the whole system.",
+    ],
+  },
+  "code optimisation": {
+    topProblems: [
+      "Conversion-critical moments should remove friction and unnecessary steps.",
+      "The path to action can be tightened to support faster completion.",
+      "Some content and asset choices could reduce efficiency and load performance.",
+    ],
+    whatsWorking: [
+      "The experience already has enough structure to support performance gains.",
+      "This bucket is well suited to targeted optimisation work.",
+      "There is a good base for turning clarity improvements into conversion lifts.",
+    ],
+  },
+  "Content & UX Writing": {
+    topProblems: [
+      "Copy should be clearer at key decision points so users feel more confident.",
+      "Plain language is needed where jargon currently slows understanding.",
+      "Microcopy should support actions instead of creating extra uncertainty.",
+    ],
+    whatsWorking: [
+      "The site already has the right places to add better guidance.",
+      "Core messaging can be sharpened without rewriting the full experience.",
+      "This is a strong opportunity to improve trust through clearer language.",
+    ],
+  },
+  "Consistency & UI Patterns": {
+    topProblems: [
+      "Repeated patterns should behave more predictably across the experience.",
+      "Control states and interaction styles need to feel more uniform.",
+      "Minor inconsistencies can still create hesitation during repeat tasks.",
+    ],
+    whatsWorking: [
+      "The product already shows a fairly repeatable interface language.",
+      "A consistent baseline is in place, so refinements will be visible quickly.",
+      "This bucket has a stable foundation for tightening pattern consistency.",
+    ],
+  },
+} as const;
+
+function bucketPillarFromRow(row: ScorecardRow) {
+  const bucket = normalizeKey(row.section);
+  for (const [pillar, buckets] of Object.entries(PILLAR_BUCKETS)) {
+    if (buckets.map(normalizeKey).includes(bucket)) return pillar;
+  }
+  const raw = normalizeKey(row.pillar);
+  if (raw.includes("access")) return "Accessibility";
+  if (raw.includes("impact")) return "Impact";
+  if (raw.includes("delight")) return "Delight";
+  return "Unassigned";
+}
+
+function bucketNameFromRow(row: ScorecardRow) {
+  return String(row.section || "").trim();
+}
+
+function summaryBucketDetails(bucketName: string) {
+  return (
+    SUMMARY_BUCKET_DETAILS[bucketName as keyof typeof SUMMARY_BUCKET_DETAILS] || {
+      topProblems: [
+        "Top problems for this bucket were not captured in the demo data.",
+        "Add bucket-specific scored rationale to populate this section.",
+      ],
+      whatsWorking: [
+        "What’s working for this bucket was not captured in the demo data.",
+        "Add bucket-specific scored rationale to populate this section.",
+      ],
+    }
+  );
+}
+
 const DEMO = {
   product_name: "Vitamin D.in",
   product_url: "vitamin-d.in",
   generated_at: "2026-05-13T11:56:23.299Z",
+  audit_reason: "Improve UX flow of the website",
   overall_score: 67,
-  overall_health: "Moderate",
+  overall_health: "Average",
   overall_risk: "Moderate",
   pillar_scores: {
     Delight: { score: 77, evaluated: true },
@@ -121,7 +288,7 @@ const DEMO = {
       pillar: "Impact",
     },
     {
-      section: "Product Optimisation",
+      section: "code optimisation",
       score: "60/100",
       health: "Moderate",
       risk_level: "Moderate",
@@ -285,7 +452,7 @@ const DEMO = {
     },
     {
       rank: 8,
-      bucket: "Product Optimisation",
+      bucket: "code optimisation",
       what_we_found:
         "Most large images are unoptimized JPEGs over 500KB with no use of modern formats like WebP or AVIF.",
       why_it_matters:
@@ -387,7 +554,6 @@ const DEMO = {
     {
       name: "Thoughtbot",
       url: "https://thoughtbot.com",
-      compare_focus: "UX and product design quality",
       positioning:
         "Strong credibility-led agency positioning focused on product design, engineering quality, and measurable business outcomes.",
       primary_cta: "Let’s get started",
@@ -407,7 +573,6 @@ const DEMO = {
     {
       name: "Clay",
       url: "https://clay.global",
-      compare_focus: "Premium agency positioning and portfolio presentation",
       positioning:
         "High-end digital agency framing with strong visual polish, motion, and premium brand perception.",
       primary_cta: "Start a project",
@@ -427,7 +592,6 @@ const DEMO = {
     {
       name: "Superside",
       url: "https://superside.com",
-      compare_focus: "Scale, speed, and service breadth",
       positioning:
         "Creative-as-a-service positioning built around fast delivery, AI-enabled workflows, and global team scale.",
       primary_cta: "Book a demo",
@@ -530,7 +694,6 @@ export function DemoReport() {
               body: JSON.stringify({
                 name: competitor.name,
                 url: competitor.url,
-                compare_focus: competitor.compare_focus,
               }),
             });
             if (!res.ok) return competitor;
@@ -561,159 +724,224 @@ export function DemoReport() {
     const quickWins = DEMO.quick_wins_table;
     const roadmap = DEMO.roadmap;
     const competitors = hydratedCompetitors;
-    const topFindings = findings.slice(0, 5);
+  const topFindings = findings.slice(0, 5);
+  const overallScore = Math.max(0, Math.min(100, DEMO.overall_score));
+  const pillarOrder = ["Accessibility", "Impact", "Delight"];
+  const groupedScoreRows = pillarOrder.map((pillar) => ({
+    pillar,
+    rows: scorecard.filter((row) => bucketPillarFromRow(row) === pillar),
+  }));
+  const businessMetrics = [
+    { label: "Conversion Rate", value: pillars.Impact.score },
+    { label: "Drop-off Rate", value: Math.max(0, 100 - overallScore) },
+      { label: "Task Completion Rate", value: pillars.Accessibility.score },
+      { label: "Customer Satisfaction", value: pillars.Delight.score },
+    ];
 
     return [
       {
         title: "Overview",
         body: (
           <div className="space-y-5">
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-xs uppercase tracking-[0.12em] text-[color:var(--muted)]">
-                UX Audit Report Details
+            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-6">
+              <div className="text-lg font-semibold text-[color:var(--ink)]">
+                Overall Report Summary
               </div>
-              <div className="mt-2 font-display text-4xl font-semibold tracking-tight">
-                {DEMO.product_name}
-              </div>
-              <div className="mt-3 grid gap-2 text-sm text-[color:var(--muted)]">
-                <div>Name: {DEMO.product_name}</div>
-                <div>URL: {DEMO.product_url}</div>
-                <div>Time: {formatDate(DEMO.generated_at)}</div>
-                <div>Reason: {DEMO.executive_summary.one_line_verdict}</div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-sm text-[color:var(--muted)]">Overall Score</div>
-              <div className="mt-2 flex items-end gap-3">
-                <div className="font-mono text-5xl font-bold tracking-tight">
-                  {DEMO.overall_score}
-                  <span className="text-xl text-[color:var(--muted)]">/100</span>
-                </div>
-                <div className="pb-1">
-                  <div className="text-sm">
-                    Health: <span className="font-semibold">{DEMO.overall_health}</span>
-                  </div>
-                  <div className="text-sm text-[color:var(--muted)]">Risk: {DEMO.overall_risk}</div>
-                </div>
+              <div className="mt-3 text-sm leading-7 text-[color:var(--muted)]">
+                {[
+                  DEMO.executive_summary.what_works ||
+                    "The website provides clear navigation, intuitive structure, strong visual hierarchy, and consistent UI patterns, making it easy for users to explore and understand",
+                  `However, ${
+                    DEMO.executive_summary.top_3_problems?.[0] ||
+                    "the contact form is a major conversion blocker due to missing format hints, input constraints, and validation feedback"
+                  }`,
+                  DEMO.executive_summary.first_priority_recommendation ||
+                    "Improve it with clear field guidance, real-time inline validation, input preservation after errors, and immediate submit-button feedback to prevent duplicate submissions",
+                ]
+                  .map((item) => item.replace(/[.]+$/, ""))
+                  .join(". ") + "."}
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-3">
-              {Object.entries(pillars).map(([name, p]) => (
-                <div
-                  key={name}
-                  className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
-                >
-                  <div className="text-sm text-[color:var(--muted)]">{name} Score</div>
-                  <div className="mt-2 font-mono text-3xl font-bold">
-                    {p.score}
-                    <span className="text-sm text-[color:var(--muted)]">/100</span>
+            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="text-lg font-semibold text-[color:var(--ink)]">Overall Score</div>
+                  <div className="mt-1 text-sm text-[color:var(--muted)]">
+                    Composite score across key UX audit buckets
                   </div>
                 </div>
-              ))}
+                <div className="rounded-full border border-[color:var(--accent)]/30 bg-[color:var(--accent-light)] px-4 py-2 text-sm font-medium text-[color:var(--accent)]">
+                  {DEMO.overall_score}/100{" "}
+                  <span className="ml-2 text-[color:var(--ink-soft)]">
+                    Experiences: {experienceLabelFromScore(DEMO.overall_score)}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-6 grid gap-4 lg:grid-cols-3">
+                {Object.entries(pillars).map(([name, p]) => (
+                  <div
+                    key={name}
+                    className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
+                  >
+                    <div className="text-sm text-[color:var(--muted)]">{name} Score</div>
+                    <div className="mt-3 flex items-end gap-2">
+                      <div className="font-mono text-4xl font-bold">{p.score}</div>
+                      <div className="pb-1 text-sm text-[color:var(--muted)]">/100</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-sm font-semibold">Score Card</div>
-              <div className="mt-4 overflow-auto">
-                <table className="w-full min-w-[780px] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
-                    <tr>
-                      <th className="py-2 pr-4">Bucket</th>
-                      <th className="py-2 pr-4">Score</th>
-                      <th className="py-2 pr-4">Health</th>
-                      <th className="py-2 pr-4">Risk</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[color:var(--card-border)]/60">
-                    {scorecard.map((r) => (
-                      <tr key={r.section}>
-                        <td className="py-3 pr-4 font-medium">{r.section}</td>
-                        <td className="py-3 pr-4 font-mono">{r.score}</td>
-                        <td className="py-3 pr-4">{r.health}</td>
-                        <td className="py-3 pr-4">{r.risk_level}</td>
+              <div className="text-lg font-semibold normal-case">Business Metrics</div>
+              <div className="mt-5 grid gap-5 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:divide-[color:var(--card-border)]/60">
+                {businessMetrics.map((metric) => (
+                  <div key={metric.label} className="space-y-3 lg:px-4 first:lg:pl-0 last:lg:pr-0">
+                    <div className="text-xs text-[color:var(--muted)] normal-case">
+                      {metric.label}
+                    </div>
+                    <div className="overflow-hidden rounded-full bg-black/[0.08]">
+                      <div
+                        className="h-2 rounded-full bg-black/[0.14]"
+                        style={{ width: `${metric.value}%` }}
+                      />
+                    </div>
+                    <div className="text-right text-xs font-mono text-[color:var(--muted)]">
+                      {metric.value}/100
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
+              <div className="text-lg font-semibold normal-case">Score Card</div>
+              <div className="mt-4 overflow-x-auto">
+                <div className="min-w-[980px] rounded-2xl border border-[color:var(--card-border)]/60 overflow-hidden">
+                  <table className="w-full table-fixed text-left text-sm">
+                    <colgroup>
+                      <col className="w-[54px]" />
+                      <col className="w-[24%]" />
+                      <col className="w-[24%]" />
+                      <col className="w-[24%]" />
+                      <col className="w-[24%]" />
+                    </colgroup>
+                    <thead className="border-b border-[color:var(--card-border)]/60 text-xs uppercase tracking-wider text-[color:var(--muted)]">
+                      <tr>
+                        <th className="px-1 py-3 text-center">
+                          <span className="sr-only">Pillar</span>
+                        </th>
+                        <th className="px-4 py-4 text-center">Bucket</th>
+                        <th className="px-4 py-4 text-center">Score</th>
+                        <th className="px-4 py-4 text-center">Experiences</th>
+                        <th className="px-4 py-4 text-center">Priority</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        ),
-      },
-      {
-        title: "Executive Summary",
-        body: (
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-sm font-semibold">One line Verdict</div>
-              <div className="mt-2 text-sm text-[color:var(--muted)]">
-                {DEMO.executive_summary.one_line_verdict}
-              </div>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-[color:var(--card-border)]/60">
+                      {groupedScoreRows.flatMap(({ pillar, rows }) =>
+                        rows.length
+                          ? rows.map((r, index) => {
+                              const score = String(r.score ?? "").trim() || "Not scored";
+                              const experience = experienceLabelFromScore(r.score);
+                              const priority = formatPriority(r.priority);
+                              const bucket = bucketNameFromRow(r) || "Bucket";
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">Top Problems</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {DEMO.executive_summary.top_3_problems.map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">First Priority</div>
-                <div className="mt-2 text-sm text-[color:var(--muted)]">
-                  {DEMO.executive_summary.first_priority_recommendation}
+                              return (
+                                <tr key={`${pillar}-${bucket}-${index}`}>
+                                  {index === 0 ? (
+                                    <td
+                                      rowSpan={rows.length}
+                                      className="border-r border-[color:var(--card-border)]/60 align-middle px-2 py-0 text-center"
+                                    >
+                                      <div className="mx-auto [writing-mode:vertical-rl] rotate-180 text-[9px] font-semibold uppercase tracking-[0.12em] leading-none text-[color:var(--muted)]">
+                                        {pillar}
+                                      </div>
+                                    </td>
+                                  ) : null}
+                                  <td className="px-4 py-5 text-center font-medium text-[color:var(--ink)]">{bucket}</td>
+                                  <td className="px-4 py-5 text-center font-mono text-[color:var(--ink)]">{score}</td>
+                                  <td className="px-4 py-5 text-center text-[color:var(--ink)]">{experience}</td>
+                                  <td className="px-4 py-5 text-center font-semibold text-[color:var(--ink)]">{priority}</td>
+                                </tr>
+                              );
+                            })
+                        : [
+                            <tr key={pillar}>
+                              <td className="border-r border-[color:var(--card-border)]/60 px-2 py-0 text-center">
+                                <div className="mx-auto [writing-mode:vertical-rl] rotate-180 text-[9px] font-semibold uppercase tracking-[0.12em] leading-none text-[color:var(--muted)]">
+                                  {pillar}
+                                </div>
+                              </td>
+                                <td colSpan={4} className="px-4 py-5 text-[color:var(--muted)]">
+                                  No buckets available for this pillar.
+                                </td>
+                              </tr>,
+                            ],
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">What&apos;s Working</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {DEMO.executive_summary.top_3_quick_wins.slice(0, 4).map((q) => (
-                    <li key={q}>{q}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">Quick Wins</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {quickWins.slice(0, 6).map((q) => (
-                    <li key={q.finding}>{q.recommendation}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
           </div>
         ),
       },
       {
-        title: "Narrative Summary",
+        title: "Summary",
         body: (
           <div className="space-y-4">
-            {[
-              ["Delight", DEMO.section_narrative.delight_narrative],
-              ["Impact", DEMO.section_narrative.impact_narrative],
-              ["Accessibility", DEMO.section_narrative.accessibility_narrative],
-            ].map(([title, text]) => (
+            {(
+              [
+                ["Delight", SUMMARY_PILLAR_BUCKETS.Delight],
+                ["Impact", SUMMARY_PILLAR_BUCKETS.Impact],
+                ["Accessibility", SUMMARY_PILLAR_BUCKETS.Accessibility],
+              ] as const
+            ).map(([pillar, bucketNames]) => (
               <div
-                key={String(title)}
+                key={pillar}
                 className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
               >
-                <div className="text-sm font-semibold">{String(title)}</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {String(text)
-                    .split(/(?<=[.!?])\s+/)
-                    .filter(Boolean)
-                    .slice(0, 6)
-                    .map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                </ul>
+                <div className="text-sm font-semibold">
+                  {pillar}{" "}
+                  <span className="font-normal text-[color:var(--muted)]">
+                    ({bucketNames.join(", ")})
+                  </span>
+                </div>
+                <div className="my-4 border-t border-[color:var(--card-border)]/60" />
+                <div className="space-y-5">
+                  {bucketNames.map((bucketName, index) => (
+                    <div
+                      key={`${pillar}-${bucketName}`}
+                      className={index === 0 ? "" : "border-t border-[color:var(--card-border)]/60 pt-5"}
+                    >
+                      <div className="text-sm font-medium text-[color:var(--ink)]">{bucketName}</div>
+                      <div className="mt-4 space-y-5">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
+                            Top Problems
+                          </div>
+                          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
+                            {summaryBucketDetails(bucketName).topProblems.map((item) => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
+                            What&apos;s Working
+                          </div>
+                          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
+                            {summaryBucketDetails(bucketName).whatsWorking.map((item) => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -724,15 +952,12 @@ export function DemoReport() {
         body: (
           <div className="space-y-5">
             <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-sm font-semibold">Competitor comparison snapshot</div>
               <div className="mt-4 overflow-auto">
-                <table className="w-full min-w-[880px] text-left text-sm">
+                <table className="w-full min-w-[640px] text-left text-sm">
                   <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
                     <tr>
                       <th className="py-2 pr-4">Competitor</th>
-                      <th className="py-2 pr-4">Compare focus</th>
                       <th className="py-2 pr-4">Positioning</th>
-                      <th className="py-2 pr-4">Primary CTA</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[color:var(--card-border)]/60">
@@ -742,9 +967,7 @@ export function DemoReport() {
                           <div>{competitor.name}</div>
                           <div className="mt-1 text-xs text-[color:var(--muted)]">{competitor.url}</div>
                         </td>
-                        <td className="py-3 pr-4 text-[color:var(--muted)]">{competitor.compare_focus}</td>
                         <td className="py-3 pr-4 text-[color:var(--muted)]">{competitor.positioning}</td>
-                        <td className="py-3 pr-4 font-medium">{competitor.primary_cta}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -758,23 +981,23 @@ export function DemoReport() {
                   key={competitor.name}
                   className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
                 >
-                  {competitor.screenshot ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={competitor.screenshot}
-                      alt={`${competitor.name} screenshot`}
-                      className="mb-4 h-40 w-full rounded-xl border border-[color:var(--card-border)] object-cover"
-                    />
-                  ) : (
-                    <div className="mb-4 flex h-40 w-full items-center justify-center rounded-xl border border-[color:var(--card-border)] bg-white/5 text-sm text-[color:var(--muted)]">
-                      Screenshot unavailable
+                  <div className="relative mb-4 h-40 w-full overflow-hidden rounded-xl border border-[color:var(--card-border)] bg-white/5">
+                    <div className="absolute left-3 top-3 z-10 rounded-full border border-[color:var(--card-border)] bg-white/90 px-3 py-1 text-xs font-semibold text-[color:var(--ink)] shadow-sm">
+                      {competitor.name}
                     </div>
-                  )}
-                  <div className="text-sm font-semibold">{competitor.name}</div>
-                  <div className="mt-1 text-xs uppercase tracking-wider text-[color:var(--muted)]">
-                    {competitor.compare_focus}
+                    {competitor.screenshot ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={competitor.screenshot}
+                        alt={`${competitor.name} screenshot`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--muted)]">
+                        Screenshot unavailable
+                      </div>
+                    )}
                   </div>
-
                   <div className="mt-4">
                     <SectionTitle>Strengths</SectionTitle>
                     <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted)]">
@@ -824,12 +1047,11 @@ export function DemoReport() {
             <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
               <div className="text-sm font-semibold">Quick wins table</div>
               <div className="mt-4 overflow-auto">
-                <table className="w-full min-w-[880px] text-left text-sm">
+                <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
                     <tr>
                       <th className="py-2 pr-4">Finding</th>
                       <th className="py-2 pr-4">Recommendation</th>
-                      <th className="py-2 pr-4">Effort</th>
                       <th className="py-2 pr-4">ETA</th>
                     </tr>
                   </thead>
@@ -838,7 +1060,6 @@ export function DemoReport() {
                       <tr key={w.finding}>
                         <td className="py-3 pr-4 font-medium">{w.finding}</td>
                         <td className="py-3 pr-4 text-[color:var(--muted)]">{w.recommendation}</td>
-                        <td className="py-3 pr-4">{w.effort}</td>
                         <td className="py-3 pr-4 font-mono">{w.estimated_time}</td>
                       </tr>
                     ))}
@@ -891,6 +1112,10 @@ export function DemoReport() {
   const [page, setPage] = useState(0);
   const current = pages[page]!;
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [page]);
+
   return (
     <div className="p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -904,12 +1129,23 @@ export function DemoReport() {
         </div>
       </div>
 
+      <div className="mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-8">
+        <div className="mb-5 text-2xl font-semibold text-[color:var(--ink)]">{current.title}</div>
+        {current.title === "Overview" ? (
+          <div className="mb-5 text-sm leading-7 text-[color:var(--ink-muted)]">
+            This report is based on an expert review using a structured UX Audit Framework. It
+            provides an indicative assessment of the user experience with an estimated 70%
+            accuracy level and is intended to guide design decisions.
+          </div>
+        ) : null}
+        {current.body}
+      </div>
+
       <div className="mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm text-[color:var(--ink-muted)]">
             Page {page + 1} / {pages.length}
           </div>
-          <div className="text-sm font-semibold">{current.title}</div>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -937,10 +1173,6 @@ export function DemoReport() {
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-8">
-        {current.body}
       </div>
     </div>
   );

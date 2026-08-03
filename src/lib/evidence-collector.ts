@@ -2060,6 +2060,37 @@ async function collectEvidenceViaFetch(input: {
     }
   }
 
+  if (!pages.length && input.productType === "marketing_website") {
+    const fallbackTitle = (() => {
+      try {
+        return new URL(startUrl).hostname.replace(/^www\./i, "") || "Marketing website";
+      } catch {
+        return "Marketing website";
+      }
+    })();
+    pages.push({
+      url: startUrl,
+      title: fallbackTitle,
+      metaDescription: "",
+      h1: [fallbackTitle],
+      h2: [],
+      h3: [],
+      topNavLinks: [],
+      primaryCtas: [],
+      buttons: [],
+      formLabels: [],
+      placeholders: [],
+      tabs: [],
+      alerts: [],
+      tableHeaders: [],
+      emptyStateHints: [],
+      textSnippet: `Public fetch could not read ${startUrl}; using the submitted URL as fallback evidence.`,
+    });
+    warnings.push(
+      `Public fetch could not read ${startUrl}; using a fallback evidence page so the audit can continue.`,
+    );
+  }
+
   return {
     pages,
     screenshotDataUrl,

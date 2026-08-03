@@ -19,12 +19,12 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative w-full bg-[#f6f1e8] px-16 pb-12 text-[#191919]">
-      <div className="mx-auto max-w-none rounded-[36px] bg-[#191a23] px-6 py-8 text-white shadow-[0_30px_80px_rgba(0,0,0,0.14)] md:px-10 md:py-10">
+    <footer className="relative w-full bg-[color:var(--surface)] px-16 pb-12 text-[#191919]">
+      <div className="mx-auto max-w-none rounded-[36px] bg-[#101010] px-6 py-8 text-white shadow-[0_30px_80px_rgba(0,0,0,0.14)] md:px-10 md:py-10">
         <div className="flex flex-col gap-6 border-b border-white/10 pb-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-[320px]">
             <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold tracking-[-0.03em]">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-bold text-[#191a23]">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-bold text-[#101010]">
                 UX
               </span>
               <span>AI UX Audit</span>
@@ -36,7 +36,7 @@ export function Footer() {
 
           <div className="grid gap-8 sm:grid-cols-2 lg:min-w-[420px]">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#c7ff4f]">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ff8a1f]">
                 Company
               </div>
               <div className="mt-4 flex flex-col gap-3 text-sm text-white/78">
@@ -48,7 +48,7 @@ export function Footer() {
               </div>
             </div>
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#c7ff4f]">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ff8a1f]">
                 Resources
               </div>
               <div className="mt-4 flex flex-col gap-3 text-sm text-white/78">
@@ -64,7 +64,7 @@ export function Footer() {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_0.9fr] lg:items-center">
           <div>
-            <div className="inline-flex rounded-md bg-[#c7ff4f] px-3 py-1 text-sm font-bold text-[#191919]">
+            <div className="inline-flex rounded-md bg-[#ff8a1f] px-3 py-1 text-sm font-bold text-[#191919]">
               Contact us
             </div>
             <div className="mt-4 space-y-1 text-sm text-white/75">

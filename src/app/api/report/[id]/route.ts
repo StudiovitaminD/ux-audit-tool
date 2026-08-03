@@ -1,5 +1,11 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
-import { loadStoredReport, resolveReportSnapshot, unwrapReportPayload } from "@/lib/report-record";
+import { getAccountSessionFromRequest } from "@/lib/account-server";
+import {
+  loadStoredReport,
+  reportBelongsToSession,
+  resolveReportSnapshot,
+  unwrapReportPayload,
+} from "@/lib/report-record";
 import { collectCloudinaryPublicIds, destroyCloudinaryAsset } from "@/lib/cloudinary-cleanup";
 
 const AUTO_CONTINUE_STAGES = new Set([
@@ -190,10 +196,18 @@ export async function GET(
   const id = params.id;
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
+  const accountSession = await getAccountSessionFromRequest(req);
+  if (!accountSession) {
+    return Response.json({ error: "Please sign in first." }, { status: 401 });
+  }
+
   const snap = await resolveReportSnapshot(id);
   if (!snap?.exists) return Response.json({ error: "Not found" }, { status: 404 });
 
   const dataRecord = (snap.data() ?? {}) as Record<string, unknown>;
+  if (!reportBelongsToSession(dataRecord, accountSession)) {
+    return Response.json({ error: "You do not have access to this report." }, { status: 403 });
+  }
   const normalizedProgress = normalizeProgressState(dataRecord);
   const captureDebug = asRecord(dataRecord.captureDebug);
   const rawReport = unwrapReportPayload(dataRecord.report);
@@ -255,6 +269,10 @@ export async function PATCH(
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   try {
+    const accountSession = await getAccountSessionFromRequest(req);
+    if (!accountSession) {
+      return Response.json({ error: "Please sign in first." }, { status: 401 });
+    }
     const raw = (await req.json()) as { report?: unknown } | null;
     const report = raw?.report;
     if (!report) {
@@ -265,6 +283,9 @@ export async function PATCH(
     const snap = await resolveReportSnapshot(id);
     if (!snap?.exists) {
       return Response.json({ error: "Not found" }, { status: 404 });
+    }
+    if (!reportBelongsToSession((snap.data() ?? {}) as Record<string, unknown>, accountSession)) {
+      return Response.json({ error: "You do not have access to edit this report." }, { status: 403 });
     }
 
     const ref = snap.ref;
@@ -292,8 +313,15 @@ export async function DELETE(
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   try {
+    const accountSession = await getAccountSessionFromRequest(_req);
+    if (!accountSession) {
+      return Response.json({ error: "Please sign in first." }, { status: 401 });
+    }
     const snap = await resolveReportSnapshot(id);
     if (!snap?.exists) return Response.json({ error: "Not found" }, { status: 404 });
+    if (!reportBelongsToSession((snap.data() ?? {}) as Record<string, unknown>, accountSession)) {
+      return Response.json({ error: "You do not have access to delete this report." }, { status: 403 });
+    }
 
     const data = snap.data() ?? {};
     const publicIds = Array.from(new Set(collectCloudinaryPublicIds(data)));

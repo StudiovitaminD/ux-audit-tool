@@ -6,6 +6,34 @@ export function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+export function reportBelongsToSession(
+  data: Record<string, unknown>,
+  session: { id: string; email: string; role?: string },
+) {
+  if (session.role === "admin") return true;
+  const ownerFields = [
+    data.created_by,
+    data.createdBy,
+    data.user_id,
+    data.userId,
+    data.owner_id,
+    data.ownerId,
+  ];
+  const emailFields = [data.user_email, data.userEmail, data.email, data.owner_email, data.ownerEmail];
+  const normalizedSessionId = session.id.trim();
+  const normalizedSessionEmail = session.email.trim().toLowerCase();
+
+  if (
+    ownerFields.some((value) => typeof value === "string" && value.trim() === normalizedSessionId)
+  ) {
+    return true;
+  }
+
+  return emailFields.some(
+    (value) => typeof value === "string" && value.trim().toLowerCase() === normalizedSessionEmail,
+  );
+}
+
 export function tryParseJsonString(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const trimmed = value.trim();

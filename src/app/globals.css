@@ -6,19 +6,19 @@
 
 :root {
   --background: #f7f3ec;
-  --foreground: #11111a;
+  --foreground: #101010;
   --card: #ffffff;
-  --card-foreground: #11111a;
+  --card-foreground: #101010;
   --muted: #5f5f67;
   --muted-foreground: #7a7a84;
   --border: #e5e1d7;
-  --accent: #ff805f;
-  --accent-foreground: #ffffff;
+  --accent: #ff8a1f;
+  --accent-foreground: #101010;
   --success: #2dd080;
   --warning: #f7b655;
   --danger: #f8596e;
-  --surface: #f2ebe0;
-  --surface-strong: #e8e0d5;
+  --surface: #f7f3ec;
+  --surface-strong: #ede6da;
   --shadow: 0 36px 120px rgba(15, 23, 42, 0.08);
 
   --cream: var(--surface);
@@ -29,7 +29,7 @@
   --ink-soft: #3d3630;
   --ink-muted: var(--muted);
   --ink-faint: var(--muted-foreground);
-  --accent-light: #ffe8de;
+  --accent-light: #fff1e3;
   --ink-bg: var(--foreground);
 
   --container: 1440px;
@@ -38,8 +38,8 @@
   --radius: 16px;
   --radius-sm: 10px;
 
-  --font-display: "Poppins";
-  --font-sans: "Poppins";
+  --font-display: "Poppins", "Poppins Placeholder", sans-serif;
+  --font-sans: "Poppins", "Poppins Placeholder", sans-serif;
 }
 
 .dark {
@@ -50,8 +50,8 @@
   --muted: #abb1c1;
   --muted-foreground: #9ea5b6;
   --border: #25304a;
-  --accent: #ff8b6d;
-  --accent-foreground: #0f172a;
+  --accent: #ff8a1f;
+  --accent-foreground: #191919;
   --success: #6ee7b7;
   --warning: #fcd34d;
   --danger: #fb7185;
@@ -77,6 +77,37 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+h1 {
+  font-size: 60px;
+  line-height: 1.02;
+}
+
+h2 {
+  font-size: 40px;
+  line-height: 1.08;
+}
+
+h3 {
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+h4 {
+  font-size: 20px;
+  line-height: 1.15;
 }
 
 .landingRoot {

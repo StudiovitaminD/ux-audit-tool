@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
-  createDefaultSession,
+  SESSION_CHANGE_EVENT,
+  SESSION_STORAGE_KEY,
+  buildOptimisticAppSession,
   fetchAppSession,
   readAppSession,
   signInWithPassword,
   signUpWithPassword,
+  writeAppSession,
   type AppSession,
 } from "@/lib/app-session";
 
@@ -37,7 +40,7 @@ function normalizeReturnTo(value: string | null) {
 export function AuthPageForm({ mode }: AuthPageFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [session, setSession] = useState<AppSession>(() => createDefaultSession());
+  const [session, setSession] = useState<AppSession>(() => readAppSession());
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -58,12 +61,25 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
   );
 
   useEffect(() => {
+    const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
     setSession(readAppSession());
-    void fetchAppSession()
+    void fetchAppSession({ expectedStorageValue: storageSnapshot })
       .then((next) => {
-        setSession(next);
+        if (window.localStorage.getItem(SESSION_STORAGE_KEY) === storageSnapshot) {
+          setSession(next);
+        }
       })
       .catch(() => undefined);
+
+    const syncSession = () => {
+      setSession(readAppSession());
+    };
+    window.addEventListener("storage", syncSession);
+    window.addEventListener(SESSION_CHANGE_EVENT, syncSession);
+    return () => {
+      window.removeEventListener("storage", syncSession);
+      window.removeEventListener(SESSION_CHANGE_EVENT, syncSession);
+    };
   }, []);
 
   useEffect(() => {
@@ -77,6 +93,15 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
     setBusy(true);
     setError(null);
 
+    const previousSession = session;
+    const optimisticSession = buildOptimisticAppSession({
+      email,
+      name: isSignUp ? name : undefined,
+      plan: isSignUp ? selectedPlan : null,
+    });
+    setSession(optimisticSession);
+    writeAppSession(optimisticSession);
+
     try {
       const next = isSignUp
         ? await signUpWithPassword({
@@ -88,8 +113,12 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
           })
         : await signInWithPassword({ email, password });
       setSession(next);
+      writeAppSession(next);
       router.replace(returnTo);
+      router.refresh();
     } catch (submitError) {
+      setSession(previousSession);
+      writeAppSession(previousSession);
       setError(submitError instanceof Error ? submitError.message : "Unable to continue.");
     } finally {
       setBusy(false);

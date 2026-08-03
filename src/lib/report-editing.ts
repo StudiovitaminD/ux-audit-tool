@@ -24,18 +24,17 @@ const PILLAR_MAP: Record<string, string> = {
   "Content & UX Writing": "Delight",
   "Visual Hierarchy & Layout": "Delight",
   "Accessibility & Inclusivity": "Accessibility",
-  "Input, Errors & Validation": "Impact",
-  "Feedback & System States": "Impact",
+  "Input, Errors & Validation": "Accessibility",
+  "Feedback & System States": "Accessibility",
   "Consistency & UI Patterns": "Impact",
-  "Product Optimisation": "Impact",
+  "code optimisation": "Impact",
 };
 
 function getHealth(score: number) {
-  if (score >= 85) return { label: "Excellent", risk: "Optimised", priority: "P4" };
-  if (score >= 70) return { label: "Good", risk: "Low Risk", priority: "P3" };
-  if (score >= 55) return { label: "Moderate", risk: "Moderate", priority: "P2" };
-  if (score >= 40) return { label: "Poor", risk: "High", priority: "P1" };
-  return { label: "Critical", risk: "Critical", priority: "P1" };
+  if (score >= 85) return { label: "Exceptional", risk: "Optimised", priority: "P4" };
+  if (score >= 75) return { label: "Good", risk: "Low Risk", priority: "P3" };
+  if (score >= 50) return { label: "Average", risk: "Moderate", priority: "P2" };
+  return { label: "Needs Immediate Improvement", risk: "Critical", priority: "P1" };
 }
 
 function lookupQuestionOptions(bucketName: string, questionId: string) {

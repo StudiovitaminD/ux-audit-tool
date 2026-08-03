@@ -434,7 +434,7 @@ async function buildPptxResponse(req: Request, id: string) {
         h: 1.85,
         title: vm.auditType === "Limited Coverage Report" ? "Evidence Coverage Report Details" : "UX Audit Report Details",
         text: [
-          `Name: ${vm.productName || "—"}`,
+          `Product type: ${vm.productType || vm.auditType || "—"}`,
           `URL: ${vm.productUrl || "—"}`,
           `Time: ${formatGeneratedDate(vm.generatedAt)}`,
           `Reason: ${truncate(vm.auditReason || "—", 240)}`,
@@ -461,7 +461,7 @@ async function buildPptxResponse(req: Request, id: string) {
         bold: true,
         fit: "shrink",
       });
-      slide.addText(`Health: ${vm.overallHealth || "—"}`, {
+      slide.addText(`Experiences: ${vm.overallHealth || "—"}`, {
         x: 1.95,
         y: 3.66,
         w: 2.2,
@@ -471,14 +471,24 @@ async function buildPptxResponse(req: Request, id: string) {
         fontSize: 9.5,
         bold: true,
       });
-      slide.addText(`Risk: ${vm.overallRisk || "—"}`, {
+      slide.addText("Business Metrics", {
         x: 1.95,
-        y: 3.88,
-        w: 2.2,
+        y: 3.87,
+        w: 1.6,
         h: 0.16,
+        color: TEXT,
+        fontFace: "Aptos",
+        fontSize: 8.5,
+        bold: true,
+      });
+      slide.addText("Conversion Rate • Drop-off Rate • Task Completion Rate • Customer Satisfaction", {
+        x: 1.95,
+        y: 4.01,
+        w: 4.7,
+        h: 0.25,
         color: MUTED,
         fontFace: "Aptos",
-        fontSize: 9,
+        fontSize: 7.7,
       });
       if (vm.isLimitedCoverage || vm.isScoringUnavailable) {
         addCard(slide, pptx, {
@@ -535,46 +545,7 @@ async function buildPptxResponse(req: Request, id: string) {
       });
     });
 
-    addSectionSlide(pptx, id, "Executive Summary", subtitle, (slide) => {
-      addCard(slide, pptx, {
-        x: 0.65,
-        y: 1.2,
-        w: 5.65,
-        h: 2.55,
-        title: "Top Problems",
-        text: list(executiveSummary.top_problems, 8).map((item) => `• ${item}`).join("\n"),
-        line: SOFT_LINE,
-      });
-      addCard(slide, pptx, {
-        x: 6.75,
-        y: 1.2,
-        w: 5.65,
-        h: 2.55,
-        title: "First Priority",
-        text: list(executiveSummary.first_priority, 8).map((item) => `• ${item}`).join("\n"),
-        line: SOFT_LINE,
-      });
-      addCard(slide, pptx, {
-        x: 0.65,
-        y: 4.0,
-        w: 5.65,
-        h: 2.45,
-        title: "What’s Working",
-        text: list(executiveSummary.whats_working, 8).map((item) => `• ${item}`).join("\n"),
-        line: SOFT_LINE,
-      });
-      addCard(slide, pptx, {
-        x: 6.75,
-        y: 4.0,
-        w: 5.65,
-        h: 2.45,
-        title: "Quick Wins",
-        text: quickWinRows(reportRecord, executiveSummary).slice(0, 8).map((item) => `• ${item}`).join("\n"),
-        line: SOFT_LINE,
-      });
-    });
-
-    addSectionSlide(pptx, id, "Narrative Summary", subtitle, (slide) => {
+    addSectionSlide(pptx, id, "Summary", subtitle, (slide) => {
       const narratives = [
         ["Delight", vm.sectionNarrative.delight_narrative],
         ["Impact", vm.sectionNarrative.impact_narrative],
@@ -617,13 +588,12 @@ async function buildPptxResponse(req: Request, id: string) {
         y: 1.35,
         w: 11.45,
         rowH: 1.5,
-        headers: ["Competitor", "Compare Focus", "Positioning", "Primary CTA"],
-        colW: [1.55, 3.35, 4.65, 1.9],
+        headers: ["Competitor", "Positioning", "Primary CTA"],
+        colW: [2.1, 6.05, 2.4],
         rows: competitors.map((competitor, index) => {
           const signals = asRecord(competitor.signals) ?? {};
           return [
             `${asString(competitor.name) || `Competitor ${index + 1}`}\n${truncate(competitor.url, 45)}`,
-            truncate(competitor.compare_focus, 210),
             truncate(competitor.positioning || signals.positioning, 260),
             truncate(competitor.primary_cta || signals.primary_cta, 90),
           ];
@@ -793,12 +763,11 @@ async function buildPptxResponse(req: Request, id: string) {
           y: 1.25,
           w: 11.45,
           rowH: 0.9,
-          headers: ["Finding", "Recommendation", "Effort", "ETA"],
-          colW: [3.65, 5.35, 1.0, 1.45],
+          headers: ["Finding", "Recommendation", "ETA"],
+          colW: [4.0, 6.0, 1.45],
           rows: rows.map((item) => [
             truncate(item.finding, 165),
             truncate(item.recommendation, 230),
-            truncate(item.effort, 40),
             truncate(item.estimated_time, 50),
           ]),
         });
@@ -845,14 +814,24 @@ async function buildPptxResponse(req: Request, id: string) {
       if (vm.closingNote) {
         addCard(slide, pptx, {
           x: 0.65,
-          y: 5.55,
+          y: 5.45,
           w: 11.75,
-          h: 0.9,
+          h: 1.0,
           title: "Closing note",
           text: truncate(vm.closingNote, 320),
           line: SOFT_LINE,
         });
       }
+      addCard(slide, pptx, {
+        x: 0.65,
+        y: 6.5,
+        w: 11.75,
+        h: 0.95,
+        title: "Disclaimer",
+        text:
+          "This report is based on an expert review using a structured UX Audit Framework. It provides an indicative assessment of the user experience with an estimated 70% accuracy level and is intended to guide design decisions.",
+        line: SOFT_LINE,
+      });
     });
 
     const buf = (await pptx.write("nodebuffer")) as unknown as Buffer;

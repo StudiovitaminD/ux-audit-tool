@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { fetchAppSession } from "@/lib/app-session";
+import { SESSION_STORAGE_KEY, fetchAppSession } from "@/lib/app-session";
 import { type CheckoutPlan } from "@/lib/razorpay-billing";
 
 type BillingOrderResponse = {
@@ -91,7 +91,8 @@ export default function BillingCheckoutPage() {
 
     async function initialize() {
       try {
-        const session = await fetchAppSession().catch(() => null);
+        const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
+        const session = await fetchAppSession({ expectedStorageValue: storageSnapshot }).catch(() => null);
         if (cancelled) return;
         if (!session) {
           const current = `${window.location.pathname}${window.location.search}`;
@@ -184,7 +185,8 @@ export default function BillingCheckoutPage() {
               if (!confirmation.ok) {
                 throw new Error(confirmationData?.error || "Payment confirmation failed.");
               }
-              await fetchAppSession().catch(() => undefined);
+              const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
+              await fetchAppSession({ expectedStorageValue: storageSnapshot }).catch(() => undefined);
               if (cancelled) return;
               router.replace(activeOrder.next);
             } catch (paymentError) {

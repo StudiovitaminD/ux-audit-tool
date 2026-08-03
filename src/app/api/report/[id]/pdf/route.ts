@@ -88,44 +88,11 @@ async function applyExportStyles(page: Page) {
   }).catch(() => {});
 }
 
-async function waitForReport(page: Page) {
-  await page.waitForSelector("[data-report-live-canvas]", {
-    timeout: 120_000,
-    state: "visible",
-  });
-  await page.waitForSelector("[data-report-live-page]", {
-    timeout: 120_000,
-    state: "visible",
-  });
-  await page.waitForFunction(
-    () => {
-      const root = document.querySelector("[data-report-live-canvas]");
-      return !!root && Number(root.getAttribute("data-total-pages") || "0") > 0;
-    },
-    { timeout: 120_000 },
-  );
-  await page.waitForTimeout(600).catch(() => {});
-}
-
 type PageScreenshot = {
   src: string;
   widthPx: number;
   heightPx: number;
 };
-
-async function forceVisibleReportContent(page: Page) {
-  await applyExportStyles(page);
-  await page.evaluate(() => {
-    document.querySelectorAll("[data-report-live-page] *").forEach((el) => {
-      const node = el as HTMLElement;
-      node.style.contentVisibility = "visible";
-      node.style.contain = "none";
-      node.style.animation = "none";
-      node.style.transition = "none";
-    });
-    window.scrollTo(0, 0);
-  }).catch(() => {});
-}
 
 async function captureLocator(locator: ReturnType<Page["locator"]>, label: string) {
   await locator.scrollIntoViewIfNeeded().catch(() => {});
@@ -148,72 +115,23 @@ async function captureLocator(locator: ReturnType<Page["locator"]>, label: strin
   };
 }
 
-async function captureReportPages(page: Page) {
-  const pageCount = await page.evaluate(() => {
-    const root = document.querySelector("[data-report-live-canvas]");
-    return Number(root?.getAttribute("data-total-pages") || "0");
-  });
-
-  if (!pageCount || Number.isNaN(pageCount)) {
-    throw new Error("Unable to determine report page count");
-  }
-
-  await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+async function capturePrintPages(page: Page) {
+  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
   await page.waitForTimeout(1000).catch(() => {});
 
-  const capturedPages: PageScreenshot[] = [];
-
-  for (let index = 0; index < pageCount; index += 1) {
-    await page.waitForFunction(
-      (expectedPage) => {
-        const root = document.querySelector("[data-report-live-canvas]");
-        return Number(root?.getAttribute("data-current-page") || "0") === expectedPage;
-      },
-      index + 1,
-      { timeout: 30_000 },
-    );
-
-    await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
-    await page.waitForTimeout(300).catch(() => {});
-
-    await forceVisibleReportContent(page);
-
-    const pageElement = page.locator("[data-report-live-page]").first();
-    const pageTitle = await pageElement.getAttribute("data-report-page-title").catch(() => "");
-    const shouldCaptureSections = pageTitle === "AI Bucket Answers";
-
-    if (shouldCaptureSections) {
-      const sectionCount = await page.locator("[data-report-live-page] [data-report-section]").count();
-      for (let sectionIndex = 0; sectionIndex < sectionCount; sectionIndex += 1) {
-        const section = page.locator("[data-report-live-page] [data-report-section]").nth(sectionIndex);
-        capturedPages.push(await captureLocator(section, `report section ${sectionIndex + 1}`));
-
-        await page.waitForTimeout(300).catch(() => {});
-      }
-    } else {
-      capturedPages.push(await captureLocator(pageElement, `report page ${index + 1}`));
-    }
-
-    if (index < pageCount - 1) {
-      const nextPageIndex = index + 1;
-      await page.evaluate((pageIdx) => {
-        const winAny = window as { __setReportExportPage?: (pageIndex: number) => void };
-        winAny.__setReportExportPage?.(pageIdx);
-      }, nextPageIndex);
-      await page.waitForFunction(
-        (expectedPage) => {
-          const root = document.querySelector("[data-report-live-canvas]");
-          return Number(root?.getAttribute("data-current-page") || "0") === expectedPage;
-        },
-        nextPageIndex + 1,
-        { timeout: 30_000 },
-      );
-      await page.waitForTimeout(500).catch(() => {});
-      await forceVisibleReportContent(page);
-    }
+  const printPageCount = await page.locator(".print-page").count();
+  if (!printPageCount) {
+    throw new Error("Unable to determine print page count");
   }
 
-  return { capturedPages, pageCount };
+  const capturedPages: PageScreenshot[] = [];
+  for (let index = 0; index < printPageCount; index += 1) {
+    const printPage = page.locator(".print-page").nth(index);
+    capturedPages.push(await captureLocator(printPage, `print page ${index + 1}`));
+    await page.waitForTimeout(200).catch(() => {});
+  }
+
+  return { capturedPages, pageCount: printPageCount };
 }
 
 async function buildPdfBuffer(pages: PageScreenshot[]) {
@@ -282,16 +200,18 @@ export async function GET(
     });
 
     await prepareBrowserPage(livePage);
-    const liveUrl = `${baseUrlFrom(req)}/report?rid=${encodeURIComponent(id)}&export=pdf`;
-    await livePage.goto(liveUrl, {
+    const printUrl = `${baseUrlFrom(req)}/report/${encodeURIComponent(id)}/print`;
+    await livePage.goto(printUrl, {
       waitUntil: "domcontentloaded",
       timeout: 120_000,
     });
     await applyExportStyles(livePage);
-    await waitForReport(livePage);
-    await forceVisibleReportContent(livePage);
+    await livePage.waitForSelector('[data-report-print-ready="true"]', {
+      timeout: 120_000,
+      state: "visible",
+    });
 
-    const { capturedPages } = await captureReportPages(livePage);
+    const { capturedPages } = await capturePrintPages(livePage);
 
     await livePage.close().catch(() => {});
 
