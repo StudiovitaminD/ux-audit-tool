@@ -48,6 +48,46 @@ export function BulletList({ items, emptyLabel }: { items: unknown; emptyLabel: 
   );
 }
 
+function placeholderText(value: unknown) {
+  const text = asString(value).trim().toLowerCase();
+  if (!text) return true;
+  return /cannot be answered reliably|could not be scored|required screen or interaction was not captured|required evidence was not captured|not available|not captured/i.test(
+    text,
+  );
+}
+
+function fallbackQuestionConclusion(question: Record<string, unknown>, answerStatus: string) {
+  const questionText = asString(question.question).toLowerCase();
+  const missingEvidence = normalizeList(question.missing_evidence, 4);
+  const baseObservation = asString(question.observation);
+  if (!placeholderText(baseObservation)) return baseObservation;
+
+  const followUpHint = missingEvidence.length
+    ? ` Missing evidence: ${missingEvidence.join(" • ")}.`
+    : "";
+
+  if (questionText.includes("keyboard-only") || questionText.includes("without a mouse")) {
+    return `The current capture does not prove keyboard-only completion yet, so treat this as a follow-up verification item rather than a confirmed blocker.${followUpHint}`;
+  }
+  if (questionText.includes("focus states")) {
+    return `Visible focus states still need to be confirmed with a keyboard pass, because this capture does not show the full tabbing experience.${followUpHint}`;
+  }
+  if (questionText.includes("persistent visible labels") || questionText.includes("labels")) {
+    return `The available screens suggest labels should stay visible, but the form behavior should still be checked after input to confirm the label pattern holds.${followUpHint}`;
+  }
+  if (questionText.includes("inline") || questionText.includes("validation") || questionText.includes("errors")) {
+    return `The form-related evidence points to a likely validation or feedback opportunity, but the exact error-state behavior should be verified in a real submission pass.${followUpHint}`;
+  }
+  if (questionText.includes("preserved") || questionText.includes("retain")) {
+    return `The capture does not prove input preservation yet, so the safest conclusion is to verify whether values remain intact after an error state.${followUpHint}`;
+  }
+  if (questionText.includes("loading") || questionText.includes("success") || questionText.includes("empty")) {
+    return `The available evidence is not enough to confirm all system states, so this should be treated as a likely clarity gap until the missing states are captured.${followUpHint}`;
+  }
+
+  return `The available evidence is limited here, so the most reliable conclusion is to verify this interaction in a follow-up pass.${followUpHint}`;
+}
+
 export function ScorePill({ value }: { value: unknown }) {
   const score = stringifyValue(value);
   if (!score) return null;
@@ -196,12 +236,12 @@ export function BucketAnswersCard({
 
                 {isNotScored ? (
                   <div className="mt-4 rounded-xl border border-amber-200/70 bg-amber-50/70 px-4 py-4 text-sm text-amber-900 print-color-adjust">
-                    <div className="font-medium">Selected option: None</div>
+                    <div className="font-medium">Best available conclusion</div>
                     <div className="mt-1">
-                      {asString(question.observation) ||
+                      {fallbackQuestionConclusion(question, answerStatus) ||
                         (isScoringUnavailable
                           ? "This question could not be scored because the audit model failed before producing a usable answer."
-                          : "This question cannot be answered reliably because the required screen or interaction was not captured.")}
+                          : "The available evidence is limited here, so the safest next step is a follow-up verification pass.")}
                     </div>
                   </div>
                 ) : null}
