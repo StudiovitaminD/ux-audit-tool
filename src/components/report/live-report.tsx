@@ -32,6 +32,7 @@ export function LiveReport({
   const [baseReport, setBaseReport] = useState(() => recalculateEditedReport(report));
   const [editableReport, setEditableReport] = useState(() => recalculateEditedReport(report));
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const vm = useMemo(() => buildReportViewModel(editableReport), [editableReport]);
   const [page, setPage] = useState(0);
@@ -171,6 +172,40 @@ export function LiveReport({
     }
   }
 
+  async function refreshAiContent() {
+    if (!reportId) return;
+
+    setRefreshing(true);
+    setSaveMessage(null);
+
+    try {
+      if (isDirty) {
+        const saved = await saveChanges(true);
+        if (!saved) return;
+      }
+
+      const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ report: editableReport }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        report?: unknown;
+      } | null;
+      if (!res.ok) throw new Error(data?.error || `Refresh failed (${res.status})`);
+
+      const nextReport = ((data?.report ?? editableReport) as AnyRecord);
+      setBaseReport(nextReport);
+      setEditableReport(nextReport);
+      setSaveMessage("AI content refreshed");
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Failed to refresh AI content");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function saveBeforeExport(run?: ((reportOverride?: unknown) => void | Promise<void>) | undefined) {
     if (!run) return;
     if (reportId && isDirty) {
@@ -214,10 +249,21 @@ export function LiveReport({
               type="button"
               className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
               onClick={() => void saveChanges()}
-              disabled={!isDirty || saving}
-              style={!isDirty || saving ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+              disabled={!isDirty || saving || refreshing}
+              style={!isDirty || saving || refreshing ? { opacity: 0.5, pointerEvents: "none" } : undefined}
             >
               {saving ? "Saving…" : "Save Changes"}
+            </button>
+          ) : null}
+          {reportId ? (
+            <button
+              type="button"
+              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+              onClick={() => void refreshAiContent()}
+              disabled={saving || refreshing}
+              style={saving || refreshing ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+            >
+              {refreshing ? "Refreshing AI…" : "Refresh AI content"}
             </button>
           ) : null}
           {reportId ? (

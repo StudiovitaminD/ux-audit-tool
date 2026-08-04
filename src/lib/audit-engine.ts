@@ -2688,15 +2688,13 @@ export async function finalizeAudit(args: {
     productName: args.intake.product_name,
   });
 
-  const narrative = !scoreEligible
-    ? null
-    : await writeNarrative({
-        intake: args.intake,
-        evidence: args.evidence,
-        bucket_results: onlyResults,
-        overall_score: overallScore ?? 0,
-        modelOverride: args.modelOverride,
-      }).catch(() => null);
+  const narrative = await writeNarrative({
+    intake: args.intake,
+    evidence: args.evidence,
+    bucket_results: onlyResults,
+    overall_score: overallScore ?? rawOverallScore,
+    modelOverride: args.modelOverride,
+  }).catch(() => null);
 
   const executiveSummaryFromNarrative =
     narrative && typeof narrative === "object"
