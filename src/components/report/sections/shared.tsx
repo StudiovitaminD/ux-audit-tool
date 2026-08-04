@@ -56,8 +56,16 @@ export function placeholderText(value: unknown) {
   );
 }
 
+function promptLikeText(value: unknown, questionText: unknown) {
+  const candidate = asString(value).trim().toLowerCase();
+  const prompt = asString(questionText).trim().toLowerCase();
+  if (!candidate || !prompt) return false;
+  return candidate === prompt || candidate === prompt.replace(/\?$/, "");
+}
+
 function selectedOptionTextForQuestion(bucketName: string, question: Record<string, unknown>) {
   const questionId = asString(question.id);
+  const questionLabel = asString(question.question);
   const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
   if (selectedText && !placeholderText(selectedText)) return selectedText;
 
@@ -65,6 +73,14 @@ function selectedOptionTextForQuestion(bucketName: string, question: Record<stri
   const options = lookupQuestionOptions(bucketName, questionId);
   const matched = options.find((option) => Number(option.mark) === selectedMark);
   if (matched?.text) return matched.text.trim();
+  const observation = asString(question.observation);
+  if (observation && !placeholderText(observation) && !promptLikeText(observation, questionLabel)) {
+    return observation.trim();
+  }
+  const evidence = asString(question.evidence);
+  if (evidence && !placeholderText(evidence) && !promptLikeText(evidence, questionLabel)) {
+    return evidence.trim();
+  }
   return "";
 }
 
@@ -195,8 +211,7 @@ export function BucketAnswersCard({
             const options = lookupQuestionOptions(bucketName, questionId);
             const selectedOptionText =
               selectedOptionTextForQuestion(bucketName, question) ||
-              asString(question.observation) ||
-              asString(question.evidence);
+              fallbackQuestionConclusion(question, answerStatus);
             const isInsufficient = answerStatus === "insufficient_evidence";
             const isScoringUnavailable = answerStatus === "scoring_unavailable";
             const isNotScored = isInsufficient || isScoringUnavailable;
@@ -301,7 +316,13 @@ export function BucketAnswersCard({
                       />
                     ) : (
                       <div className="mt-2 rounded-lg border border-[color:var(--card-border)] bg-white px-[5px] py-[5px] text-sm text-[color:var(--ink)]">
-                        {asString(question.evidence) || "—"}
+                        {(() => {
+                          const evidence =
+                            asString(question.user_evidence) ||
+                            asString(question.evidence) ||
+                            fallbackQuestionConclusion(question, answerStatus);
+                          return promptLikeText(evidence, question.question) ? "—" : evidence || "—";
+                        })()}
                       </div>
                     )}
                   </div>
@@ -332,7 +353,13 @@ export function BucketAnswersCard({
                       />
                     ) : (
                       <div className="mt-2 rounded-lg border border-[color:var(--card-border)] bg-white px-[5px] py-[5px] text-sm text-[color:var(--ink)]">
-                        {asString(question.observation) || "—"}
+                        {(() => {
+                          const reason =
+                            asString(question.user_reason) ||
+                            asString(question.observation) ||
+                            fallbackQuestionConclusion(question, answerStatus);
+                          return promptLikeText(reason, question.question) ? "—" : reason || "—";
+                        })()}
                       </div>
                     )}
                   </div>

@@ -150,6 +150,13 @@ function isPlaceholderText(value: unknown) {
   );
 }
 
+function isPromptLikeText(value: unknown, questionText: unknown) {
+  const candidate = sanitizeDisplayText(value).trim().toLowerCase();
+  const prompt = sanitizeDisplayText(questionText).trim().toLowerCase();
+  if (!candidate || !prompt) return false;
+  return candidate === prompt || candidate === prompt.replace(/\?$/, "");
+}
+
 function sanitizeStringList(value: unknown): string[] {
   return normalizeStringList(value)
     .map((item) => sanitizeDisplayText(item))
@@ -409,6 +416,7 @@ function questionSummaryText(bucketName: string, question: AnyRecord) {
   const selectedMark = asNumber(question.selected_option ?? question.mark);
   const options = lookupQuestionOptions(bucketName, asString(question.id));
   const matched = options.find((option) => option.mark === selectedMark);
+  const questionLabel = sanitizeDisplayText(question.question);
   const selectedAnswer =
     (selectedText && !isPlaceholderText(selectedText) ? selectedText : "") ||
     (matched?.text ? matched.text.trim() : "");
@@ -416,12 +424,19 @@ function questionSummaryText(bucketName: string, question: AnyRecord) {
     sanitizeDisplayText(question.observation) ||
     sanitizeDisplayText(question.evidence) ||
     sanitizeDisplayText(question.question);
-  const observation = observationRaw && !isPlaceholderText(observationRaw) ? observationRaw : selectedAnswer;
+  const observation =
+    observationRaw &&
+    !isPlaceholderText(observationRaw) &&
+    !isPromptLikeText(observationRaw, questionLabel)
+      ? observationRaw
+      : selectedAnswer;
   const recommendationRaw =
     sanitizeDisplayText(question.recommendation) ||
     sanitizeDisplayText(question.observation);
   const recommendation =
-    recommendationRaw && !isPlaceholderText(recommendationRaw)
+    recommendationRaw &&
+    !isPlaceholderText(recommendationRaw) &&
+    !isPromptLikeText(recommendationRaw, questionLabel)
       ? recommendationRaw
       : selectedAnswer || observation;
   return {
@@ -1580,6 +1595,7 @@ function bestAvailableAnswer(report: AnyRecord, item: AnyRecord) {
 
   const bucketName =
     asString(item.bucket) || asString(item.bucket_name) || asString(item.section) || "";
+  const questionLabel = asString(question.question);
   const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
   if (selectedText && !isPlaceholderText(selectedText)) return selectedText;
 
@@ -1592,12 +1608,22 @@ function bestAvailableAnswer(report: AnyRecord, item: AnyRecord) {
   }
 
   const observation = asString(question.observation);
-  if (observation && !isPlaceholderText(observation)) return observation;
+  if (
+    observation &&
+    !isPlaceholderText(observation) &&
+    !isPromptLikeText(observation, questionLabel)
+  )
+    return observation;
 
   const recommendation = asString(question.recommendation);
-  if (recommendation && !isPlaceholderText(recommendation)) return recommendation;
+  if (
+    recommendation &&
+    !isPlaceholderText(recommendation) &&
+    !isPromptLikeText(recommendation, questionLabel)
+  )
+    return recommendation;
 
-  return asString(question.question);
+  return questionLabel;
 }
 
 function normalizedFinding(report: AnyRecord, item: unknown, index: number): AnyRecord {
@@ -1612,8 +1638,19 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
   const answerText = bestAvailableAnswer(report, rec);
   const mark = asNumber(rec.mark ?? rec.selected_option ?? question?.mark ?? question?.selected_option);
   const isLowScore = mark !== null && mark <= 3;
-  const foundText = sanitizeDisplayText(rec.what_we_found) || sanitizeDisplayText(rec.observation);
-  const whyText = sanitizeDisplayText(rec.why_it_matters) || sanitizeDisplayText(rec.impact);
+  const foundText =
+    sanitizeDisplayText(rec.what_we_found) &&
+    !isPromptLikeText(rec.what_we_found, questionLabel)
+      ? sanitizeDisplayText(rec.what_we_found)
+      : "";
+  const whyText =
+    sanitizeDisplayText(rec.why_it_matters) &&
+    !isPromptLikeText(rec.why_it_matters, questionLabel)
+      ? sanitizeDisplayText(rec.why_it_matters)
+      : sanitizeDisplayText(rec.impact) &&
+          !isPromptLikeText(rec.impact, questionLabel)
+        ? sanitizeDisplayText(rec.impact)
+        : "";
   const recommendationText =
     recommendation || sanitizeDisplayText(rec.action) || sanitizeDisplayText(rec.fix) || sanitizeDisplayText(rec.title);
 
@@ -1630,7 +1667,12 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
         ? foundText
         : answerText
           ? `Best available answer: ${answerText}.`
-          : questionLabel || sanitizeDisplayText(rec.what) || sanitizeDisplayText(rec.evidence) || sanitizeDisplayText(rec.title),
+          : questionLabel ||
+            sanitizeDisplayText(rec.what) ||
+            (sanitizeDisplayText(rec.evidence) && !isPromptLikeText(rec.evidence, questionLabel)
+              ? sanitizeDisplayText(rec.evidence)
+              : "") ||
+            sanitizeDisplayText(rec.title),
     why_it_matters:
       whyText && !isPlaceholderText(whyText)
         ? whyText
@@ -1646,7 +1688,9 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
           ? isLowScore
             ? `Update this flow so the selected answer is supported with clearer guidance, stronger hierarchy, or better feedback.`
             : `Maintain this pattern and verify it stays consistent across related screens.`
-          : sanitizeDisplayText(rec.action) || sanitizeDisplayText(rec.fix) || sanitizeDisplayText(rec.title),
+          : sanitizeDisplayText(rec.action) ||
+            sanitizeDisplayText(rec.fix) ||
+            sanitizeDisplayText(rec.title),
     screenshot: extractFindingScreenshot(rec),
     acceptance_criteria: sanitizeStringList(rec.acceptance_criteria),
   };
