@@ -418,6 +418,12 @@ export function toWebhookPayload(payload: AuditPayload) {
   )
     .map((f) => f.trim())
     .filter(Boolean);
+  const normalizedAuditFlows =
+    auditFlows.length > 0
+      ? auditFlows
+      : productType === "marketing_website" || productType === "ecommerce"
+        ? ["Direct audit using URL"]
+        : auditFlows;
 
   const stageKey =
     productType === "saas"
@@ -467,7 +473,7 @@ export function toWebhookPayload(payload: AuditPayload) {
     competitors: competitorsMerged,
     differentiation: payload.differentiation,
     known_problem: payload.knownProblem || payload.artifacts.notes,
-    audit_flows: auditFlows,
+    audit_flows: normalizedAuditFlows,
     audit_flow_instructions: auditFlowText,
     guided_capture_steps: guidedCaptureSteps,
     internal_routes: internalRoutes,
