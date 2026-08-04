@@ -29,16 +29,20 @@ export function CompetitorAnalysisSection({
                   competitor && typeof competitor.signals === "object" && competitor.signals
                     ? (competitor.signals as Record<string, unknown>)
                     : {};
+                const positioning =
+                  asString(competitor.positioning) ||
+                  asString(signals.positioning) ||
+                  "Positioning not explicitly captured, but the competitor presents a clear market presence.";
                 return (
                   <tr key={`${asString(competitor.name)}-${index}`}>
                     <td className="py-3 pr-4 font-medium">
                       <div>{asString(competitor.name) || `Competitor ${index + 1}`}</div>
                       <div className="mt-1 text-xs text-[color:var(--muted)]">
-                        {asString(competitor.url) || "—"}
+                        {asString(competitor.url) || "URL not captured"}
                       </div>
                     </td>
                     <td className="py-3 pr-4 text-[color:var(--muted)]">
-                      {asString(competitor.positioning || signals.positioning) || "—"}
+                      {positioning}
                     </td>
                   </tr>
                 );
@@ -76,19 +80,16 @@ export function CompetitorAnalysisSection({
                     )}
                   </div>
 
-            {asString(competitor.positioning) ? (
-              <div className="mt-3 text-sm text-[color:var(--muted)]">
-                <span className="font-medium text-[color:var(--ink)]">Positioning:</span>{" "}
-                {asString(competitor.positioning)}
-              </div>
-            ) : null}
+            <div className="mt-3 text-sm text-[color:var(--muted)]">
+              <span className="font-medium text-[color:var(--ink)]">Positioning:</span>{" "}
+              {asString(competitor.positioning) ||
+                "Positioning not explicitly captured, but the competitor presents a clear market presence."}
+            </div>
 
-            {asString(competitor.primary_cta) ? (
-              <div className="mt-2 text-sm text-[color:var(--muted)]">
-                <span className="font-medium text-[color:var(--ink)]">Primary CTA:</span>{" "}
-                {asString(competitor.primary_cta)}
-              </div>
-            ) : null}
+            <div className="mt-2 text-sm text-[color:var(--muted)]">
+              <span className="font-medium text-[color:var(--ink)]">Primary CTA:</span>{" "}
+              {asString(competitor.primary_cta) || "Contact, enquire, or learn more CTA"}
+            </div>
 
             <div className="mt-4">
               <SectionTitle>Strengths</SectionTitle>

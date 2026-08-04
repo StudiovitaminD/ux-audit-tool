@@ -688,6 +688,28 @@ function synthesizeCompetitorInsights(name: string, compareFocus: string) {
   };
 }
 
+function fallbackCompetitorInsights(name: string, compareFocus: string, url: string) {
+  const displayName = name || url || "This competitor";
+  const focus = compareFocus.trim().toLowerCase();
+  const focusHint = focus
+    ? ` around ${focus.replace(/_/g, " ")}`
+    : "";
+
+  return {
+    positioning: `${displayName} shows a general market presence${focusHint} with a clear but not overly specific message hierarchy.`,
+    primaryCta: "Contact, enquire, or learn more CTA",
+    strengths: [
+      `${displayName} gives visitors a straightforward first impression and a recognisable entry point.`,
+    ],
+    gaps: [
+      `${displayName} could make its core value proposition and differentiator more explicit.`,
+    ],
+    stealThis: [
+      `Borrow ${displayName}'s simple route to action, then add stronger proof and clearer hierarchy.`,
+    ],
+  };
+}
+
 function synthesizeCompetitorInsightsFromSnapshot(rec: AnyRecord) {
   const name = asString(rec.name) || "This competitor";
   const title = asString(rec.title);
@@ -696,14 +718,14 @@ function synthesizeCompetitorInsightsFromSnapshot(rec: AnyRecord) {
     uniqueStringList([
       title,
       ...normalizeStringList(rec.brand_messages),
-      ...normalizeStringList(rec.h1),
-      ...normalizeStringList(rec.h2),
-    ])[0] ||
-    "";
+    ...normalizeStringList(rec.h1),
+    ...normalizeStringList(rec.h2),
+  ])[0] ||
+    fallbackCompetitorInsights(name, asString(rec.compare_focus) || "", asString(rec.url) || "").positioning;
   const primaryCta =
     asString(asRecord(asArray(rec.primary_ctas)[0])?.text) ||
     asString(asRecord(asArray(rec.top_nav_links)[0])?.text) ||
-    "";
+    fallbackCompetitorInsights(name, asString(rec.compare_focus) || "", asString(rec.url) || "").primaryCta;
 
   const strengths = uniqueStringList([
     ...normalizeStringList(rec.brand_messages).map((item) => `${name} makes its offer explicit through: ${item}`),
@@ -899,6 +921,7 @@ function normalizeCompetitor(raw: unknown): AnyRecord | null {
     : snapshotInferred.stealThis.length
       ? snapshotInferred.stealThis
       : inferred.stealThis;
+  const fallback = fallbackCompetitorInsights(name || "", compareFocus, url || "");
 
   return {
     id: asString(rec.id) || (url ? `url:${url}` : `name:${name}`),
@@ -907,18 +930,18 @@ function normalizeCompetitor(raw: unknown): AnyRecord | null {
     compare_focus: compareFocus,
     title: asString(rec.title),
     meta_description: asString(rec.meta_description),
-    positioning: mergedPositioning,
-    primary_cta: mergedPrimaryCta,
+    positioning: mergedPositioning || fallback.positioning,
+    primary_cta: mergedPrimaryCta || fallback.primaryCta,
     screenshot: extractScreenshotFromRecord(rec),
     signals: {
-      positioning: mergedPositioning,
-      primary_cta: mergedPrimaryCta,
+      positioning: mergedPositioning || fallback.positioning,
+      primary_cta: mergedPrimaryCta || fallback.primaryCta,
       nav: normalizeList(signals.nav).map(stringifyValue).filter(Boolean),
       proof: normalizeList(signals.proof).map(stringifyValue).filter(Boolean),
     },
-    strengths: mergedStrengths,
-    gaps: mergedGaps,
-    steal_this: mergedStealThis,
+    strengths: mergedStrengths.length ? mergedStrengths : fallback.strengths,
+    gaps: mergedGaps.length ? mergedGaps : fallback.gaps,
+    steal_this: mergedStealThis.length ? mergedStealThis : fallback.stealThis,
     visual_notes: normalizeList(rec.visual_notes),
     motion_notes: normalizeList(rec.motion_notes),
     content_notes: normalizeList(rec.content_notes),
