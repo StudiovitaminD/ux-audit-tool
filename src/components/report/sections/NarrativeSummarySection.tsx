@@ -1,6 +1,6 @@
 import type { SharedSectionProps } from "./shared";
 import { BulletList, normalizeList } from "./shared";
-import { asRecord, asString } from "@/lib/report-model";
+import { asArray, asRecord, asString } from "@/lib/report-model";
 
 const PILLAR_BUCKETS = {
   Delight: ["Content & UX Writing", "Consistency & UI Patterns"],
@@ -32,7 +32,37 @@ function bucketRationaleItems(
   const summaryItems = normalizeList(rationale.summary, 4);
   if (summaryItems.length) return summaryItems;
 
-  return normalizeList(bucket.summary || bucket.note || bucket.rationale || "", 4);
+  const findings = asArray(bucket.findings)
+    .map((item) => asRecord(item) ?? {})
+    .map((item) =>
+      key === "what_is_risky"
+        ? asString(item.observation || item.what_we_found || item.question || item.evidence)
+        : asString(item.recommendation || item.observation || item.question || item.what_we_found),
+    )
+    .filter(Boolean);
+  if (findings.length) return normalizeList(findings, 4);
+
+  const improvements = asArray(bucket.improvements)
+    .map((item) => asRecord(item) ?? {})
+    .map((item) =>
+      key === "what_is_risky"
+        ? asString(item.observation || item.question || item.evidence)
+        : asString(item.recommendation || item.observation || item.question),
+    )
+    .filter(Boolean);
+  if (improvements.length) return normalizeList(improvements, 4);
+
+  const questionItems = asArray(bucket.questions)
+    .map((item) => asRecord(item) ?? {})
+    .map((item) =>
+      key === "what_is_risky"
+        ? asString(item.observation || item.evidence || item.question)
+        : asString(item.recommendation || item.observation || item.evidence || item.question),
+    )
+    .filter(Boolean);
+  if (questionItems.length) return normalizeList(questionItems, 4);
+
+  return normalizeList(bucket.summary || bucket.note || bucket.rationale || bucket.health || "", 4);
 }
 
 export function NarrativeSummarySection({ vm }: SharedSectionProps) {

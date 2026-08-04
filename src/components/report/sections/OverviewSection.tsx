@@ -1,5 +1,5 @@
 import { asString, type AnyRecord } from "@/lib/report-model";
-import { formatDate, priorityRank, type SharedSectionProps } from "./shared";
+import { formatDate, normalizeList, priorityRank, type SharedSectionProps } from "./shared";
 
 function clampPercent(value: number | null | undefined) {
   if (value === null || value === undefined || Number.isNaN(value)) return 0;
@@ -67,14 +67,38 @@ function bucketNameFromRow(row: AnyRecord) {
   return asString(row.section || row.bucket_name || row.bucket || row.name);
 }
 
+function scoreFromRow(row: AnyRecord) {
+  const match = asString(row.score).match(/(\d+(?:\.\d+)?)/);
+  return match ? Number(match[1]) : null;
+}
+
 export function OverviewSection({ vm }: SharedSectionProps) {
   const executiveSummary = vm.executiveSummary;
-  const overallSummary =
-    asString(executiveSummary.one_line_verdict) ||
-    asString(executiveSummary.headline) ||
-    asString(executiveSummary.summary) ||
-    vm.captureCoverage.summary ||
-    "—";
+  const productName = vm.productName || "This product";
+  const topStrengths = normalizeList(
+    normalizeList(executiveSummary.whats_working).length
+      ? executiveSummary.whats_working
+      : executiveSummary.what_works,
+    6,
+  );
+  const topRisks = normalizeList(
+    normalizeList(executiveSummary.top_problems).length
+      ? executiveSummary.top_problems
+      : executiveSummary.top_3_problems,
+    6,
+  );
+  const firstPriorityItems = normalizeList(
+    normalizeList(executiveSummary.first_priority).length
+      ? executiveSummary.first_priority
+      : executiveSummary.first_priority_recommendation,
+    6,
+  );
+  const summaryQuickWins = normalizeList(
+    normalizeList(executiveSummary.quick_wins).length
+      ? executiveSummary.quick_wins
+      : executiveSummary.top_3_quick_wins,
+    6,
+  );
   const summaryPoints = [
     asString(executiveSummary.strongest_area) ? `Strongest area: ${asString(executiveSummary.strongest_area)}` : "",
     asString(executiveSummary.main_issue) ? `Main issue: ${asString(executiveSummary.main_issue)}` : "",
@@ -118,16 +142,39 @@ export function OverviewSection({ vm }: SharedSectionProps) {
     { label: "Task Completion Rate", value: taskCompletionScore },
     { label: "Customer Satisfaction", value: customerSatisfactionScore },
   ];
-  const strengthsSentence =
-    asString(executiveSummary.what_works) ||
-    "The website provides clear navigation, intuitive structure, strong visual hierarchy, and consistent UI patterns, making it easy for users to explore and understand";
-  const blockerSentence =
+  const scoredRows = scoreRows.filter((row) => scoreFromRow(row) !== null);
+  const strongestRow = [...scoredRows].sort((left, right) => (scoreFromRow(right) ?? 0) - (scoreFromRow(left) ?? 0))[0];
+  const weakestRow = [...scoredRows].sort((left, right) => (scoreFromRow(left) ?? 0) - (scoreFromRow(right) ?? 0))[0];
+  const strongestLabel =
+    asString(executiveSummary.strongest_area) ||
+    bucketNameFromRow(strongestRow ?? {}) ||
+    (topStrengths.length ? topStrengths[0] : "");
+  const weakestLabel =
     asString(executiveSummary.main_issue) ||
-    "the contact form is a major conversion blocker due to missing format hints, input constraints, and validation feedback";
+    bucketNameFromRow(weakestRow ?? {}) ||
+    (topRisks.length ? topRisks[0] : "");
   const actionSentence =
     asString(executiveSummary.first_priority_recommendation || executiveSummary.primary_recommendation) ||
-    "Improve it with clear field guidance, real-time inline validation, input preservation after errors, and immediate submit-button feedback to prevent duplicate submissions";
-  const summaryParagraph = `${strengthsSentence.replace(/[.]+$/, "")}. However, ${blockerSentence.replace(/[.]+$/, "")}. ${actionSentence.replace(/[.]+$/, "")}.`;
+    (firstPriorityItems.length ? firstPriorityItems[0] : "") ||
+    (summaryQuickWins.length ? summaryQuickWins[0] : "");
+  const summaryParts = [
+    strongestLabel
+      ? `${productName} shows its strongest signals in ${strongestLabel}${
+          strongestRow ? ` (${Math.round(scoreFromRow(strongestRow) ?? 0)}/100)` : ""
+        }.`
+      : "",
+    weakestLabel
+      ? `${productName} has the most room to improve in ${weakestLabel}${
+          weakestRow ? ` (${Math.round(scoreFromRow(weakestRow) ?? 0)}/100)` : ""
+        }.`
+      : "",
+    actionSentence ? `Priority action: ${actionSentence.replace(/[.]+$/, "")}.` : "",
+  ].filter(Boolean);
+  const summaryParagraph =
+    summaryParts.join(" ") ||
+    (vm.captureCoverage.summary
+      ? vm.captureCoverage.summary
+      : "The available evidence supports a directional UX summary, but the report needs a few more concrete signals before it can be fully specific.");
 
   return (
     <div className="space-y-5">

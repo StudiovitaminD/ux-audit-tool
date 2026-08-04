@@ -290,37 +290,80 @@ function executiveListLooksWeak(items: string[]) {
 }
 
 function deriveTopProblemsFromBuckets(report: AnyRecord) {
-  return uniqueSemanticList(
+  const directFindings = uniqueSemanticList(
     asArray(report.all_findings)
       .map((item) => asRecord(item) ?? {})
       .map((item) => sanitizeDisplayText(item.observation || item.question || item.what_we_found))
       .filter(Boolean),
     6,
   );
+  if (directFindings.length) return directFindings;
+
+  const bucketFindings = uniqueSemanticList(
+    asArray(report.bucket_results)
+      .map((item) => asRecord(item) ?? {})
+      .flatMap((bucket) => {
+        const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || "Bucket";
+        const findings = asArray(bucket.findings)
+          .map((item) => asRecord(item) ?? {})
+          .map((item) => sanitizeDisplayText(item.observation || item.what_we_found || item.question))
+          .filter(Boolean)
+          .map((text) => `${bucketName}: ${text}`);
+        if (findings.length) return findings;
+
+        const questions = asArray(bucket.questions)
+          .map((item) => asRecord(item) ?? {})
+          .map((item) => sanitizeDisplayText(item.observation || item.evidence || item.question))
+          .filter(Boolean)
+          .map((text) => `${bucketName}: ${text}`);
+        if (questions.length) return questions;
+
+        const summary = sanitizeDisplayText(
+          bucket.summary || bucket.note || bucket.rationale || bucket.health,
+        );
+        return summary ? [`${bucketName}: ${summary}`] : [];
+      }),
+    6,
+  );
+
+  return bucketFindings;
 }
 
 function deriveWhatsWorkingFromBuckets(report: AnyRecord) {
   const buckets = asArray(report.bucket_results)
     .map((item) => asRecord(item) ?? {})
-    .filter((item) => asString(item.bucket_status) === "scored")
-    .sort((left, right) => (asNumber(right.score) ?? 0) - (asNumber(left.score) ?? 0))
+    .sort((left, right) => {
+      const leftScore = asNumber(left.score);
+      const rightScore = asNumber(right.score);
+      if (leftScore === null && rightScore !== null) return 1;
+      if (leftScore !== null && rightScore === null) return -1;
+      return (rightScore ?? 0) - (leftScore ?? 0);
+    })
     .slice(0, 4);
 
   return uniqueSemanticList(
-    buckets.map((bucket) => {
-      const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || "Bucket";
-      const finding = asRecord(asArray(bucket.findings)[0]) ?? {};
-      const improvement = asRecord(asArray(bucket.improvements)[0]) ?? {};
-      return (
-        sanitizeDisplayText(
-          `${bucketName}: ${
-            finding.observation ||
-            improvement.recommendation ||
-            bucket.health
-          }`,
-        ) || sanitizeDisplayText(bucketName)
-      );
-    }),
+    buckets
+      .map((bucket) => {
+        const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || "Bucket";
+        const findings = asArray(bucket.findings).map((item) => asRecord(item) ?? {});
+        const improvements = asArray(bucket.improvements).map((item) => asRecord(item) ?? {});
+        const findingText = findings
+          .map((item) =>
+            sanitizeDisplayText(item.observation || item.what_we_found || item.question),
+          )
+          .find(Boolean);
+        const improvementText = improvements
+          .map((item) =>
+            sanitizeDisplayText(item.recommendation || item.observation || item.question),
+          )
+          .find(Boolean);
+        const summaryText = sanitizeDisplayText(
+          bucket.health || bucket.summary || bucket.note || bucket.rationale,
+        );
+        const text = findingText || improvementText || summaryText;
+        return text ? `${bucketName}: ${text}` : bucketName;
+      })
+      .filter(Boolean),
     4,
   );
 }
@@ -398,7 +441,7 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
         if ((left.mark ?? 0) !== (right.mark ?? 0)) return (right.mark ?? 0) - (left.mark ?? 0);
         return (right.confidence ?? 0) - (left.confidence ?? 0);
       })
-      .map((item) => questionSummaryText(item.bucketName, item.question).problem)
+      .map((item) => questionSummaryText(item.bucketName, item.question).action || questionSummaryText(item.bucketName, item.question).problem)
       .filter(Boolean),
     10,
   );
