@@ -2576,10 +2576,10 @@ export async function finalizeAudit(args: {
     roadmap: derivedRoadmap,
     closing_note:
       scoreEligible && (derivedRoadmap.week_1_2.length || derivedRoadmap.month_1.length || derivedRoadmap.quarter_1.length)
-        ? "Start with the Week 1–2 actions to remove the sharpest UX friction, then use Month 1 for system-level cleanup and Quarter 1 for the larger structural improvements."
+        ? "You have a clear path forward — start with the Week 1–2 actions to remove the sharpest UX friction, then use Month 1 for system-level cleanup and Quarter 1 for the larger structural improvements."
         : hasScoringFailure
-          ? "This report includes captured evidence, but some buckets still need a clean model pass before the roadmap can be finalized with full confidence."
-          : "Use the captured findings and recommendations to sequence the next round of UX improvements.",
+          ? "The report still gives you a strong starting point, and once the model has a clean pass the roadmap can be sharpened further."
+          : "You’ve already captured a useful set of findings — use them to sequence the next round of UX improvements with confidence.",
     competitor_analysis: {
       competitors_count: competitors.length,
       competitors,

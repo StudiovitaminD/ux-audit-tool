@@ -610,7 +610,7 @@ const DEMO = {
     },
   ] satisfies DemoCompetitor[],
   closing_note:
-    "Addressing critical input validation and feedback issues on the contact form will unlock immediate improvements in user confidence and conversion rates. Coupled with accessibility fixes and clearer microcopy, these changes will create a more inclusive and trustworthy experience. The strong foundation in navigation and visual design can then support strategic optimizations in performance and content clarity over the coming quarters.",
+    "You already have a strong foundation to build on — by tightening input validation, improving feedback, and refining accessibility and microcopy, the experience can become even more confident, inclusive, and conversion-friendly. The current navigation and visual design give you a solid base for the next round of improvements.",
 };
 
 function formatDate(iso: string) {

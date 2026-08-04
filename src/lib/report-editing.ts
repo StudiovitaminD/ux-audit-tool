@@ -544,7 +544,7 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
     section_narrative: deriveSectionNarrative(bucketResults),
     roadmap,
     closing_note:
-      "Use the immediate actions first, then sequence the medium-effort and structural improvements over the next sprint cycle.",
+      "You’ve got a strong starting point — begin with the immediate actions, then build on them with the medium-effort and structural improvements over the next sprint cycle to keep momentum moving in the right direction.",
   };
 
   nextReport.executive_summary = deriveExecutiveSummary(nextReport, bucketResults, findings, improvements);
