@@ -72,33 +72,86 @@ function scoreFromRow(row: AnyRecord) {
   return match ? Number(match[1]) : null;
 }
 
+function isPlaceholderText(value: unknown) {
+  const text = asString(value).trim().toLowerCase();
+  if (!text) return true;
+  return /^(—|not scored|capture coverage insufficient|scoring unavailable|insufficient evidence|evidence missing|not available|n\/a|na)$/.test(
+    text,
+  );
+}
+
+function bucketNarrativeFromRow(row: AnyRecord) {
+  const bucketName = bucketNameFromRow(row);
+  const scoreRationale = row.score_rationale && typeof row.score_rationale === "object" ? (row.score_rationale as AnyRecord) : {};
+  const finding = Array.isArray(row.findings)
+    ? row.findings.find((item) => item && typeof item === "object") as AnyRecord | undefined
+    : undefined;
+  const improvement = Array.isArray(row.improvements)
+    ? row.improvements.find((item) => item && typeof item === "object") as AnyRecord | undefined
+    : undefined;
+
+  const details = [
+    asString(scoreRationale.summary),
+    asString(scoreRationale.what_is_working),
+    asString(scoreRationale.what_is_risky),
+    asString(finding?.observation || finding?.what_we_found || finding?.question),
+    asString(improvement?.recommendation || improvement?.observation || improvement?.question),
+    asString(row.summary),
+    asString(row.note),
+    asString(row.health),
+  ].find((item) => !isPlaceholderText(item));
+
+  return {
+    name: bucketName,
+    details: details || "",
+    score: scoreFromRow(row),
+    scored: Number.isFinite(scoreFromRow(row) ?? NaN),
+  };
+}
+
 export function OverviewSection({ vm }: SharedSectionProps) {
   const executiveSummary = vm.executiveSummary;
   const productName = vm.productName || "This product";
+  const bucketNarratives = vm.bucketResults
+    .map((row) => bucketNarrativeFromRow(row))
+    .filter((item) => item.name && !isPlaceholderText(item.name));
+  const positiveSignals = bucketNarratives
+    .filter((item) => !isPlaceholderText(item.details))
+    .sort((left, right) => (right.score ?? -1) - (left.score ?? -1));
+  const strongestSignal =
+    positiveSignals.find((item) => item.details && !/capture coverage insufficient|scoring unavailable/i.test(item.details)) ||
+    positiveSignals[0] ||
+    bucketNarratives[0];
+  const weakestSignal =
+    [...bucketNarratives]
+      .filter((item) => item.details)
+      .sort((left, right) => (left.score ?? 101) - (right.score ?? 101))[0] ||
+    bucketNarratives.find((item) => item.details);
+
   const topStrengths = normalizeList(
     normalizeList(executiveSummary.whats_working).length
       ? executiveSummary.whats_working
       : executiveSummary.what_works,
     6,
-  );
+  ).filter((item) => !isPlaceholderText(item));
   const topRisks = normalizeList(
     normalizeList(executiveSummary.top_problems).length
       ? executiveSummary.top_problems
       : executiveSummary.top_3_problems,
     6,
-  );
+  ).filter((item) => !isPlaceholderText(item));
   const firstPriorityItems = normalizeList(
     normalizeList(executiveSummary.first_priority).length
       ? executiveSummary.first_priority
       : executiveSummary.first_priority_recommendation,
     6,
-  );
+  ).filter((item) => !isPlaceholderText(item));
   const summaryQuickWins = normalizeList(
     normalizeList(executiveSummary.quick_wins).length
       ? executiveSummary.quick_wins
       : executiveSummary.top_3_quick_wins,
     6,
-  );
+  ).filter((item) => !isPlaceholderText(item));
   const summaryPoints = [
     asString(executiveSummary.strongest_area) ? `Strongest area: ${asString(executiveSummary.strongest_area)}` : "",
     asString(executiveSummary.main_issue) ? `Main issue: ${asString(executiveSummary.main_issue)}` : "",
@@ -142,16 +195,13 @@ export function OverviewSection({ vm }: SharedSectionProps) {
     { label: "Task Completion Rate", value: taskCompletionScore },
     { label: "Customer Satisfaction", value: customerSatisfactionScore },
   ];
-  const scoredRows = scoreRows.filter((row) => scoreFromRow(row) !== null);
-  const strongestRow = [...scoredRows].sort((left, right) => (scoreFromRow(right) ?? 0) - (scoreFromRow(left) ?? 0))[0];
-  const weakestRow = [...scoredRows].sort((left, right) => (scoreFromRow(left) ?? 0) - (scoreFromRow(right) ?? 0))[0];
   const strongestLabel =
+    (strongestSignal && !isPlaceholderText(strongestSignal.name) ? strongestSignal.name : "") ||
     asString(executiveSummary.strongest_area) ||
-    bucketNameFromRow(strongestRow ?? {}) ||
     (topStrengths.length ? topStrengths[0] : "");
   const weakestLabel =
+    (weakestSignal && !isPlaceholderText(weakestSignal.name) ? weakestSignal.name : "") ||
     asString(executiveSummary.main_issue) ||
-    bucketNameFromRow(weakestRow ?? {}) ||
     (topRisks.length ? topRisks[0] : "");
   const actionSentence =
     asString(executiveSummary.first_priority_recommendation || executiveSummary.primary_recommendation) ||
@@ -160,21 +210,29 @@ export function OverviewSection({ vm }: SharedSectionProps) {
   const summaryParts = [
     strongestLabel
       ? `${productName} shows its strongest signals in ${strongestLabel}${
-          strongestRow ? ` (${Math.round(scoreFromRow(strongestRow) ?? 0)}/100)` : ""
+          strongestSignal?.details ? `, where ${strongestSignal.details.replace(/[.]+$/, "")}` : ""
         }.`
       : "",
     weakestLabel
       ? `${productName} has the most room to improve in ${weakestLabel}${
-          weakestRow ? ` (${Math.round(scoreFromRow(weakestRow) ?? 0)}/100)` : ""
+          weakestSignal?.details ? `, where ${weakestSignal.details.replace(/[.]+$/, "")}` : ""
         }.`
       : "",
     actionSentence ? `Priority action: ${actionSentence.replace(/[.]+$/, "")}.` : "",
   ].filter(Boolean);
   const summaryParagraph =
     summaryParts.join(" ") ||
-    (vm.captureCoverage.summary
+    (vm.captureCoverage.summary && !isPlaceholderText(vm.captureCoverage.summary)
       ? vm.captureCoverage.summary
-      : "The available evidence supports a directional UX summary, but the report needs a few more concrete signals before it can be fully specific.");
+      : topStrengths.length || topRisks.length
+        ? [
+            topStrengths.length ? `Strong signals: ${topStrengths.join(" • ")}.` : "",
+            topRisks.length ? `Needs attention: ${topRisks.join(" • ")}.` : "",
+            actionSentence ? `Priority action: ${actionSentence.replace(/[.]+$/, "")}.` : "",
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : "The available evidence supports a directional UX summary, but the report needs a few more concrete signals before it can be fully specific.");
 
   return (
     <div className="space-y-5">
