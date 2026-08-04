@@ -1150,8 +1150,6 @@ export function AuditForm() {
       ) {
         errors.extensionEvidence = "Add at least one extension-captured page, screenshot, or uploaded video before submitting.";
       }
-    } else if (payload.artifacts.screenshots.length === 0) {
-      errors.screenshots = "Upload at least one screenshot for website and ecommerce audits.";
     }
 
     payload.competitors.forEach((c, idx) => {
@@ -1208,7 +1206,7 @@ export function AuditForm() {
     if (businessCompetitorsOk) done.add(5);
     // UPDATED: step 6 is product access details
     if (isPublicAuditType(primaryType)) {
-      if (payload.productUrl.trim() && isUrlLike(payload.productUrl) && payload.artifacts.screenshots.length > 0) {
+      if (payload.productUrl.trim() && isUrlLike(payload.productUrl)) {
         done.add(6);
       }
     } else if (
