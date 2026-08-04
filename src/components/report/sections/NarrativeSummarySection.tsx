@@ -27,10 +27,10 @@ function bucketRationaleItems(
   key: "what_is_risky" | "what_is_working",
 ) {
   const rationale = asRecord(bucket.score_rationale) ?? {};
-  const directItems = normalizeList(rationale[key], 8);
+  const directItems = normalizeList(rationale[key], 8).filter((item) => !placeholderText(item));
   if (directItems.length) return directItems;
 
-  const summaryItems = normalizeList(rationale.summary, 4);
+  const summaryItems = normalizeList(rationale.summary, 4).filter((item) => !placeholderText(item));
   if (summaryItems.length) return summaryItems;
 
   const findings = asArray(bucket.findings)
@@ -40,7 +40,7 @@ function bucketRationaleItems(
         ? asString(item.observation || item.what_we_found || item.question || item.evidence)
         : asString(item.recommendation || item.observation || item.question || item.what_we_found),
     )
-    .filter(Boolean);
+    .filter((item) => item && !placeholderText(item));
   if (findings.length) return normalizeList(findings, 4);
 
   const improvements = asArray(bucket.improvements)
@@ -50,7 +50,7 @@ function bucketRationaleItems(
         ? asString(item.observation || item.question || item.evidence)
         : asString(item.recommendation || item.observation || item.question),
     )
-    .filter(Boolean);
+    .filter((item) => item && !placeholderText(item));
   if (improvements.length) return normalizeList(improvements, 4);
 
   const questionItems = asArray(bucket.questions)
@@ -60,7 +60,7 @@ function bucketRationaleItems(
         ? synthesizeQuestionTakeaway(bucketLabel(bucket), item, "risk")
         : synthesizeQuestionTakeaway(bucketLabel(bucket), item, "working"),
     )
-    .filter(Boolean);
+    .filter((item) => item && !placeholderText(item));
   if (questionItems.length) return normalizeList(questionItems, 4);
 
   return normalizeList(bucket.summary || bucket.note || bucket.rationale || bucket.health || "", 4);

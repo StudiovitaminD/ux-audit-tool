@@ -142,6 +142,14 @@ function sanitizeDisplayText(value: unknown): string {
   );
 }
 
+function isPlaceholderText(value: unknown) {
+  const text = asString(value).trim().toLowerCase();
+  if (!text) return true;
+  return /cannot be answered reliably|could not be scored|required screen or interaction was not captured|required evidence was not captured|not available|not captured/i.test(
+    text,
+  );
+}
+
 function sanitizeStringList(value: unknown): string[] {
   return normalizeStringList(value)
     .map((item) => sanitizeDisplayText(item))
@@ -295,8 +303,8 @@ function deriveTopProblemsFromBuckets(report: AnyRecord) {
   const directFindings = uniqueSemanticList(
     asArray(report.all_findings)
       .map((item) => asRecord(item) ?? {})
-      .map((item) => sanitizeDisplayText(item.observation || item.question || item.what_we_found))
-      .filter(Boolean),
+      .map((item) => questionSummaryText(asString(item.bucket || item.bucket_name || item.section || "Bucket"), item).problem || questionSummaryText(asString(item.bucket || item.bucket_name || item.section || "Bucket"), item).action)
+      .filter((item) => Boolean(item) && !isPlaceholderText(item)),
     6,
   );
   if (directFindings.length) return directFindings;
@@ -308,15 +316,15 @@ function deriveTopProblemsFromBuckets(report: AnyRecord) {
         const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || "Bucket";
         const findings = asArray(bucket.findings)
           .map((item) => asRecord(item) ?? {})
-          .map((item) => sanitizeDisplayText(item.observation || item.what_we_found || item.question))
-          .filter(Boolean)
+          .map((item) => questionSummaryText(bucketName, item).problem || questionSummaryText(bucketName, item).action)
+          .filter((item) => Boolean(item) && !isPlaceholderText(item))
           .map((text) => `${bucketName}: ${text}`);
         if (findings.length) return findings;
 
         const questions = asArray(bucket.questions)
           .map((item) => asRecord(item) ?? {})
-          .map((item) => sanitizeDisplayText(item.observation || item.evidence || item.question))
-          .filter(Boolean)
+          .map((item) => questionSummaryText(bucketName, item).problem || questionSummaryText(bucketName, item).action)
+          .filter((item) => Boolean(item) && !isPlaceholderText(item))
           .map((text) => `${bucketName}: ${text}`);
         if (questions.length) return questions;
 
@@ -351,14 +359,14 @@ function deriveWhatsWorkingFromBuckets(report: AnyRecord) {
         const improvements = asArray(bucket.improvements).map((item) => asRecord(item) ?? {});
         const findingText = findings
           .map((item) =>
-            sanitizeDisplayText(item.observation || item.what_we_found || item.question),
+            questionSummaryText(bucketName, item).problem || questionSummaryText(bucketName, item).action,
           )
-          .find(Boolean);
+          .find((item) => Boolean(item) && !isPlaceholderText(item));
         const improvementText = improvements
           .map((item) =>
-            sanitizeDisplayText(item.recommendation || item.observation || item.question),
+            questionSummaryText(bucketName, item).action || questionSummaryText(bucketName, item).problem,
           )
-          .find(Boolean);
+          .find((item) => Boolean(item) && !isPlaceholderText(item));
         const summaryText = sanitizeDisplayText(
           bucket.health || bucket.summary || bucket.note || bucket.rationale,
         );
@@ -387,13 +395,25 @@ function effortRank(value: string) {
 }
 
 function questionSummaryText(bucketName: string, question: AnyRecord) {
-  const observation =
+  const selectedText = sanitizeDisplayText(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  const selectedMark = asNumber(question.selected_option ?? question.mark);
+  const options = lookupQuestionOptions(bucketName, asString(question.id));
+  const matched = options.find((option) => option.mark === selectedMark);
+  const selectedAnswer =
+    (selectedText && !isPlaceholderText(selectedText) ? selectedText : "") ||
+    (matched?.text ? matched.text.trim() : "");
+  const observationRaw =
     sanitizeDisplayText(question.observation) ||
     sanitizeDisplayText(question.evidence) ||
     sanitizeDisplayText(question.question);
-  const recommendation =
+  const observation = observationRaw && !isPlaceholderText(observationRaw) ? observationRaw : selectedAnswer;
+  const recommendationRaw =
     sanitizeDisplayText(question.recommendation) ||
     sanitizeDisplayText(question.observation);
+  const recommendation =
+    recommendationRaw && !isPlaceholderText(recommendationRaw)
+      ? recommendationRaw
+      : selectedAnswer || observation;
   return {
     problem: observation ? `${bucketName}: ${observation}` : "",
     action: recommendation ? `${bucketName}: ${recommendation}` : "",
@@ -497,12 +517,8 @@ function bucketNarrativeSummary(bucket: AnyRecord) {
   const improvement = asRecord(asArray(bucket.improvements)[0]) ?? {};
   const risk = asString(bucket.risk);
   const score = asNumber(bucket.score);
-  const insight =
-    sanitizeDisplayText(finding.observation || finding.what_we_found || finding.question) ||
-    sanitizeDisplayText(improvement.observation || improvement.question) ||
-    "";
-  const nextStep =
-    sanitizeDisplayText(improvement.recommendation || finding.recommendation) || "";
+  const insight = questionSummaryText(bucketName, finding).problem || questionSummaryText(bucketName, finding).action || "";
+  const nextStep = questionSummaryText(bucketName, improvement).action || questionSummaryText(bucketName, improvement).problem || "";
 
   const parts = [
     insight ? `${bucketName} shows ${insight.charAt(0).toLowerCase()}${insight.slice(1)}` : `${bucketName} needs clearer definition`,
@@ -1476,14 +1492,6 @@ function hasMeaningfulFindingContent(item: unknown) {
       asString(rec.observation) ||
       asString(rec.evidence) ||
       asString(rec.impact),
-  );
-}
-
-function isPlaceholderText(value: unknown) {
-  const text = asString(value).trim().toLowerCase();
-  if (!text) return true;
-  return /cannot be answered reliably|could not be scored|required screen or interaction was not captured|required evidence was not captured|not available|not captured/i.test(
-    text,
   );
 }
 
