@@ -60,11 +60,18 @@ export function Select({
   return (
     <select
       className={cx(
-        "h-11 w-full rounded-[var(--radius-sm)] border bg-[color:var(--white)] px-4 text-[15px] outline-none text-[color:var(--ink)]",
+        "h-11 w-full appearance-none rounded-[var(--radius-sm)] border bg-[color:var(--white)] px-4 pr-12 text-[15px] outline-none text-[color:var(--ink)]",
         "border-[color:var(--cream-dark)] transition-all",
         "focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/15",
         className,
       )}
+      style={{
+        backgroundImage:
+          "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23222222' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 0.9rem center",
+        backgroundSize: "1rem 1rem",
+      }}
       {...props}
     />
   );

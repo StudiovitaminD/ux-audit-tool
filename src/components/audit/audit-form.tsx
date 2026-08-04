@@ -120,6 +120,24 @@ type PersonaCard = {
   primaryUserGoal: string;
 };
 
+const geographyOptions = [
+  { label: "Global", value: "Global" },
+  { label: "North America", value: "North America" },
+  { label: "South America", value: "South America" },
+  { label: "Europe", value: "Europe" },
+  { label: "Middle East", value: "Middle East" },
+  { label: "Africa", value: "Africa" },
+  { label: "Asia", value: "Asia" },
+  { label: "Australia / Oceania", value: "Australia / Oceania" },
+];
+
+function splitCommaSeparatedList(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function createEmptyPersonaCard(): PersonaCard {
   return {
     primaryUser: "",
@@ -1854,21 +1872,28 @@ export function AuditForm() {
                         />
                       </Field>
                       <Field label="User preferred Platform">
-                        <TextInput
+                        <Select
                           value={persona.primaryUserIntent}
                           onChange={(e) =>
                             updatePersonaCard(index, { primaryUserIntent: e.target.value })
                           }
-                          placeholder=""
-                        />
+                        >
+                          <option value="">Select…</option>
+                          <option value="desktop">Desktop</option>
+                          <option value="mobile">Mobile</option>
+                          <option value="both">Both</option>
+                        </Select>
                       </Field>
                       <Field label="User geography">
-                        <TextInput
-                          value={persona.userGeography}
-                          onChange={(e) =>
-                            updatePersonaCard(index, { userGeography: e.target.value })
+                        <MultiSelect
+                          options={geographyOptions}
+                          values={splitCommaSeparatedList(persona.userGeography)}
+                          onChange={(values) =>
+                            updatePersonaCard(index, {
+                              userGeography: values.join(", "),
+                            })
                           }
-                          placeholder=""
+                          placeholder="Select geographies"
                         />
                       </Field>
                     </div>
