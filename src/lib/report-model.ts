@@ -1,3 +1,5 @@
+import { QUESTION_BANK } from "@/lib/question-bank";
+
 export type AnyRecord = Record<string, unknown>;
 
 export type ReportViewModel = {
@@ -1477,9 +1479,101 @@ function hasMeaningfulFindingContent(item: unknown) {
   );
 }
 
-function normalizedFinding(item: unknown, index: number): AnyRecord {
+function isPlaceholderText(value: unknown) {
+  const text = asString(value).trim().toLowerCase();
+  if (!text) return true;
+  return /cannot be answered reliably|could not be scored|required screen or interaction was not captured|required evidence was not captured|not available|not captured/i.test(
+    text,
+  );
+}
+
+function lookupQuestionOptions(bucketName: string, questionId: string) {
+  const byBucket = QUESTION_BANK[bucketName] || [];
+  const exact = byBucket.find((item) => item.id === questionId);
+  if (exact?.options?.length) return exact.options;
+
+  for (const questions of Object.values(QUESTION_BANK)) {
+    const found = questions.find((item) => item.id === questionId);
+    if (found?.options?.length) return found.options;
+  }
+
+  return [];
+}
+
+function matchingQuestion(report: AnyRecord, item: AnyRecord) {
+  const questionId = asString(item.question_id) || asString(item.id);
+  const bucketName =
+    asString(item.bucket) || asString(item.bucket_name) || asString(item.section) || "";
+  const buckets = asArray(report.bucket_results).map((bucketItem) => asRecord(bucketItem) ?? {});
+
+  for (const bucket of buckets) {
+    const currentBucketName = asString(bucket.bucket_name) || asString(bucket.section) || asString(bucket.bucket);
+    if (bucketName && currentBucketName && bucketName !== currentBucketName) continue;
+    const question = asArray(bucket.questions)
+      .map((questionItem) => asRecord(questionItem) ?? {})
+      .find((question) => {
+        const currentQuestionId = asString(question.question_id) || asString(question.id);
+        return Boolean(questionId && currentQuestionId && currentQuestionId === questionId);
+      });
+    if (question) return question;
+  }
+
+  for (const bucket of buckets) {
+    const question = asArray(bucket.questions)
+      .map((questionItem) => asRecord(questionItem) ?? {})
+      .find((question) => {
+        const currentQuestionId = asString(question.question_id) || asString(question.id);
+        return Boolean(questionId && currentQuestionId && currentQuestionId === questionId);
+      });
+    if (question) return question;
+  }
+
+  return null;
+}
+
+function bestAvailableAnswer(report: AnyRecord, item: AnyRecord) {
+  const question = matchingQuestion(report, item);
+  if (!question) return "";
+
+  const bucketName =
+    asString(item.bucket) || asString(item.bucket_name) || asString(item.section) || "";
+  const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  if (selectedText && !isPlaceholderText(selectedText)) return selectedText;
+
+  const selectedMark = asNumber(question.selected_option ?? question.mark);
+  if (selectedMark !== null) {
+    const option = lookupQuestionOptions(bucketName, asString(question.id)).find(
+      (option) => option.mark === selectedMark,
+    );
+    if (option?.text) return option.text.trim();
+  }
+
+  const observation = asString(question.observation);
+  if (observation && !isPlaceholderText(observation)) return observation;
+
+  const recommendation = asString(question.recommendation);
+  if (recommendation && !isPlaceholderText(recommendation)) return recommendation;
+
+  return asString(question.question);
+}
+
+function normalizedFinding(report: AnyRecord, item: unknown, index: number): AnyRecord {
   const rec = asRecord(item) ?? {};
   const recommendation = sanitizeDisplayText(rec.recommendation);
+  const question = matchingQuestion(report, rec);
+  const questionLabel =
+    sanitizeDisplayText(rec.question) ||
+    sanitizeDisplayText(question?.question) ||
+    sanitizeDisplayText(rec.title) ||
+    sanitizeDisplayText(question?.title);
+  const answerText = bestAvailableAnswer(report, rec);
+  const mark = asNumber(rec.mark ?? rec.selected_option ?? question?.mark ?? question?.selected_option);
+  const isLowScore = mark !== null && mark <= 3;
+  const foundText = sanitizeDisplayText(rec.what_we_found) || sanitizeDisplayText(rec.observation);
+  const whyText = sanitizeDisplayText(rec.why_it_matters) || sanitizeDisplayText(rec.impact);
+  const recommendationText =
+    recommendation || sanitizeDisplayText(rec.action) || sanitizeDisplayText(rec.fix) || sanitizeDisplayText(rec.title);
+
   return {
     ...rec,
     id:
@@ -1489,18 +1583,27 @@ function normalizedFinding(item: unknown, index: number): AnyRecord {
       `F${index + 1}`,
     rank: asNumber(rec.rank) ?? index + 1,
     what_we_found:
-      sanitizeDisplayText(rec.what_we_found) ||
-      sanitizeDisplayText(rec.observation) ||
-      sanitizeDisplayText(rec.what) ||
-      sanitizeDisplayText(rec.question) ||
-      sanitizeDisplayText(rec.evidence) ||
-      sanitizeDisplayText(rec.title),
+      foundText && !isPlaceholderText(foundText)
+        ? foundText
+        : answerText
+          ? `Best available answer: ${answerText}.`
+          : questionLabel || sanitizeDisplayText(rec.what) || sanitizeDisplayText(rec.evidence) || sanitizeDisplayText(rec.title),
     why_it_matters:
-      sanitizeDisplayText(rec.why_it_matters) ||
-      sanitizeDisplayText(rec.impact) ||
-      sanitizeDisplayText(rec.evidence) ||
-      asString(rec.severity),
-    recommendation: recommendation || sanitizeDisplayText(rec.action) || sanitizeDisplayText(rec.fix) || sanitizeDisplayText(rec.title),
+      whyText && !isPlaceholderText(whyText)
+        ? whyText
+        : answerText
+          ? isLowScore
+            ? `This points to a likely friction point in ${questionLabel || "this area"}, so it should be validated in a follow-up pass.`
+            : `This suggests the current pattern is working reasonably well in ${questionLabel || "this area"}, but it should still be confirmed with more evidence.`
+          : sanitizeDisplayText(rec.evidence) || asString(rec.severity),
+    recommendation:
+      recommendationText && !isPlaceholderText(recommendationText)
+        ? recommendationText
+        : answerText
+          ? isLowScore
+            ? `Update this flow so the selected answer is supported with clearer guidance, stronger hierarchy, or better feedback.`
+            : `Maintain this pattern and verify it stays consistent across related screens.`
+          : sanitizeDisplayText(rec.action) || sanitizeDisplayText(rec.fix) || sanitizeDisplayText(rec.title),
     screenshot: extractFindingScreenshot(rec),
     acceptance_criteria: sanitizeStringList(rec.acceptance_criteria),
   };
@@ -2292,7 +2395,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
     findingsDetailed:
       isLimitedCoverage || (isScoringUnavailable && !hasPartialScoring)
         ? []
-        : mergedFindingsSource.map(normalizedFinding),
+        : mergedFindingsSource.map((item, index) => normalizedFinding(report, item, index)),
     quickWinsTable:
       isLimitedCoverage || (isScoringUnavailable && !hasPartialScoring)
         ? []
