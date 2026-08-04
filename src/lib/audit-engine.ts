@@ -749,6 +749,16 @@ function normalizeRoadmapEffort(value: unknown) {
   return effort.charAt(0).toUpperCase() + effort.slice(1);
 }
 
+function isPlaceholderText(value: unknown) {
+  const text = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!text) return true;
+  return /cannot be answered reliably|could not be scored|required screen or interaction was not captured|required evidence was not captured|not available|not captured/i.test(
+    text,
+  );
+}
+
 function estimatedTimeForEffort(effort: string) {
   const normalized = normalizeRoadmapEffort(effort);
   if (normalized === "Small") return "1–3 days";
@@ -762,12 +772,24 @@ function buildQuickWinsTableFromImprovements(improvements: unknown[]) {
     .map((item) => {
       const rec = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
       const effort = normalizeRoadmapEffort(rec.effort);
-      const finding = String(
-        rec.question || rec.observation || rec.evidence || rec.title || rec.bucket || "",
-      ).trim();
-      const recommendation = String(
-        rec.recommendation || rec.action || rec.title || rec.observation || finding,
-      ).trim();
+      const finding = [
+        rec.question,
+        rec.observation,
+        rec.evidence,
+        rec.title,
+        rec.bucket,
+      ]
+        .map((value) => String(value || "").trim())
+        .find((value) => value && !isPlaceholderText(value)) || "";
+      const recommendation = [
+        rec.recommendation,
+        rec.action,
+        rec.title,
+        rec.observation,
+        finding,
+      ]
+        .map((value) => String(value || "").trim())
+        .find((value) => value && !isPlaceholderText(value)) || "";
       if (!finding && !recommendation) return null;
       return {
         finding: finding || recommendation || "Recommendation",
@@ -787,7 +809,7 @@ function uniqueRoadmapActions(actions: string[]) {
   const seen = new Set<string>();
   return actions.filter((action) => {
     const key = action.trim().toLowerCase();
-    if (!key || seen.has(key)) return false;
+    if (!key || isPlaceholderText(action) || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
@@ -815,7 +837,7 @@ function buildRoadmapFromQuickWins(quickWinsTable: Array<Record<string, unknown>
 
   const overflow = quickWinsTable
     .map((item) => String(item.recommendation || item.finding || "").trim())
-    .filter(Boolean)
+    .filter((action) => action && !isPlaceholderText(action))
     .filter(
       (action) =>
         !week_1_2.includes(action) && !month_1.includes(action) && !quarter_1.includes(action),
@@ -889,19 +911,23 @@ function bucketLeadInsight(bucket: BucketResult) {
       ? (bucket.improvements[0] as Record<string, unknown>)
       : null;
 
-  const insight = String(
-    finding?.observation ||
-      finding?.what_we_found ||
-      finding?.question ||
-      improvement?.observation ||
-      "",
-  ).trim();
-  const action = String(
-    improvement?.recommendation ||
-      improvement?.observation ||
-      improvement?.question ||
-      "",
-  ).trim();
+  const insight =
+    [
+      finding?.observation,
+      finding?.what_we_found,
+      finding?.question,
+      improvement?.observation,
+    ]
+      .map((value) => String(value || "").trim())
+      .find((value) => value && !isPlaceholderText(value)) || "";
+  const action =
+    [
+      improvement?.recommendation,
+      improvement?.observation,
+      improvement?.question,
+    ]
+      .map((value) => String(value || "").trim())
+      .find((value) => value && !isPlaceholderText(value)) || "";
 
   return {
     insight,
@@ -1101,11 +1127,11 @@ function deriveExecutiveSummaryFromBuckets(args: {
   const topProblems = args.allFindings
     .slice(0, 5)
     .map((item) => String(item.observation || item.question || item.evidence || "").trim())
-    .filter(Boolean);
+    .filter((item) => Boolean(item) && !isPlaceholderText(item));
   const quickWinTexts = args.quickWins
     .slice(0, 5)
     .map((item) => String(item.recommendation || item.observation || item.question || "").trim())
-    .filter(Boolean);
+    .filter((item) => Boolean(item) && !isPlaceholderText(item));
   const whatsWorking = [...scoredBuckets]
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
     .slice(0, 4)
@@ -1114,7 +1140,8 @@ function deriveExecutiveSummaryFromBuckets(args: {
       return `${bucket.bucket_name}: ${
         String(action || insight || bucket.health || "").trim()
       }`;
-    });
+    })
+    .filter((item) => Boolean(item) && !isPlaceholderText(item));
   const uniqueTopProblems = uniqueSemanticList(topProblems, 5);
   const uniqueQuickWins = uniqueSemanticList(quickWinTexts, 5);
   const uniqueWhatsWorking = uniqueSemanticList(whatsWorking, 4);

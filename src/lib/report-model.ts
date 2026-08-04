@@ -277,14 +277,24 @@ function uniqueSemanticList(values: string[], limit = values.length) {
 }
 
 function quickWinText(item: unknown): string {
-  if (typeof item === "string") return sanitizeDisplayText(item);
+  if (typeof item === "string") {
+    const text = sanitizeDisplayText(item);
+    return text && !isPlaceholderText(text) ? text : "";
+  }
   const rec = asRecord(item) ?? {};
+  const candidate = [
+    rec.recommendation,
+    rec.finding,
+    rec.observation,
+    rec.question,
+    rec.evidence,
+    rec.title,
+  ]
+    .map((value) => sanitizeDisplayText(value))
+    .find((value) => value && !isPlaceholderText(value));
   return (
-    sanitizeDisplayText(rec.recommendation) ||
-    sanitizeDisplayText(rec.finding) ||
-    sanitizeDisplayText(rec.observation) ||
-    sanitizeDisplayText(rec.question) ||
-    sanitizeDisplayText(rec.evidence)
+    candidate ||
+    ""
   );
 }
 
@@ -947,12 +957,16 @@ function synthesizeCompetitorInsightsFromSnapshot(rec: AnyRecord) {
   };
 }
 
-function reportQuickWins(report: AnyRecord, rawExecutiveSummary: AnyRecord) {
+function reportQuickWins(report: AnyRecord, rawExecutiveSummary: AnyRecord, fallbackQuickWins: string[] = []) {
   if (asNumber(report.overall_score) === null) return [];
-  const executiveQuickWins = sanitizeStringList(rawExecutiveSummary.quick_wins);
+  const executiveQuickWins = sanitizeStringList(rawExecutiveSummary.quick_wins).filter(
+    (item) => !isPlaceholderText(item),
+  );
   if (executiveQuickWins.length) return uniqueStringList(executiveQuickWins);
 
-  const topQuickWins = sanitizeStringList(rawExecutiveSummary.top_3_quick_wins);
+  const topQuickWins = sanitizeStringList(rawExecutiveSummary.top_3_quick_wins).filter(
+    (item) => !isPlaceholderText(item),
+  );
   if (topQuickWins.length) return uniqueStringList(topQuickWins);
 
   const rootQuickWins = asArray(report.quick_wins).map(quickWinText).filter(Boolean);
@@ -961,7 +975,10 @@ function reportQuickWins(report: AnyRecord, rawExecutiveSummary: AnyRecord) {
   const tableQuickWins = asArray(report.quick_wins_table).map(quickWinText).filter(Boolean);
   if (tableQuickWins.length) return uniqueStringList(tableQuickWins);
 
-  return uniqueStringList(asArray(report.all_improvements).map(quickWinText).filter(Boolean));
+  const improvementQuickWins = uniqueStringList(asArray(report.all_improvements).map(quickWinText).filter(Boolean));
+  if (improvementQuickWins.length) return improvementQuickWins;
+
+  return uniqueStringList(fallbackQuickWins.filter((item) => !isPlaceholderText(item)));
 }
 
 function competitorKey(value: unknown): string {
@@ -1435,6 +1452,28 @@ function deriveQuestionScoringStats(report: AnyRecord) {
 
 function normalizedQuickWin(item: unknown): AnyRecord {
   const rec = asRecord(item) ?? {};
+  const finding =
+    [
+      rec.finding,
+      rec.question,
+      rec.observation,
+      rec.evidence,
+      rec.title,
+      rec.bucket,
+    ]
+      .map((value) => sanitizeDisplayText(value))
+      .find((value) => value && !isPlaceholderText(value)) || "";
+  const recommendation =
+    [
+      rec.recommendation,
+      rec.action,
+      rec.observation,
+      rec.evidence,
+      rec.title,
+      finding,
+    ]
+      .map((value) => sanitizeDisplayText(value))
+      .find((value) => value && !isPlaceholderText(value)) || "";
   const title =
     sanitizeDisplayText(
       rec.title ||
@@ -1448,13 +1487,9 @@ function normalizedQuickWin(item: unknown): AnyRecord {
   const severity = asString(rec.severity).toLowerCase();
   return {
     ...rec,
-    finding: sanitizeDisplayText(rec.finding) || sanitizeDisplayText(rec.question) || asString(rec.bucket) || title,
+    finding: finding || asString(rec.bucket) || title,
     recommendation:
-      sanitizeDisplayText(rec.recommendation) ||
-      sanitizeDisplayText(rec.action) ||
-      sanitizeDisplayText(rec.observation) ||
-      sanitizeDisplayText(rec.evidence) ||
-      title,
+      recommendation || title,
     effort:
       asString(rec.effort) ||
       (severity === "critical" ? "High" : severity === "high" ? "Medium" : ""),
@@ -1715,7 +1750,7 @@ function deriveRoadmapFromQuickWins(items: unknown[]) {
       sanitizeDisplayText(rec.recommendation) ||
       sanitizeDisplayText(rec.finding) ||
       sanitizeDisplayText(rec.title);
-    if (!action) continue;
+    if (!action || isPlaceholderText(action)) continue;
     const stage = roadmapStageFromEffort(rec.effort);
     roadmap[stage].push(action);
   }
@@ -1734,7 +1769,7 @@ function deriveRoadmapFromQuickWins(items: unknown[]) {
           sanitizeDisplayText(rec.title)
         );
       })
-      .filter(Boolean),
+      .filter((item) => Boolean(item) && !isPlaceholderText(item)),
   ).filter(
     (action) =>
       !roadmap.week_1_2.includes(action) &&
@@ -1940,7 +1975,8 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
           ? sanitizeStringList(rawExecutiveSummary.top_3_problems)
           : deriveTopProblemsFromBuckets(report).concat(topScorecardHighlights(report, 3, "risk")),
     );
-  const quickWinItems = reportQuickWins(report, rawExecutiveSummary);
+  const questionInsights = deriveExecutiveQuestionInsights(report);
+  const quickWinItems = reportQuickWins(report, rawExecutiveSummary, questionInsights.quickWins);
   const storedAuditType = asString(report.audit_mode) || "Full UX Audit";
   const rawCoverageStatus = asString(report.coverage_status);
   const effectiveCoverageStatus =
@@ -2022,7 +2058,6 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
   const primaryPriority = asRecord(asArray(rawExecutiveSummary.top_3_priorities)[0]) ?? {};
   const fallbackTopProblems = deriveTopProblemsFromBuckets(report);
   const fallbackWhatsWorking = deriveWhatsWorkingFromBuckets(report);
-  const questionInsights = deriveExecutiveQuestionInsights(report);
   const verdictRisk = topRisks[0] || "";
   const verdictStrength = topStrengths[0] || "";
   const firstUrgentIssue = questionInsights.firstPriority[0] || questionInsights.topProblems[0] || verdictRisk;
@@ -2274,17 +2309,27 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
       })
     : fallbackFindings;
 
-  const rawQuickWinsTable = asArray(report.quick_wins_table);
-  const rawQuickWins = asArray(report.quick_wins);
+  const rawQuickWinsTable = asArray(report.quick_wins_table).filter((item) => Boolean(quickWinText(item)));
+  const rawQuickWins = asArray(report.quick_wins).filter((item) => Boolean(quickWinText(item)));
+  const quickWinQuestionFallback = questionInsights.quickWins.length
+    ? questionInsights.quickWins.map((item) => ({
+        finding: item,
+        recommendation: item,
+      }))
+    : [];
   const fallbackQuickWinsSource =
-    asArray(report.all_improvements).length
-      ? asArray(report.all_improvements)
+    asArray(report.all_improvements).filter((item) => Boolean(quickWinText(item))).length
+      ? asArray(report.all_improvements).filter((item) => Boolean(quickWinText(item)))
       : bucketDerivedImprovements.length
         ? bucketDerivedImprovements
-      : normalizeStringList(rawExecutiveSummary.top_3_quick_wins).map((item) => ({
-          recommendation: item,
-          finding: item,
-        }));
+        : quickWinQuestionFallback.length
+          ? quickWinQuestionFallback
+          : normalizeStringList(rawExecutiveSummary.top_3_quick_wins)
+              .filter((item) => !isPlaceholderText(item))
+              .map((item) => ({
+                recommendation: item,
+                finding: item,
+              }));
 
   const mergedQuickWinsSource = rawQuickWinsTable.length
     ? rawQuickWinsTable
