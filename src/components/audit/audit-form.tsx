@@ -405,7 +405,7 @@ export function AuditForm() {
   );
   const defaultAccessMode =
     primaryType === "marketing_website" || primaryType === "ecommerce"
-      ? "screenshot_upload_only"
+      ? "browser_extension_capture"
       : "auto_login";
   const accessLabel =
     primaryType === "marketing_website"
@@ -585,10 +585,10 @@ export function AuditForm() {
 
   useEffect(() => {
     if (!isPublicAuditType(primaryType)) return;
-    if (payload.accessMode === "screenshot_upload_only") return;
+    if (payload.accessMode === "browser_extension_capture") return;
     setPayload((prev) => ({
       ...prev,
-      accessMode: "screenshot_upload_only",
+      accessMode: "browser_extension_capture",
       auth: {
         ...prev.auth,
         requiresLogin: false,
@@ -1099,6 +1099,10 @@ export function AuditForm() {
     }
     if (!payload.differentiation.trim())
       errors.differentiation = "Product differentiation is required.";
+    if (!payload.primaryBusinessObjective.trim())
+      errors.primaryBusinessObjective = "Business objective is required.";
+    if (!payload.businessFutureGoals.trim())
+      errors.businessFutureGoals = "Business future goals are required.";
 
     if (payload.auditGoals.length === 0)
       errors.auditGoals = "Select at least one audit goal.";
@@ -1184,11 +1188,12 @@ export function AuditForm() {
         : !!payload.frequencyOfUse &&
           !!payload.dynamic_answers.saas.q16_solo_or_collab?.trim();
 
-    if (
-      payload.productOneLiner.trim() &&
-      saasExtraOk &&
-      payload.differentiation.trim()
-    )
+    const businessDetailsOk =
+      payload.differentiation.trim() &&
+      payload.primaryBusinessObjective.trim() &&
+      payload.businessFutureGoals.trim();
+
+    if (businessDetailsOk && saasExtraOk)
       done.add(3);
 
     // ADDED: step 4 is user + business details
@@ -2644,7 +2649,7 @@ Audit Flow for SCY Platform
           ) : null}
         </div>
 
-        {primaryType === "saas" && activeStep === 7 ? (
+        {activeStep === maxStep ? (
           <Card className="p-5">
           <CardHeader
             title="Submit"
@@ -2656,12 +2661,10 @@ Audit Flow for SCY Platform
           />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {isAllRequiredComplete ? (
-              <Button type="submit" variant="primary" size="lg" disabled={loading}>
-                {loading ? <LoadingSpinner /> : null}
-                Send context to agent
-              </Button>
-            ) : null}
+            <Button type="submit" variant="primary" size="lg" disabled={loading || !isAllRequiredComplete}>
+              {loading ? <LoadingSpinner /> : null}
+              Send context to agent
+            </Button>
           </div>
 
           {/* UPDATED: removed helper text */}
