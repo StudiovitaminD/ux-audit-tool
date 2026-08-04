@@ -1508,10 +1508,11 @@ export function AuditForm() {
         <div className="flex justify-end">
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             size="sm"
             onClick={resetAll}
             disabled={loading}
+            className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
           >
             Reset
           </Button>
