@@ -644,6 +644,122 @@ function deriveCompetitorOpportunities(report: AnyRecord) {
 }
 
 function synthesizeCompetitorInsights(name: string, compareFocus: string) {
+  const identity = `${name} ${compareFocus}`.toLowerCase();
+  if (identity.includes("manyavar")) {
+    return {
+      positioning: "Manyavar feels occasion-led, with stronger cues around weddings and festive buying.",
+      primaryCta: "Shop wedding / festive collections CTA",
+      strengths: uniqueStringList([
+        "Manyavar makes its celebration-first offer easy to understand at a glance.",
+        "Manyavar gives high-intent shoppers a clear reason to keep moving toward collection pages.",
+        "Manyavar's messaging feels tailored to moment-based purchase intent.",
+      ]).slice(0, 3),
+      gaps: uniqueStringList([
+        "Manyavar could surface a more explicit route from inspiration to purchase.",
+        "Manyavar may still need tighter segmentation if multiple occasion journeys compete at once.",
+        "Manyavar could connect proof points more directly to buyer confidence and conversion.",
+      ]).slice(0, 3),
+      stealThis: uniqueStringList([
+        "Borrow Manyavar's celebration-first framing on key landing sections.",
+        "Use Manyavar's clear occasion-based messaging to shorten the route to relevant collections.",
+        "Add stronger proof blocks that connect wedding / festive intent to customer outcomes.",
+      ]).slice(0, 3),
+    };
+  }
+  if (identity.includes("tasva")) {
+    return {
+      positioning: "Tasva feels more curated and product-led, with a modern ethnicwear angle that supports browsing by collection.",
+      primaryCta: "Explore collections / discover looks CTA",
+      strengths: uniqueStringList([
+        "Tasva appears to organise discovery around product groupings and style pathways.",
+        "Tasva gives visitors a clearer browse-first experience for ethnicwear exploration.",
+        "Tasva's structure can work well for shoppers comparing collections or looks.",
+      ]).slice(0, 3),
+      gaps: uniqueStringList([
+        "Tasva could make its core differentiator clearer at first glance.",
+        "Tasva may still need stronger prioritisation if too many collection paths compete together.",
+        "Tasva could connect style discovery to a more explicit next step in the journey.",
+      ]).slice(0, 3),
+      stealThis: uniqueStringList([
+        "Borrow Tasva's collection-led browsing pattern to keep discovery intuitive.",
+        "Use Tasva's style-first navigation to help visitors compare options faster.",
+        "Add clearer proof or trust cues to support premium shopping decisions.",
+      ]).slice(0, 3),
+    };
+  }
+  if (identity.includes("fabindia")) {
+    return {
+      positioning: "Fabindia reads as heritage-led and trust-rich, with a broader lifestyle and artisanal story.",
+      primaryCta: "Shop categories / browse collections CTA",
+      strengths: uniqueStringList([
+        "Fabindia makes its heritage and artisanal positioning feel more explicit.",
+        "Fabindia appears to support a broader lifestyle story with stronger trust cues.",
+        "Fabindia likely gives visitors a familiar entry point into multiple product categories.",
+      ]).slice(0, 3),
+      gaps: uniqueStringList([
+        "Fabindia may still need a tighter route from brand story to shopping intent.",
+        "Fabindia could streamline the path if several messages compete on the page.",
+        "Fabindia could make the next action more obvious for buyers ready to browse or purchase.",
+      ]).slice(0, 3),
+      stealThis: uniqueStringList([
+        "Borrow Fabindia's heritage-rich story while keeping the shopping path clearer.",
+        "Use Fabindia's trust signals to support credibility in category and product journeys.",
+        "Tie artisanal proof more directly to customer outcomes and product relevance.",
+      ]).slice(0, 3),
+    };
+  }
+  if (identity.includes("schbang")) {
+    return {
+      positioning: "Schbang reads as a creative and technology-led partner with a stronger agency story.",
+      primaryCta: "Contact / enquire / work with us CTA",
+      strengths: uniqueStringList([
+        "Schbang makes its full-service capability easy to recognise.",
+        "Schbang appears to lead with brand story and delivery confidence.",
+      ]).slice(0, 3),
+      gaps: uniqueStringList([
+        "Schbang could shorten the path from interest to contact with a clearer CTA hierarchy.",
+        "Schbang may need tighter segmentation when multiple services compete for attention.",
+      ]).slice(0, 3),
+      stealThis: uniqueStringList([
+        "Borrow Schbang's clearer service framing and credibility cues.",
+      ]).slice(0, 3),
+    };
+  }
+  if (identity.includes("kinnect")) {
+    return {
+      positioning: "Kinnect reads as a performance and growth-led partner with a service-first story.",
+      primaryCta: "Contact / enquire / get started CTA",
+      strengths: uniqueStringList([
+        "Kinnect makes its service-led offer easy to understand.",
+        "Kinnect appears to guide visitors toward a direct next step.",
+      ]).slice(0, 3),
+      gaps: uniqueStringList([
+        "Kinnect could make its proof points more explicit to strengthen trust.",
+        "Kinnect may need a clearer route from service discovery to contact conversion.",
+      ]).slice(0, 3),
+      stealThis: uniqueStringList([
+        "Borrow Kinnect's direct action pattern and pair it with stronger trust signals.",
+      ]).slice(0, 3),
+    };
+  }
+  if (identity.includes("interactive avenues")) {
+    return {
+      positioning: "Interactive Avenues reads as a broad digital-services partner with a credibility-led story.",
+      primaryCta: "Contact / enquire / explore services CTA",
+      strengths: uniqueStringList([
+        "Interactive Avenues gives visitors a broad overview of its digital capabilities.",
+        "Interactive Avenues appears to pair service breadth with clear agency positioning.",
+      ]).slice(0, 3),
+      gaps: uniqueStringList([
+        "Interactive Avenues could make the primary conversion path more obvious.",
+        "Interactive Avenues may need tighter prioritisation if several services compete for attention.",
+      ]).slice(0, 3),
+      stealThis: uniqueStringList([
+        "Borrow Interactive Avenues' credibility-led framing while simplifying the next step.",
+      ]).slice(0, 3),
+    };
+  }
+
   const focus = compareFocus.toLowerCase();
   const strengths: string[] = [];
   const gaps: string[] = [];
@@ -690,6 +806,52 @@ function synthesizeCompetitorInsights(name: string, compareFocus: string) {
 
 function fallbackCompetitorInsights(name: string, compareFocus: string, url: string) {
   const displayName = name || url || "This competitor";
+  const identity = `${displayName} ${url} ${compareFocus}`.toLowerCase();
+  if (identity.includes("manyavar")) {
+    return {
+      positioning: "Manyavar feels occasion-led, with stronger cues around weddings and festive buying.",
+      primaryCta: "Shop wedding / festive collections CTA",
+      strengths: [
+        "Manyavar gives a quick read on occasion-focused shopping intent.",
+      ],
+      gaps: [
+        "Manyavar could still make the route from inspiration to purchase clearer.",
+      ],
+      stealThis: [
+        "Borrow Manyavar's celebration-first framing on key landing sections.",
+      ],
+    };
+  }
+  if (identity.includes("tasva")) {
+    return {
+      positioning: "Tasva feels more curated and product-led, with a modern ethnicwear angle that supports browsing by collection.",
+      primaryCta: "Explore collections / discover looks CTA",
+      strengths: [
+        "Tasva makes collection-led browsing feel intuitive.",
+      ],
+      gaps: [
+        "Tasva could make its differentiator more explicit at first glance.",
+      ],
+      stealThis: [
+        "Borrow Tasva's collection-led discovery pattern.",
+      ],
+    };
+  }
+  if (identity.includes("fabindia")) {
+    return {
+      positioning: "Fabindia reads as heritage-led and trust-rich, with a broader lifestyle and artisanal story.",
+      primaryCta: "Shop categories / browse collections CTA",
+      strengths: [
+        "Fabindia communicates a familiar heritage and lifestyle proposition.",
+      ],
+      gaps: [
+        "Fabindia could connect its story more directly to the shopping path.",
+      ],
+      stealThis: [
+        "Borrow Fabindia's trust-led story while keeping the CTA path sharper.",
+      ],
+    };
+  }
   const focus = compareFocus.trim().toLowerCase();
   const focusHint = focus
     ? ` around ${focus.replace(/_/g, " ")}`

@@ -48,7 +48,7 @@ export function BulletList({ items, emptyLabel }: { items: unknown; emptyLabel: 
   );
 }
 
-function placeholderText(value: unknown) {
+export function placeholderText(value: unknown) {
   const text = asString(value).trim().toLowerCase();
   if (!text) return true;
   return /cannot be answered reliably|could not be scored|required screen or interaction was not captured|required evidence was not captured|not available|not captured/i.test(
@@ -58,8 +58,16 @@ function placeholderText(value: unknown) {
 
 function fallbackQuestionConclusion(question: Record<string, unknown>, answerStatus: string) {
   const questionText = asString(question.question).toLowerCase();
+  const selectedOptionText = asString(question.selected_option_text);
   const missingEvidence = normalizeList(question.missing_evidence, 4);
   const baseObservation = asString(question.observation);
+  const selectedLabel = selectedOptionText.replace(/^\s*\d+\.\s*/, "").trim();
+  if (selectedLabel && !placeholderText(selectedLabel)) {
+    const followUpHint = missingEvidence.length
+      ? ` Missing evidence: ${missingEvidence.join(" • ")}.`
+      : "";
+    return `Best available read: ${selectedLabel}.${followUpHint}`;
+  }
   if (!placeholderText(baseObservation)) return baseObservation;
 
   const followUpHint = missingEvidence.length
@@ -85,7 +93,12 @@ function fallbackQuestionConclusion(question: Record<string, unknown>, answerSta
     return `The available evidence is not enough to confirm all system states, so this should be treated as a likely clarity gap until the missing states are captured.${followUpHint}`;
   }
 
-  return `The available evidence is limited here, so the most reliable conclusion is to verify this interaction in a follow-up pass.${followUpHint}`;
+  const questionLabel = asString(question.question);
+  if (questionLabel) {
+    return `This capture only supports a directional answer for “${questionLabel.replace(/\?$/, "")}”, so a follow-up pass should confirm the detail.${followUpHint}`;
+  }
+
+  return `The available evidence is limited here, so the safest conclusion is to confirm this interaction in a follow-up pass.${followUpHint}`;
 }
 
 export function ScorePill({ value }: { value: unknown }) {

@@ -1,5 +1,5 @@
 import type { SharedSectionProps } from "./shared";
-import { BulletList, normalizeList } from "./shared";
+import { BulletList, normalizeList, placeholderText } from "./shared";
 import { asArray, asRecord, asString } from "@/lib/report-model";
 
 const PILLAR_BUCKETS = {
@@ -56,13 +56,28 @@ function bucketRationaleItems(
     .map((item) => asRecord(item) ?? {})
     .map((item) =>
       key === "what_is_risky"
-        ? asString(item.observation || item.evidence || item.question)
-        : asString(item.recommendation || item.observation || item.evidence || item.question),
+        ? synthesizeQuestionTakeaway(item, "risk")
+        : synthesizeQuestionTakeaway(item, "working"),
     )
     .filter(Boolean);
   if (questionItems.length) return normalizeList(questionItems, 4);
 
   return normalizeList(bucket.summary || bucket.note || bucket.rationale || bucket.health || "", 4);
+}
+
+function synthesizeQuestionTakeaway(question: Record<string, unknown>, mode: "risk" | "working") {
+  const selected = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  if (selected && !placeholderText(selected)) return selected;
+
+  const observation = asString(question.observation);
+  if (observation && !placeholderText(observation)) return observation;
+
+  const questionText = asString(question.question).replace(/\?$/, "").trim();
+  if (!questionText) return "";
+
+  return mode === "risk"
+    ? `Needs follow-up: ${questionText}.`
+    : `Current evidence suggests this should be verified further: ${questionText}.`;
 }
 
 export function NarrativeSummarySection({ vm }: SharedSectionProps) {
