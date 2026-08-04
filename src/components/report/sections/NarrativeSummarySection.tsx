@@ -1,6 +1,7 @@
 import type { SharedSectionProps } from "./shared";
 import { BulletList, normalizeList, placeholderText } from "./shared";
 import { asArray, asRecord, asString } from "@/lib/report-model";
+import { QUESTION_BANK } from "../../../../worker/src/question-bank";
 
 const PILLAR_BUCKETS = {
   Delight: ["Content & UX Writing", "Consistency & UI Patterns"],
@@ -56,8 +57,8 @@ function bucketRationaleItems(
     .map((item) => asRecord(item) ?? {})
     .map((item) =>
       key === "what_is_risky"
-        ? synthesizeQuestionTakeaway(item, "risk")
-        : synthesizeQuestionTakeaway(item, "working"),
+        ? synthesizeQuestionTakeaway(bucketLabel(bucket), item, "risk")
+        : synthesizeQuestionTakeaway(bucketLabel(bucket), item, "working"),
     )
     .filter(Boolean);
   if (questionItems.length) return normalizeList(questionItems, 4);
@@ -65,9 +66,40 @@ function bucketRationaleItems(
   return normalizeList(bucket.summary || bucket.note || bucket.rationale || bucket.health || "", 4);
 }
 
-function synthesizeQuestionTakeaway(question: Record<string, unknown>, mode: "risk" | "working") {
+function bucketLabel(bucket: Record<string, unknown>) {
+  return (
+    asString(bucket.bucket_name) ||
+    asString(bucket.section) ||
+    asString(bucket.bucket) ||
+    "Bucket"
+  );
+}
+
+function lookupQuestionOptions(bucketNameValue: string, questionId: string) {
+  const direct = QUESTION_BANK[bucketNameValue] || [];
+  const exact = direct.find((item) => item.id === questionId);
+  if (exact?.options?.length) return exact.options;
+
+  for (const questions of Object.values(QUESTION_BANK)) {
+    const found = questions.find((item) => item.id === questionId);
+    if (found?.options?.length) return found.options;
+  }
+
+  return [];
+}
+
+function synthesizeQuestionTakeaway(
+  bucketNameValue: string,
+  question: Record<string, unknown>,
+  mode: "risk" | "working",
+) {
+  const questionId = asString(question.id);
   const selected = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
   if (selected && !placeholderText(selected)) return selected;
+
+  const selectedMark = Number(asString(question.selected_option || question.mark));
+  const option = lookupQuestionOptions(bucketNameValue, questionId).find((item) => Number(item.mark) === selectedMark);
+  if (option?.text) return option.text.trim();
 
   const observation = asString(question.observation);
   if (observation && !placeholderText(observation)) return observation;

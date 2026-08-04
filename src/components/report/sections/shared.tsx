@@ -56,9 +56,21 @@ export function placeholderText(value: unknown) {
   );
 }
 
+function selectedOptionTextForQuestion(bucketName: string, question: Record<string, unknown>) {
+  const questionId = asString(question.id);
+  const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  if (selectedText && !placeholderText(selectedText)) return selectedText;
+
+  const selectedMark = Number(asString(question.selected_option || question.mark));
+  const options = lookupQuestionOptions(bucketName, questionId);
+  const matched = options.find((option) => Number(option.mark) === selectedMark);
+  if (matched?.text) return matched.text.trim();
+  return "";
+}
+
 function fallbackQuestionConclusion(question: Record<string, unknown>, answerStatus: string) {
   const questionText = asString(question.question).toLowerCase();
-  const selectedOptionText = asString(question.selected_option_text);
+  const selectedOptionText = selectedOptionTextForQuestion(asString(question.bucket_name) || "", question);
   const missingEvidence = normalizeList(question.missing_evidence, 4);
   const baseObservation = asString(question.observation);
   const selectedLabel = selectedOptionText.replace(/^\s*\d+\.\s*/, "").trim();
@@ -66,7 +78,7 @@ function fallbackQuestionConclusion(question: Record<string, unknown>, answerSta
     const followUpHint = missingEvidence.length
       ? ` Missing evidence: ${missingEvidence.join(" • ")}.`
       : "";
-    return `Best available read: ${selectedLabel}.${followUpHint}`;
+    return `Best available answer: ${selectedLabel}.${followUpHint}`;
   }
   if (!placeholderText(baseObservation)) return baseObservation;
 
@@ -176,10 +188,15 @@ export function BucketAnswersCard({
         <div className="mt-4 space-y-4">
           {questions.map((question, index) => {
             const questionId = asString(question.id);
+            const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || asString(bucket.bucket) || "Bucket";
             const answerStatus = asString(question.answer_status);
             const selectedOption = asString(question.selected_option);
             const selectedMark = asString(question.mark || question.selected_option);
             const options = lookupQuestionOptions(bucketName, questionId);
+            const selectedOptionText =
+              selectedOptionTextForQuestion(bucketName, question) ||
+              asString(question.observation) ||
+              asString(question.evidence);
             const isInsufficient = answerStatus === "insufficient_evidence";
             const isScoringUnavailable = answerStatus === "scoring_unavailable";
             const isNotScored = isInsufficient || isScoringUnavailable;
@@ -196,9 +213,9 @@ export function BucketAnswersCard({
                   <div className="flex flex-wrap gap-2">
                     {isInsufficient ? <Pill>Status: Insufficient evidence</Pill> : null}
                     {isScoringUnavailable ? <Pill>Status: Scoring unavailable</Pill> : null}
-                    {!isNotScored && selectedOption ? (
+                    {selectedOptionText ? (
                       <span className="inline-flex items-center rounded-full border border-[color:var(--card-border)] bg-white/5 px-2 py-0.5 text-xs text-[color:var(--ink-muted)] print-color-adjust">
-                        Answer : {selectedOption}
+                        Answer: {selectedOptionText}
                       </span>
                     ) : null}
                     {isNotScored ? <Pill>Score: Not scored</Pill> : null}

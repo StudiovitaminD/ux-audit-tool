@@ -106,6 +106,44 @@ function uniqueList(items: string[], limit = 10) {
   return output;
 }
 
+function isPlaceholderText(value: unknown) {
+  const text = asString(value).trim().toLowerCase();
+  if (!text) return true;
+  return /cannot be answered reliably|could not be scored|required screen or interaction was not captured|required evidence was not captured|not available|not captured/i.test(
+    text,
+  );
+}
+
+function questionOptions(bucketName: string, questionId: string) {
+  const direct = QUESTION_BANK[bucketName] ?? [];
+  const exact = direct.find((item) => item.id === questionId);
+  if (exact?.options?.length) return exact.options;
+
+  for (const items of Object.values(QUESTION_BANK)) {
+    const found = items.find((item) => item.id === questionId);
+    if (found?.options?.length) return found.options;
+  }
+
+  return [];
+}
+
+function bestQuestionText(bucketName: string, question: AnyRecord) {
+  const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  if (selectedText) return selectedText;
+
+  const selectedMark = asNumber(question.selected_option ?? question.mark);
+  const option = questionOptions(bucketName, asString(question.id)).find((item) => item.mark === selectedMark);
+  if (option?.text) return option.text.trim();
+
+  const observation = asString(question.observation);
+  if (observation && !isPlaceholderText(observation)) return observation;
+
+  const recommendation = asString(question.recommendation);
+  if (recommendation && !isPlaceholderText(recommendation)) return recommendation;
+
+  return asString(question.evidence) || asString(question.question);
+}
+
 function deriveQuestionInsights(bucketResults: AnyRecord[]) {
   const questions = bucketResults.flatMap((bucket) => {
     const bucketName = asString(bucket.bucket_name);
@@ -113,14 +151,14 @@ function deriveQuestionInsights(bucketResults: AnyRecord[]) {
       .map((item) => asRecord(item) ?? {})
       .map((question) => ({
         bucketName,
-        mark: asNumber(question.mark),
+        mark: asNumber(question.mark ?? question.selected_option),
         answerStatus: asString(question.answer_status),
-        observation: asString(question.observation) || asString(question.evidence) || asString(question.question),
-        recommendation: asString(question.recommendation) || asString(question.observation),
+        observation: bestQuestionText(bucketName, question),
+        recommendation: asString(question.recommendation) || bestQuestionText(bucketName, question),
         impact: asString(question.impact),
         effort: asString(question.effort),
       }))
-      .filter((question) => question.answerStatus === "answered" && question.mark !== null);
+      .filter((question) => question.mark !== null || Boolean(question.observation || question.recommendation));
   });
 
   return {
