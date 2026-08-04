@@ -872,6 +872,14 @@ function fallbackCompetitorInsights(name: string, compareFocus: string, url: str
   };
 }
 
+function isGenericCompetitorText(value: unknown) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return true;
+  return /brand-led positioning with clearer narrative and credibility cues|solution-led positioning that helps visitors explore offers more directly|credibility-led positioning anchored in trust, proof, and differentiation|b2b positioning oriented around industrial relevance and solution fit|contact, enquiry, or solution-discovery CTA|positioning not explicitly captured|appears to communicate a more explicit brand story|likely gives visitors clearer product or solution pathways|appears more deliberate about guiding visitors toward a primary action|likely supports its message with clearer proof|may still need tighter prioritization|may still lose momentum|may still need stronger prioritization/i.test(
+    text,
+  );
+}
+
 function synthesizeCompetitorInsightsFromSnapshot(rec: AnyRecord) {
   const name = asString(rec.name) || "This competitor";
   const title = asString(rec.title);
@@ -1066,20 +1074,36 @@ function normalizeCompetitor(raw: unknown): AnyRecord | null {
   const stealThis = normalizeList(rec.steal_this);
   const inferred = synthesizeCompetitorInsights(name || url || "This competitor", compareFocus);
   const snapshotInferred = synthesizeCompetitorInsightsFromSnapshot(rec);
-  const mergedPositioning = positioning || snapshotInferred.positioning || inferred.positioning;
-  const mergedPrimaryCta = primaryCta || snapshotInferred.primaryCta || inferred.primaryCta;
+  const mergedPositioning = isGenericCompetitorText(positioning)
+    ? snapshotInferred.positioning || inferred.positioning
+    : positioning || snapshotInferred.positioning || inferred.positioning;
+  const mergedPrimaryCta = isGenericCompetitorText(primaryCta)
+    ? snapshotInferred.primaryCta || inferred.primaryCta
+    : primaryCta || snapshotInferred.primaryCta || inferred.primaryCta;
   const mergedStrengths = strengths.length
-    ? strengths
+    ? strengths.every(isGenericCompetitorText)
+      ? snapshotInferred.strengths.length
+        ? snapshotInferred.strengths
+        : inferred.strengths
+      : strengths
     : snapshotInferred.strengths.length
       ? snapshotInferred.strengths
       : inferred.strengths;
   const mergedGaps = gaps.length
-    ? gaps
+    ? gaps.every(isGenericCompetitorText)
+      ? snapshotInferred.gaps.length
+        ? snapshotInferred.gaps
+        : inferred.gaps
+      : gaps
     : snapshotInferred.gaps.length
       ? snapshotInferred.gaps
       : inferred.gaps;
   const mergedStealThis = stealThis.length
-    ? stealThis
+    ? stealThis.every(isGenericCompetitorText)
+      ? snapshotInferred.stealThis.length
+        ? snapshotInferred.stealThis
+        : inferred.stealThis
+      : stealThis
     : snapshotInferred.stealThis.length
       ? snapshotInferred.stealThis
       : inferred.stealThis;

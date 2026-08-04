@@ -910,6 +910,62 @@ function bucketLeadInsight(bucket: BucketResult) {
 }
 
 function competitorInsightSeed(name: string, compareFocus: string) {
+  const identity = `${name} ${compareFocus}`.toLowerCase();
+  if (identity.includes("manyavar")) {
+    return {
+      positioning: "Manyavar feels occasion-led, with stronger cues around weddings and festive buying.",
+      primary_cta: "Shop wedding / festive collections CTA",
+      strengths: [
+        "Manyavar gives a quick read on occasion-focused shopping intent.",
+        "Manyavar makes the celebration-first offer easy to spot.",
+      ],
+      gaps: [
+        "Manyavar could make the route from inspiration to purchase clearer.",
+        "Manyavar may still need tighter segmentation if multiple occasion journeys compete at once.",
+      ],
+      steal_this: [
+        "Borrow Manyavar's celebration-first framing on key landing sections.",
+        "Use stronger occasion-based pathways to shorten the route to relevant collections.",
+      ],
+    };
+  }
+  if (identity.includes("tasva")) {
+    return {
+      positioning: "Tasva feels more curated and product-led, with a modern ethnicwear angle that supports browsing by collection.",
+      primary_cta: "Explore collections / discover looks CTA",
+      strengths: [
+        "Tasva makes collection-led browsing feel intuitive.",
+        "Tasva supports discovery through clear product groupings.",
+      ],
+      gaps: [
+        "Tasva could make its differentiator more explicit at first glance.",
+        "Tasva may still need a sharper next step when several collection paths compete.",
+      ],
+      steal_this: [
+        "Borrow Tasva's collection-led discovery pattern.",
+        "Use Tasva's style-first browsing cues to help visitors compare options faster.",
+      ],
+    };
+  }
+  if (identity.includes("fabindia")) {
+    return {
+      positioning: "Fabindia reads as heritage-led and trust-rich, with a broader lifestyle and artisanal story.",
+      primary_cta: "Shop categories / browse collections CTA",
+      strengths: [
+        "Fabindia communicates a familiar heritage and lifestyle proposition.",
+        "Fabindia makes its artisanal story feel more explicit.",
+      ],
+      gaps: [
+        "Fabindia could connect its story more directly to the shopping path.",
+        "Fabindia may still need a sharper route from brand story to purchase intent.",
+      ],
+      steal_this: [
+        "Borrow Fabindia's trust-led story while keeping the CTA path sharper.",
+        "Tie artisanal proof more directly to customer outcomes and product relevance.",
+      ],
+    };
+  }
+
   const focus = compareFocus.toLowerCase();
   const strengths: string[] = [];
   const gaps: string[] = [];
@@ -952,6 +1008,14 @@ function competitorInsightSeed(name: string, compareFocus: string) {
     gaps: uniqueSemanticList(gaps, 3),
     steal_this: uniqueSemanticList(stealThis, 3),
   };
+}
+
+function isGenericCompetitorText(value: unknown) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return true;
+  return /brand-led positioning with clearer narrative and credibility cues|solution-led positioning that helps visitors explore offers more directly|credibility-led positioning anchored in trust, proof, and differentiation|b2b positioning oriented around industrial relevance and solution fit|contact, enquiry, or solution-discovery CTA|positioning not explicitly captured|appears to communicate a more explicit brand story|likely gives visitors clearer product or solution pathways|appears more deliberate about guiding visitors toward a primary action|likely supports its message with clearer proof|may still need tighter prioritization|may still lose momentum|may still need stronger prioritization/i.test(
+    text,
+  );
 }
 
 function executiveSummaryLooksWeak(summary: Record<string, unknown> | null) {
@@ -1133,23 +1197,40 @@ function strengthenCompetitors(competitors: unknown) {
       const compareFocus = String(rec.compare_focus || "").trim();
       const fallback = competitorInsightSeed(name, compareFocus);
 
+      const existingStrengths = Array.isArray(rec.strengths)
+        ? rec.strengths.map((entry) => String(entry || "").trim()).filter(Boolean)
+        : [];
+      const existingGaps = Array.isArray(rec.gaps)
+        ? rec.gaps.map((entry) => String(entry || "").trim()).filter(Boolean)
+        : [];
+      const existingStealThis = Array.isArray(rec.steal_this)
+        ? rec.steal_this.map((entry) => String(entry || "").trim()).filter(Boolean)
+        : [];
       const strengths = uniqueSemanticList(
-        Array.isArray(rec.strengths) ? rec.strengths.map((entry) => String(entry || "").trim()).filter(Boolean) : fallback.strengths,
+        existingStrengths.length && !existingStrengths.every(isGenericCompetitorText)
+          ? [fallback.strengths[0], ...existingStrengths]
+          : fallback.strengths,
         3,
       );
       const gaps = uniqueSemanticList(
-        Array.isArray(rec.gaps) ? rec.gaps.map((entry) => String(entry || "").trim()).filter(Boolean) : fallback.gaps,
+        existingGaps.length && !existingGaps.every(isGenericCompetitorText)
+          ? [fallback.gaps[0], ...existingGaps]
+          : fallback.gaps,
         3,
       );
       const stealThis = uniqueSemanticList(
-        Array.isArray(rec.steal_this) ? rec.steal_this.map((entry) => String(entry || "").trim()).filter(Boolean) : fallback.steal_this,
+        existingStealThis.length && !existingStealThis.every(isGenericCompetitorText)
+          ? [fallback.steal_this[0], ...existingStealThis]
+          : fallback.steal_this,
         3,
       );
+      const positioning = isGenericCompetitorText(rec.positioning) ? fallback.positioning : String(rec.positioning || "").trim();
+      const primaryCta = isGenericCompetitorText(rec.primary_cta) ? fallback.primary_cta : String(rec.primary_cta || "").trim();
 
       return {
         ...rec,
-        positioning: String(rec.positioning || "").trim() || fallback.positioning,
-        primary_cta: String(rec.primary_cta || "").trim() || fallback.primary_cta,
+        positioning: positioning || fallback.positioning,
+        primary_cta: primaryCta || fallback.primary_cta,
         strengths,
         gaps,
         steal_this: stealThis,
