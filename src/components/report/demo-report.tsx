@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { calculateBusinessImpactMetrics, displayBucketName, displayBucketScore } from "@/lib/report-model";
+import { calculateBusinessImpactMetrics, displayBucketName } from "@/lib/report-model";
 
 type ScorecardRow = {
   section: string;
@@ -883,7 +883,7 @@ export function DemoReport() {
                       {groupedScoreRows.flatMap(({ pillar, rows }) =>
                         rows.length
                           ? rows.map((r, index) => {
-                              const score = displayBucketScore(r.score);
+                              const score = String(r.score ?? "").trim() || "Not scored";
                               const experience = experienceLabelFromScore(r.score);
                               const priority = formatPriority(r.priority);
                               const bucket = bucketNameFromRow(r) || "Bucket";

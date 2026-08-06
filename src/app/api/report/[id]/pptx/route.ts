@@ -4,7 +4,6 @@ import {
   asString,
   buildReportViewModel,
   calculateBusinessImpactMetrics,
-  displayBucketScore,
   type AnyRecord,
 } from "@/lib/report-model";
 import { loadStoredReport } from "@/lib/report-record";
@@ -534,7 +533,7 @@ async function buildPptxResponse(req: Request, id: string) {
         return [
           truncate(row.section || row.bucket_name || row.bucket || row.name, 48),
           asString(row.priority) || "—",
-          displayBucketScore(row.score),
+          asString(row.score) || "—",
           asString(row.health) || "—",
           asString(row.risk_level || row.risk) || "—",
         ];
@@ -667,7 +666,7 @@ async function buildPptxResponse(req: Request, id: string) {
             const scoreLine = [
               asString(bucketRec.pillar),
               asString(bucketRec.priority),
-              displayBucketScore(bucketRec.score),
+              asString(bucketRec.score) ? `${asString(bucketRec.score)}/100` : "",
             ].filter(Boolean).join(" • ");
             addCard(slide, pptx, {
               x: 0.65,

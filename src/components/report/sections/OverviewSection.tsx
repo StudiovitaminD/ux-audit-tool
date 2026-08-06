@@ -1,4 +1,4 @@
-import { asString, displayBucketName, displayBucketScore, calculateBusinessImpactMetrics, type AnyRecord } from "@/lib/report-model";
+import { asString, displayBucketName, calculateBusinessImpactMetrics, type AnyRecord } from "@/lib/report-model";
 import { formatDate, priorityRank, type SharedSectionProps } from "./shared";
 
 function clampPercent(value: number | null | undefined) {
@@ -184,7 +184,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                 rows.length
                   ? rows.map((row, index) => {
                       const bucketName = displayBucketName(bucketNameFromRow(row)) || "Bucket";
-                      const score = displayBucketScore(row.score);
+                      const score = asString(row.score) || "Not scored";
                       const experience = experienceLabelFromScore(scoreFromText(row.score));
                       const priority = formatPriority(row.priority);
 

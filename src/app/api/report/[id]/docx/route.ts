@@ -2,7 +2,6 @@ import {
   asString,
   buildReportViewModel,
   calculateBusinessImpactMetrics,
-  displayBucketScore,
   stringifyValue,
 } from "@/lib/report-model";
 import { loadStoredReport } from "@/lib/report-record";
@@ -133,7 +132,7 @@ function buildDocxXml(report: unknown, reportId: string) {
         ["Bucket", "Score", "Health", "Risk"],
         ...scoreRows.map((row) => [
           asString(row.section || row.bucket_name || row.bucket || row.name) || "—",
-          displayBucketScore(row.score),
+          asString(row.score) || "—",
           asString(row.health) || "—",
           asString(row.risk_level || row.risk) || "—",
         ]),
@@ -176,7 +175,7 @@ function buildDocxXml(report: unknown, reportId: string) {
     bucketAnswerSections.forEach((bucket) => {
       parts.push(
         paragraph(
-          `${asString(bucket.bucket_name || bucket.section || bucket.bucket) || "Bucket"} — ${displayBucketScore(bucket.score)}`,
+          `${asString(bucket.bucket_name || bucket.section || bucket.bucket) || "Bucket"} — ${asString(bucket.score) || "—"}/100`,
           "Heading2",
         ),
       );

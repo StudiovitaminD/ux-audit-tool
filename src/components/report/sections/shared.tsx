@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { QUESTION_BANK } from "../../../../worker/src/question-bank";
-import { asString, displayBucketName, displayBucketScore, stringifyValue, type AnyRecord } from "@/lib/report-model";
+import { asString, displayBucketName, stringifyValue, type AnyRecord } from "@/lib/report-model";
 
 export function normalizeList(value: unknown, limit = 8) {
   if (Array.isArray(value)) return value.map(stringifyValue).filter(Boolean).slice(0, limit);
@@ -196,7 +196,7 @@ export function BucketAnswersCard({
         <div className="flex flex-wrap gap-2">
           {asString(bucket.pillar) ? <Pill>{asString(bucket.pillar)}</Pill> : null}
           {asString(bucket.priority) ? <Pill>{asString(bucket.priority)}</Pill> : null}
-          <Pill>{displayBucketScore(bucket.score)}</Pill>
+          <Pill>{asString(bucket.score) ? `${asString(bucket.score)}/100` : "Not scored"}</Pill>
         </div>
       </div>
 
