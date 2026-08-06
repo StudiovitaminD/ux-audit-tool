@@ -238,6 +238,24 @@ function bucketNameFromRow(row: ScorecardRow) {
   return String(row.section || "").trim();
 }
 
+function isScoredRow(row: ScorecardRow) {
+  return Boolean(String(row.score || "").trim() && String(row.score).toLowerCase() !== "not scored");
+}
+
+function dedupeScoreRows(rows: ScorecardRow[]) {
+  const seen = new Map<string, ScorecardRow>();
+  for (const row of rows) {
+    const pillar = bucketPillarFromRow(row);
+    const bucketName = displayBucketName(bucketNameFromRow(row) || "Bucket").toLowerCase();
+    const key = `${pillar}::${bucketName}`;
+    const existing = seen.get(key);
+    if (!existing || (!isScoredRow(existing) && isScoredRow(row))) {
+      seen.set(key, row);
+    }
+  }
+  return Array.from(seen.values());
+}
+
 function summaryBucketDetails(bucketName: string) {
   const normalizedBucketName = displayBucketName(bucketName);
   return (
@@ -807,7 +825,7 @@ export function DemoReport() {
   const pillarOrder = ["Accessibility", "Impact", "Delight"];
   const groupedScoreRows = pillarOrder.map((pillar) => ({
     pillar,
-    rows: scorecard.filter((row) => bucketPillarFromRow(row) === pillar),
+    rows: dedupeScoreRows(scorecard).filter((row) => bucketPillarFromRow(row) === pillar),
   }));
   const businessMetrics = [
     ...calculateBusinessImpactMetrics(pillars),

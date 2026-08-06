@@ -81,13 +81,34 @@ function bucketNameFromRow(row: AnyRecord) {
   return asString(row.section || row.bucket_name || row.bucket || row.name);
 }
 
+function isScoredRow(row: AnyRecord) {
+  return scoreFromRow(row) !== null && asString(row.score).toLowerCase() !== "not scored";
+}
+
+function dedupeScoreRows(rows: AnyRecord[]) {
+  const seen = new Map<string, AnyRecord>();
+  for (const row of rows) {
+    const pillar = bucketPillarFromRow(row);
+    const bucketName = displayBucketName(bucketNameFromRow(row) || "Bucket").toLowerCase();
+    const key = `${pillar}::${bucketName}`;
+    const existing = seen.get(key);
+
+    if (!existing || (!isScoredRow(existing) && isScoredRow(row))) {
+      seen.set(key, row);
+    }
+  }
+  return Array.from(seen.values());
+}
+
 function scoreFromRow(row: AnyRecord) {
   const match = asString(row.score).match(/(\d+(?:\.\d+)?)/);
   return match ? Number(match[1]) : null;
 }
 
 export function OverviewSection({ vm }: SharedSectionProps) {
-  const scoreRows = [...(vm.scorecard.length ? vm.scorecard : vm.bucketResults)].sort((left, right) => {
+  const scoreRows = dedupeScoreRows([
+    ...(vm.scorecard.length ? vm.scorecard : vm.bucketResults),
+  ]).sort((left, right) => {
     const byPriority = priorityRank(left.priority) - priorityRank(right.priority);
     if (byPriority !== 0) return byPriority;
 
