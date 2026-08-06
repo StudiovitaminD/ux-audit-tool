@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { calculateBusinessImpactMetrics } from "@/lib/report-model";
+import { calculateBusinessImpactMetrics, displayBucketName } from "@/lib/report-model";
 
 type ScorecardRow = {
   section: string;
@@ -181,7 +181,7 @@ const SUMMARY_BUCKET_DETAILS = {
       "There is a good base for turning clarity improvements into conversion lifts.",
     ],
   },
-  "Content (Delight)": {
+  Content: {
     topProblems: [
       "Copy should be clearer at key decision points so users feel more confident.",
       "Plain language is needed where jargon currently slows understanding.",
@@ -224,7 +224,9 @@ function bucketNameFromRow(row: ScorecardRow) {
 }
 
 function summaryBucketDetails(bucketName: string) {
+  const normalizedBucketName = displayBucketName(bucketName);
   return (
+    SUMMARY_BUCKET_DETAILS[normalizedBucketName as keyof typeof SUMMARY_BUCKET_DETAILS] ||
     SUMMARY_BUCKET_DETAILS[bucketName as keyof typeof SUMMARY_BUCKET_DETAILS] || {
       topProblems: [
         "Top problems for this bucket were not captured in the demo data.",
@@ -944,7 +946,7 @@ export function DemoReport() {
                 <div className="text-sm font-semibold">
                   {pillar}{" "}
                   <span className="font-normal text-[color:var(--muted)]">
-                    ({bucketNames.join(", ")})
+                    ({bucketNames.map((bucketName) => displayBucketName(bucketName)).join(", ")})
                   </span>
                 </div>
                 <div className="my-4 border-t border-[color:var(--card-border)]/60" />
@@ -954,7 +956,9 @@ export function DemoReport() {
                       key={`${pillar}-${bucketName}`}
                       className={index === 0 ? "" : "border-t border-[color:var(--card-border)]/60 pt-5"}
                     >
-                      <div className="text-sm font-medium text-[color:var(--ink)]">{bucketName}</div>
+                      <div className="text-sm font-medium text-[color:var(--ink)]">
+                        {displayBucketName(bucketName)}
+                      </div>
                       <div className="mt-4 space-y-5">
                         <div>
                           <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">

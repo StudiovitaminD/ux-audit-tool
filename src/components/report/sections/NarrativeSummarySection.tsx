@@ -177,7 +177,7 @@ export function NarrativeSummarySection({ vm }: SharedSectionProps) {
             <div className="space-y-5">
               {pillarBuckets.map(({ spec, bucket }, index) => {
                 const currentBucketName = bucket ? bucketName(bucket) : spec.name;
-                const currentBucketLabel = displayBucketName(currentBucketName);
+                const currentBucketLabel = displayBucketName(spec.name);
                 return (
                   <div
                     key={`${pillar}-${currentBucketName}-${index}`}

@@ -84,7 +84,16 @@ export function asString(value: unknown, fallback = "") {
 export function displayBucketName(value: unknown) {
   const text = asString(value);
   if (!text) return "";
-  return text.replace(/\s+\((Impact|Delight)\)$/, "");
+  const normalized = text.replace(/\s+\((Impact|Delight)\)$/, "");
+  const legacyMap: Record<string, string> = {
+    "Feedback & System States": "Visual Feedback",
+    "Accessibility & Inclusivity": "Color & Contrast",
+    "Input, Errors & Validation": "Keyboard Navigation",
+    "Visual Hierarchy & Layout": "Visual Consistency",
+    "Content & UX Writing": "Content",
+    "code optimisation": "Performance",
+  };
+  return legacyMap[normalized] || normalized;
 }
 
 export type BusinessImpactPillar = "Accessibility" | "Impact" | "Delight";
@@ -483,6 +492,7 @@ function effortRank(value: string) {
 }
 
 function questionSummaryText(bucketName: string, question: AnyRecord) {
+  const displayName = displayBucketName(bucketName) || bucketName;
   const selectedText = sanitizeDisplayText(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
   const selectedMark = asNumber(question.selected_option ?? question.mark);
   const options = lookupQuestionOptions(bucketName, asString(question.id));
@@ -511,8 +521,8 @@ function questionSummaryText(bucketName: string, question: AnyRecord) {
       ? recommendationRaw
       : selectedAnswer || observation;
   return {
-    problem: observation ? `${bucketName}: ${observation}` : "",
-    action: recommendation ? `${bucketName}: ${recommendation}` : "",
+    problem: observation ? `${displayName}: ${observation}` : "",
+    action: recommendation ? `${displayName}: ${recommendation}` : "",
   };
 }
 
@@ -608,7 +618,7 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
 }
 
 function bucketNarrativeSummary(bucket: AnyRecord) {
-  const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || "Bucket";
+  const bucketName = displayBucketName(asString(bucket.bucket_name) || asString(bucket.section) || "Bucket");
   const finding = asRecord(asArray(bucket.findings)[0]) ?? {};
   const improvement = asRecord(asArray(bucket.improvements)[0]) ?? {};
   const risk = asString(bucket.risk);
@@ -700,7 +710,7 @@ function derivePillarNarrativeSummary(report: AnyRecord, pillarName: string) {
   );
 
   const bucketNames = uniqueSemanticList(
-    buckets.map((bucket) => asString(bucket.bucket_name) || asString(bucket.section) || "Bucket"),
+    buckets.map((bucket) => displayBucketName(asString(bucket.bucket_name) || asString(bucket.section) || "Bucket")),
     6,
   );
 
