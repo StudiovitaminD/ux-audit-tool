@@ -404,7 +404,8 @@ function bucketPrompt(intake: Intake, bucket: string, questions: BucketQuestion[
   const selectedBucketQuestions = questions
     .map((q) => {
       const opts = q.options.map((o) => `${o.mark}: ${trimText(o.text, 90)}`).join("\n");
-      return `ID: ${q.id}\nQuestion: ${q.question}\nOptions:\n${opts}`;
+      const sectionLine = q.section ? `Section: ${q.section}\n` : "";
+      return `ID: ${q.id}\n${sectionLine}Question: ${q.question}\nHow to evaluate: ${q.navigate}\nOptions:\n${opts}`;
     })
     .join("\n\n---\n\n");
 
