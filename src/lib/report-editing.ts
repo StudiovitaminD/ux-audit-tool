@@ -1,5 +1,5 @@
 import { QUESTION_BANK } from "@/lib/question-bank";
-import type { AnyRecord } from "@/lib/report-model";
+import { bucketPillarFromName, type AnyRecord } from "@/lib/report-model";
 
 function asRecord(value: unknown): AnyRecord | null {
   return value && typeof value === "object" ? (value as AnyRecord) : null;
@@ -484,7 +484,7 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
     risk_level: asString(bucket.risk),
     risk: asString(bucket.risk),
     priority: asString(bucket.priority),
-    pillar: asString(bucket.pillar),
+    pillar: bucketPillarFromName(asString(bucket.bucket_name), bucket.pillar),
   }));
 
   const pillarScores = Object.fromEntries(

@@ -31,6 +31,29 @@ function normalizeKey(value: unknown) {
   return asString(value).trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function bucketPillarFromName(bucketName: string, fallbackPillar = "") {
+  const normalized = normalizeKey(bucketName);
+  if (["visual feedback", "color & contrast", "typography & readability", "keyboard navigation", "screen reader support"].includes(normalized)) {
+    return "Accessibility";
+  }
+  if (["navigation & findability", "consistency & ui patterns", "performance"].includes(normalized)) {
+    return "Impact";
+  }
+  if (["visual consistency", "motion & microinteractions", "brand expression", "icons & imagery"].includes(normalized)) {
+    return "Delight";
+  }
+  if (normalized === "content") {
+    const rawFallback = normalizeKey(fallbackPillar);
+    if (rawFallback.includes("delight")) return "Delight";
+    return "Impact";
+  }
+  const fallback = normalizeKey(fallbackPillar);
+  if (fallback.includes("access")) return "Accessibility";
+  if (fallback.includes("impact")) return "Impact";
+  if (fallback.includes("delight")) return "Delight";
+  return "Impact";
+}
+
 const PILLAR_BUCKETS = {
   Accessibility: [
     "Visual Feedback",
@@ -50,15 +73,8 @@ const PILLAR_BUCKETS = {
 } as const;
 
 function bucketPillarFromRow(row: AnyRecord) {
-  const bucket = normalizeKey(bucketNameFromRow(row));
-  for (const [pillar, buckets] of Object.entries(PILLAR_BUCKETS)) {
-    if (buckets.map(normalizeKey).includes(bucket)) return pillar;
-  }
-  const raw = normalizeKey(row.pillar);
-  if (raw.includes("access")) return "Accessibility";
-  if (raw.includes("impact")) return "Impact";
-  if (raw.includes("delight")) return "Delight";
-  return "Unassigned";
+  const bucket = bucketNameFromRow(row);
+  return bucketPillarFromName(bucket, asString(row.pillar));
 }
 
 function bucketNameFromRow(row: AnyRecord) {

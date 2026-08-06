@@ -96,6 +96,41 @@ export function displayBucketName(value: unknown) {
   return legacyMap[normalized] || normalized;
 }
 
+export function bucketPillarFromName(value: unknown, fallback = "Impact") {
+  const normalized = displayBucketName(value).toLowerCase();
+  const raw = asString(value).trim().toLowerCase();
+  const effectiveFallback = asString(fallback);
+
+  if (
+    ["visual feedback", "color & contrast", "typography & readability", "keyboard navigation", "screen reader support"].includes(normalized) ||
+    ["feedback & system states", "accessibility & inclusivity", "input, errors & validation"].includes(raw)
+  ) {
+    return "Accessibility";
+  }
+
+  if (
+    ["navigation & findability", "consistency & ui patterns", "performance"].includes(normalized) ||
+    ["content (impact)", "content & ux writing", "code optimisation"].includes(raw)
+  ) {
+    return "Impact";
+  }
+
+  if (
+    ["visual consistency", "motion & microinteractions", "brand expression", "icons & imagery"].includes(normalized) ||
+    ["visual hierarchy & layout", "content (delight)"].includes(raw)
+  ) {
+    return "Delight";
+  }
+
+  if (normalized === "content") {
+    return effectiveFallback === "Delight" ? "Delight" : "Impact";
+  }
+
+  return effectiveFallback === "Accessibility" || effectiveFallback === "Impact" || effectiveFallback === "Delight"
+    ? effectiveFallback
+    : "Impact";
+}
+
 export type BusinessImpactPillar = "Accessibility" | "Impact" | "Delight";
 export type BusinessImpactMetricLabel =
   | "Drop-off Rate"
@@ -2126,7 +2161,10 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
           ? "Evidence missing"
           : ""),
     priority: asString(bucket.priority) || "P0",
-    pillar: asString(bucket.pillar) || "Impact",
+    pillar: bucketPillarFromName(
+      asString(bucket.section) || asString(bucket.bucket_name) || asString(bucket.bucket),
+      asString(bucket.pillar),
+    ),
   }));
   const hasCoverageShortfall = [
     "limited_coverage",

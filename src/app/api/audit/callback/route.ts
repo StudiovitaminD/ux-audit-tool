@@ -1,7 +1,7 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { parseStoredIntake } from "@/lib/intake-storage";
 import { loadStoredIntake } from "@/lib/intake-storage.server";
-import { normalizeCompetitorAnalysis } from "@/lib/report-model";
+import { bucketPillarFromName, normalizeCompetitorAnalysis } from "@/lib/report-model";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -228,7 +228,10 @@ function deriveScorecardFromBuckets(bucketResults: unknown[]) {
             ? safeString(bucket.risk) || defaultRisk
             : safeString(bucket.risk) || "",
         priority: safeString(bucket.priority) || (notScored ? "P0" : ""),
-        pillar: safeString(bucket.pillar) || "Impact",
+        pillar: bucketPillarFromName(
+          bucket.bucket_name || bucket.section || bucket.bucket,
+          safeString(bucket.pillar),
+        ),
       });
     });
 }
