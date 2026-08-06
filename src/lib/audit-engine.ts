@@ -158,18 +158,12 @@ const PILLAR_MAP: Record<string, string> = {
 };
 
 const BUCKET_ALIASES: Record<string, string> = {
-  "Visual Feedback": "Feedback & System States",
-  "Color & Contrast": "Accessibility & Inclusivity",
-  "Typography & Readability": "Visual Hierarchy & Layout",
-  "Keyboard Navigation": "Input, Errors & Validation",
-  "Screen Reader Support": "Accessibility & Inclusivity",
-  "Content (Impact)": "Content & UX Writing",
-  "Performance": "code optimisation",
-  "Visual Consistency": "Visual Hierarchy & Layout",
-  "Motion & Microinteractions": "Feedback & System States",
-  "Content (Delight)": "Content & UX Writing",
-  "Brand Expression": "Visual Hierarchy & Layout",
-  "Icons & Imagery": "Accessibility & Inclusivity",
+  "Feedback & System States": "Visual Feedback",
+  "Accessibility & Inclusivity": "Color & Contrast",
+  "Input, Errors & Validation": "Keyboard Navigation",
+  "Visual Hierarchy & Layout": "Typography & Readability",
+  "Content & UX Writing": "Content (Impact)",
+  "code optimisation": "Performance",
 };
 
 function normalizeBucketName(bucket: string) {
@@ -211,15 +205,13 @@ function productTypeInstructions(type: Intake["product_type"]) {
 }
 
 function bucketSpecificGuidance(bucket: string) {
+  bucket = normalizeBucketName(bucket);
   const map: Record<string, string[]> = {
     "Visual Feedback": [
       "Prefer evidence from hover states, button clicks, loading states, success states, and error feedback.",
     ],
     "Color & Contrast": [
       "Prefer evidence from contrast, color reliance, readable text, and zoomed layouts.",
-    ],
-    "Typography & Readability": [
-      "Prefer evidence from heading hierarchy, text size, spacing, scanability, and long-form readability.",
     ],
     "Keyboard Navigation": [
       "Prefer evidence from tab order, focus visibility, keyboard-only flow, and shortcut availability.",
@@ -234,27 +226,14 @@ function bucketSpecificGuidance(bucket: string) {
     "Consistency & UI Patterns": [
       "Prefer evidence from repeated buttons, repeated labels, repeated tabs, and terminology consistency across pages.",
     ],
-    "Content (Impact)": [
-      "Prefer evidence from headings, CTA labels, helper text, alerts, empty states, and repeated terminology.",
-    ],
-    "Performance": [
-      "Use structural evidence for runtime and efficiency judgments and reserve mark 3 for metrics that are not directly measurable from capture.",
-    ],
-    "Visual Consistency": [
-      "Use visible styling, spacing, and component rhythm from capture to judge consistency.",
-    ],
-    "Motion & Microinteractions": [
-      "Prefer evidence from transitions, hover feedback, motion restraint, and interaction flourishes.",
-    ],
-    "Content (Delight)": [
-      "Prefer evidence from tone, personality, microcopy, and emotionally resonant writing.",
-    ],
-    "Brand Expression": [
-      "Use visual personality, tone of voice, and distinct identity cues from capture.",
-    ],
-    "Icons & Imagery": [
-      "Prefer evidence from icon clarity, illustration quality, and image support.",
-    ],
+    "Content (Impact)": ["Prefer evidence from headings, CTA labels, helper text, alerts, empty states, and repeated terminology."],
+    "Content (Delight)": ["Prefer evidence from tone, personality, microcopy, and emotionally resonant writing."],
+    "Typography & Readability": ["Prefer evidence from readable type scale, paragraph spacing, hierarchy, and text clarity."],
+    "Visual Consistency": ["Use visible styling, spacing, and component rhythm from capture to judge consistency."],
+    "Motion & Microinteractions": ["Prefer evidence from transitions, hover feedback, motion restraint, and interaction flourishes."],
+    "Brand Expression": ["Use visual personality, tone of voice, and distinct identity cues from capture."],
+    "Icons & Imagery": ["Prefer evidence from icon clarity, illustration quality, and image support."],
+    "Performance": ["Use structural evidence for runtime and efficiency judgments and reserve mark 3 for metrics that are not directly measurable from capture."],
   };
   return (map[bucket] || []).join(" ");
 }
@@ -378,7 +357,14 @@ function summarizeEvidenceForBucket(evidence: EvidenceBundle | null, bucket: str
         if (page.tabs?.length) parts.push(`Tabs: ${takeTop(page.tabs, 5).join(" | ")}`);
       }
 
-      if (bucket === "Content & UX Writing" || bucket === "Visual Hierarchy & Layout") {
+      if (
+        bucket === "Content (Impact)" ||
+        bucket === "Content (Delight)" ||
+        bucket === "Typography & Readability" ||
+        bucket === "Visual Consistency" ||
+        bucket === "Brand Expression" ||
+        bucket === "Icons & Imagery"
+      ) {
         if (page.primaryCtas?.length) {
           parts.push(
             `Primary CTAs: ${page.primaryCtas
@@ -390,21 +376,17 @@ function summarizeEvidenceForBucket(evidence: EvidenceBundle | null, bucket: str
         if (page.buttons?.length) parts.push(`Buttons: ${takeTop(page.buttons, 5).join(" | ")}`);
       }
 
-      if (
-        bucket === "Accessibility & Inclusivity" ||
-        bucket === "Input, Errors & Validation" ||
-        bucket === "Feedback & System States"
-      ) {
+      if (bucket === "Visual Feedback" || bucket === "Keyboard Navigation" || bucket === "Screen Reader Support") {
         if (page.formLabels?.length) parts.push(`Form labels: ${takeTop(page.formLabels, 5).join(" | ")}`);
         if (page.placeholders?.length) parts.push(`Placeholders: ${takeTop(page.placeholders, 4).join(" | ")}`);
       }
 
-      if (bucket === "Feedback & System States") {
+      if (bucket === "Visual Feedback") {
         if (page.alerts?.length) parts.push(`Alerts / status text: ${takeTop(page.alerts, 4).join(" | ")}`);
         if (page.emptyStateHints?.length) parts.push(`Empty-state text: ${takeTop(page.emptyStateHints, 4).join(" | ")}`);
       }
 
-      if (bucket === "Consistency & UI Patterns" || bucket === "code optimisation") {
+      if (bucket === "Consistency & UI Patterns" || bucket === "Performance") {
         if (page.tableHeaders?.length) parts.push(`Table headers: ${takeTop(page.tableHeaders, 5).join(" | ")}`);
         if (page.buttons?.length) parts.push(`Buttons: ${takeTop(page.buttons, 4).join(" | ")}`);
       }
@@ -1993,7 +1975,14 @@ function missingEvidenceForQuestion(
       return Array.from(minimalMissing);
     }
 
-    if (bucket === "Content & UX Writing" || bucket === "Visual Hierarchy & Layout") {
+    if (
+      bucket === "Content (Impact)" ||
+      bucket === "Content (Delight)" ||
+      bucket === "Typography & Readability" ||
+      bucket === "Visual Consistency" ||
+      bucket === "Brand Expression" ||
+      bucket === "Icons & Imagery"
+    ) {
       if (productType === "saas") {
         if (!dashboardCaptured && internalScreensCaptured <= 0) return ["dashboard"];
       } else if (productType === "marketing_website") {
@@ -2009,7 +1998,7 @@ function missingEvidenceForQuestion(
       return [];
     }
 
-    if (bucket === "Feedback & System States") {
+    if (bucket === "Visual Feedback") {
       if (productType === "saas") {
         if (internalScreensCaptured <= 0 && !dashboardCaptured) return ["internal_product_screen"];
       } else if (productType === "marketing_website") {
@@ -2020,8 +2009,7 @@ function missingEvidenceForQuestion(
       return [];
     }
 
-    if (bucket === "Input, Errors & Validation") {
-      const needsErrorState = ["E03", "E04", "E06", "E07", "E08", "E09"].includes(questionId);
+    if (bucket === "Keyboard Navigation") {
       const missing = new Set<string>();
       const hasPublicSurface =
         productType === "marketing_website"
@@ -2030,15 +2018,14 @@ function missingEvidenceForQuestion(
             ? flags.homepage || flags.product_page || flags.listing_page || flags.semantic_capture
             : false;
       if (productType === "saas") {
-        if (!formCaptured && !tableCaptured) missing.add("form_screen");
-        if (needsErrorState && !errorCaptured) missing.add("error_state");
+        if (!formCaptured && !tableCaptured) missing.add("keyboard_test");
       } else {
-        if (!formCaptured && !tableCaptured && !hasPublicSurface) missing.add("form_screen");
+        if (!formCaptured && !tableCaptured && !hasPublicSurface) missing.add("keyboard_test");
       }
       return Array.from(missing);
     }
 
-    if (bucket === "Accessibility & Inclusivity") {
+    if (bucket === "Color & Contrast" || bucket === "Typography & Readability") {
       const missing = new Set<string>();
       if (productType === "saas") {
         if (internalScreensCaptured <= 0 && !dashboardCaptured) {
@@ -2049,13 +2036,26 @@ function missingEvidenceForQuestion(
       } else if (!flags.homepage && !flags.product_page && !flags.listing_page) {
         missing.add("product_page");
       }
-      if (["A02", "A03"].includes(questionId)) missing.add("keyboard_test");
-      if (["A05", "A09"].includes(questionId)) missing.add("mobile_test");
-      if (questionId === "A07") missing.add("zoom_test");
+      if (bucket === "Typography & Readability") missing.add("zoom_test");
       return Array.from(missing);
     }
 
-    if (bucket === "code optimisation") {
+    if (bucket === "Screen Reader Support") {
+      const missing = new Set<string>();
+      if (productType === "saas") {
+        if (internalScreensCaptured <= 0 && !dashboardCaptured) {
+          missing.add("internal_product_screen");
+        }
+      } else if (productType === "marketing_website") {
+        if (!flags.homepage && !flags.marketing_page) missing.add("marketing_page");
+      } else if (!flags.homepage && !flags.product_page && !flags.listing_page) {
+        missing.add("product_page");
+      }
+      missing.add("semantic_capture");
+      return Array.from(missing);
+    }
+
+    if (bucket === "Performance") {
       const missing = new Set<string>();
       if (productType === "marketing_website" && !flags.homepage && !flags.marketing_page) {
         missing.add("marketing_page");
@@ -2063,20 +2063,7 @@ function missingEvidenceForQuestion(
       if (productType === "ecommerce" && !flags.homepage && !flags.product_page && !flags.listing_page) {
         missing.add("product_page");
       }
-      if (
-        productType === "saas" &&
-        ["P01", "P02", "P03", "P08", "P09"].includes(questionId) &&
-        !flags.mobile_test
-      ) {
-        missing.add("mobile_test");
-      }
-      if (
-        ["P06", "P07"].includes(questionId) &&
-        !flags.semantic_capture &&
-        !(flags.homepage || flags.marketing_page || flags.product_page || flags.listing_page || flags.dashboard || flags.internal_product_screen)
-      ) {
-        missing.add("semantic_capture");
-      }
+      missing.add("mobile_test");
       return Array.from(missing);
     }
   }
@@ -2088,18 +2075,31 @@ function missingEvidenceForQuestion(
       required.add("homepage");
       required.add("expanded_navigation");
       required.add("marketing_page");
-    } else if (bucket === "Content & UX Writing" || bucket === "Visual Hierarchy & Layout") {
+    } else if (
+      bucket === "Content (Impact)" ||
+      bucket === "Content (Delight)" ||
+      bucket === "Typography & Readability" ||
+      bucket === "Visual Consistency" ||
+      bucket === "Brand Expression" ||
+      bucket === "Icons & Imagery"
+    ) {
       required.add("homepage");
       required.add("marketing_page");
-    } else if (bucket === "Accessibility & Inclusivity" || bucket === "Input, Errors & Validation" || bucket === "Feedback & System States") {
+    } else if (
+      bucket === "Color & Contrast" ||
+      bucket === "Typography & Readability" ||
+      bucket === "Keyboard Navigation" ||
+      bucket === "Visual Feedback" ||
+      bucket === "Screen Reader Support"
+    ) {
       required.add("marketing_page");
-      if (["A02", "A03"].includes(questionId)) required.add("keyboard_test");
-      if (["A05", "A09"].includes(questionId)) required.add("mobile_test");
-      if (questionId === "A07") required.add("zoom_test");
+      if (bucket === "Keyboard Navigation") required.add("keyboard_test");
+      if (bucket === "Typography & Readability") required.add("zoom_test");
+      if (bucket === "Screen Reader Support") required.add("semantic_capture");
     } else if (bucket === "Consistency & UI Patterns") {
       required.add("marketing_page");
       required.add("expanded_navigation");
-    } else if (bucket === "code optimisation") {
+    } else if (bucket === "Performance") {
       required.add("marketing_page");
     }
   } else if (productType === "ecommerce") {
@@ -2107,18 +2107,31 @@ function missingEvidenceForQuestion(
       required.add("homepage");
       required.add("expanded_navigation");
       required.add("listing_page");
-    } else if (bucket === "Content & UX Writing" || bucket === "Visual Hierarchy & Layout") {
+    } else if (
+      bucket === "Content (Impact)" ||
+      bucket === "Content (Delight)" ||
+      bucket === "Typography & Readability" ||
+      bucket === "Visual Consistency" ||
+      bucket === "Brand Expression" ||
+      bucket === "Icons & Imagery"
+    ) {
       required.add("homepage");
       required.add("product_page");
-    } else if (bucket === "Accessibility & Inclusivity" || bucket === "Input, Errors & Validation" || bucket === "Feedback & System States") {
+    } else if (
+      bucket === "Color & Contrast" ||
+      bucket === "Typography & Readability" ||
+      bucket === "Keyboard Navigation" ||
+      bucket === "Visual Feedback" ||
+      bucket === "Screen Reader Support"
+    ) {
       required.add("product_page");
-      if (["A02", "A03"].includes(questionId)) required.add("keyboard_test");
-      if (["A05", "A09"].includes(questionId)) required.add("mobile_test");
-      if (questionId === "A07") required.add("zoom_test");
+      if (bucket === "Keyboard Navigation") required.add("keyboard_test");
+      if (bucket === "Typography & Readability") required.add("zoom_test");
+      if (bucket === "Screen Reader Support") required.add("semantic_capture");
     } else if (bucket === "Consistency & UI Patterns") {
       required.add("listing_page");
       required.add("expanded_navigation");
-    } else if (bucket === "code optimisation") {
+    } else if (bucket === "Performance") {
       required.add("homepage");
       required.add("product_page");
     }
@@ -2127,22 +2140,32 @@ function missingEvidenceForQuestion(
       required.add("dashboard");
       required.add("expanded_navigation");
       required.add("internal_product_screen");
-    } else if (bucket === "Content & UX Writing" || bucket === "Visual Hierarchy & Layout") {
+    } else if (
+      bucket === "Content (Impact)" ||
+      bucket === "Content (Delight)" ||
+      bucket === "Typography & Readability" ||
+      bucket === "Visual Consistency" ||
+      bucket === "Brand Expression" ||
+      bucket === "Icons & Imagery"
+    ) {
       required.add("dashboard");
       required.add("internal_product_screen");
-    } else if (bucket === "Accessibility & Inclusivity" || bucket === "Input, Errors & Validation" || bucket === "Feedback & System States") {
+    } else if (
+      bucket === "Color & Contrast" ||
+      bucket === "Typography & Readability" ||
+      bucket === "Keyboard Navigation" ||
+      bucket === "Visual Feedback" ||
+      bucket === "Screen Reader Support"
+    ) {
       required.add("internal_product_screen");
-      if (["A02", "A03"].includes(questionId)) required.add("keyboard_test");
-      if (["A05", "A09"].includes(questionId)) required.add("mobile_test");
-      if (questionId === "A07") required.add("zoom_test");
+      if (bucket === "Keyboard Navigation") required.add("keyboard_test");
+      if (bucket === "Typography & Readability") required.add("zoom_test");
+      if (bucket === "Screen Reader Support") required.add("semantic_capture");
     } else if (bucket === "Consistency & UI Patterns") {
       required.add("internal_product_screen");
       required.add("expanded_navigation");
-    } else if (bucket === "code optimisation") {
-      if (["P01", "P02", "P03", "P08", "P09"].includes(questionId)) {
-        required.add("mobile_test");
-      }
-      if (["P06", "P07"].includes(questionId)) required.add("semantic_capture");
+    } else if (bucket === "Performance") {
+      required.add("mobile_test");
     }
   }
 
@@ -2870,7 +2893,7 @@ export async function finalizeAudit(args: {
               : Array.isArray(narrative.per_bucket_notes)
             ? narrative.per_bucket_notes
                 .filter((item) => item && typeof item === "object")
-                .filter((item) => ["Content & UX Writing", "Visual Hierarchy & Layout"].includes(String((item as Record<string, unknown>).bucket || "")))
+                .filter((item) => ["Content (Delight)", "Visual Consistency", "Motion & Microinteractions", "Brand Expression", "Icons & Imagery"].includes(String((item as Record<string, unknown>).bucket || "")))
                 .map((item) => String((item as Record<string, unknown>).summary || "").trim())
                 .filter(Boolean)
             : sectionNarrativeFallback.delight_narrative,
@@ -2880,7 +2903,7 @@ export async function finalizeAudit(args: {
               : Array.isArray(narrative.per_bucket_notes)
             ? narrative.per_bucket_notes
                 .filter((item) => item && typeof item === "object")
-                .filter((item) => !["Content & UX Writing", "Visual Hierarchy & Layout", "Accessibility & Inclusivity"].includes(String((item as Record<string, unknown>).bucket || "")))
+                .filter((item) => !["Content (Impact)", "Content (Delight)", "Typography & Readability", "Visual Consistency", "Brand Expression", "Icons & Imagery", "Color & Contrast", "Keyboard Navigation", "Visual Feedback", "Screen Reader Support"].includes(String((item as Record<string, unknown>).bucket || "")))
                 .map((item) => String((item as Record<string, unknown>).summary || "").trim())
                 .filter(Boolean)
             : sectionNarrativeFallback.impact_narrative,
@@ -2890,7 +2913,7 @@ export async function finalizeAudit(args: {
               : Array.isArray(narrative.per_bucket_notes)
             ? narrative.per_bucket_notes
                 .filter((item) => item && typeof item === "object")
-                .filter((item) => String((item as Record<string, unknown>).bucket || "") === "Accessibility & Inclusivity")
+                .filter((item) => ["Visual Feedback", "Color & Contrast", "Typography & Readability", "Keyboard Navigation", "Screen Reader Support"].includes(String((item as Record<string, unknown>).bucket || "")))
                 .map((item) => String((item as Record<string, unknown>).summary || "").trim())
                 .filter(Boolean)
             : sectionNarrativeFallback.accessibility_narrative,
