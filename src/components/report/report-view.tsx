@@ -305,7 +305,7 @@ export function ReportView() {
   const searchParams = useSearchParams();
   const rid = searchParams.get("rid");
   const demo = searchParams.get("demo");
-  const [remote, setRemote] = useState<unknown | null>(null);
+  const [remoteReport, setRemoteReport] = useState<{ reportId: string; report: unknown } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [jobError, setJobError] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -348,7 +348,7 @@ export function ReportView() {
 
   useEffect(() => {
     if (!rid) return;
-    setRemote(null);
+    setRemoteReport(null);
     setStatus(null);
     setJobError(null);
     setLastError(null);
@@ -673,7 +673,7 @@ export function ReportView() {
         }
 
         if (nextStatus === "complete" && normalizedReport) {
-          setRemote(normalizedReport);
+          setRemoteReport({ reportId: id, report: normalizedReport });
         }
       } catch (error) {
         if (cancelled) return;
@@ -725,7 +725,11 @@ export function ReportView() {
     };
   }, [rid, status, debugDetails, processDelayMs, kickProcess]);
 
-  const effectiveReport = rid ? remote : report;
+  const effectiveReport = rid
+    ? remoteReport?.reportId === rid
+      ? remoteReport.report
+      : null
+    : report;
 
   if (demo === "1") {
     return <DemoReport />;
