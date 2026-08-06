@@ -96,6 +96,14 @@ export function displayBucketName(value: unknown) {
   return legacyMap[normalized] || normalized;
 }
 
+export function displayBucketScore(value: unknown) {
+  const text = asString(value).trim();
+  if (!text || /^not scored$/i.test(text)) return "Not scored";
+  const numeric = Number(text.replace(/[^\d.-]/g, ""));
+  if (!Number.isFinite(numeric) || numeric <= 0) return "Not scored";
+  return `${Math.round(numeric)}/100`;
+}
+
 export type BusinessImpactPillar = "Accessibility" | "Impact" | "Delight";
 export type BusinessImpactMetricLabel =
   | "Drop-off Rate"
@@ -2116,7 +2124,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
       asString(bucket.bucket_name) ||
       asString(bucket.bucket) ||
       "Bucket",
-    score: asNumber(bucket.score) !== null ? `${asNumber(bucket.score)}/100` : "Not scored",
+    score: displayBucketScore(bucket.score),
     health: asString(bucket.health) || "Not scored",
     risk:
       asString(bucket.risk) ||

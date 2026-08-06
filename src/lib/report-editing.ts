@@ -1,5 +1,5 @@
 import { QUESTION_BANK } from "@/lib/question-bank";
-import type { AnyRecord } from "@/lib/report-model";
+import { displayBucketScore, type AnyRecord } from "@/lib/report-model";
 
 function asRecord(value: unknown): AnyRecord | null {
   return value && typeof value === "object" ? (value as AnyRecord) : null;
@@ -479,7 +479,7 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
 
   const scorecard = bucketResults.map((bucket) => ({
     section: asString(bucket.bucket_name),
-    score: asNumber(bucket.score) !== null ? `${asNumber(bucket.score)}/100` : "Not scored",
+    score: displayBucketScore(bucket.score),
     health: asString(bucket.health),
     risk_level: asString(bucket.risk),
     risk: asString(bucket.risk),
