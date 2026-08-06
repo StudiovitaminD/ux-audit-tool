@@ -1,15 +1,23 @@
 import type { SharedSectionProps } from "./shared";
 import { BulletList, normalizeList, placeholderText } from "./shared";
-import { asArray, asRecord, asString } from "@/lib/report-model";
+import { asArray, asRecord, asString, displayBucketName } from "@/lib/report-model";
 import { QUESTION_BANK } from "../../../../worker/src/question-bank";
 
 const PILLAR_BUCKETS = {
-  Delight: ["Content & UX Writing", "Consistency & UI Patterns"],
-  Impact: ["Navigation & Findability", "Visual Hierarchy & Layout", "code optimisation"],
   Accessibility: [
-    "Accessibility & Inclusivity",
-    "Input, Errors & Validation",
-    "Feedback & System States",
+    "Visual Feedback",
+    "Color & Contrast",
+    "Typography & Readability",
+    "Keyboard Navigation",
+    "Screen Reader Support",
+  ],
+  Impact: ["Navigation & Findability", "Consistency & UI Patterns", "Content (Impact)", "Performance"],
+  Delight: [
+    "Visual Consistency",
+    "Motion & Microinteractions",
+    "Content (Delight)",
+    "Brand Expression",
+    "Icons & Imagery",
   ],
 } as const;
 
@@ -139,7 +147,7 @@ export function NarrativeSummarySection({ vm }: SharedSectionProps) {
             <div className="text-sm font-semibold">
               {pillar}{" "}
               <span className="font-normal text-[color:var(--muted)]">
-                ({bucketNames.join(", ")})
+                ({bucketNames.map(displayBucketName).join(", ")})
               </span>
             </div>
             <div className="my-4 border-t border-[color:var(--card-border)]/60" />
@@ -154,7 +162,7 @@ export function NarrativeSummarySection({ vm }: SharedSectionProps) {
                       className={index === 0 ? "" : "border-t border-[color:var(--card-border)]/60 pt-5"}
                     >
                       <div className="text-sm font-medium text-[color:var(--ink)]">
-                        {currentBucketName}
+                        {displayBucketName(currentBucketName)}
                       </div>
 
                       <div className="mt-4 space-y-5">

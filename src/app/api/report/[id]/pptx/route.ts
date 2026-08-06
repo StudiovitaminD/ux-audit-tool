@@ -1,4 +1,11 @@
-import { asArray, asRecord, asString, buildReportViewModel, type AnyRecord } from "@/lib/report-model";
+import {
+  asArray,
+  asRecord,
+  asString,
+  buildReportViewModel,
+  calculateBusinessImpactMetrics,
+  type AnyRecord,
+} from "@/lib/report-model";
 import { loadStoredReport } from "@/lib/report-record";
 import { QUESTION_BANK } from "@/lib/question-bank";
 
@@ -471,7 +478,7 @@ async function buildPptxResponse(req: Request, id: string) {
         fontSize: 9.5,
         bold: true,
       });
-      slide.addText("Business Metrics", {
+      slide.addText("Business Impact Index", {
         x: 1.95,
         y: 3.87,
         w: 1.6,
@@ -481,15 +488,20 @@ async function buildPptxResponse(req: Request, id: string) {
         fontSize: 8.5,
         bold: true,
       });
-      slide.addText("Conversion Rate • Drop-off Rate • Task Completion Rate • Customer Satisfaction", {
-        x: 1.95,
-        y: 4.01,
-        w: 4.7,
-        h: 0.25,
-        color: MUTED,
-        fontFace: "Aptos",
-        fontSize: 7.7,
-      });
+      slide.addText(
+        calculateBusinessImpactMetrics(vm.pillarScores)
+          .map((metric) => `${metric.label}: ${metric.value === null ? "—/100" : `${metric.value}/100`}`)
+          .join(" • "),
+        {
+          x: 1.95,
+          y: 4.01,
+          w: 4.7,
+          h: 0.25,
+          color: MUTED,
+          fontFace: "Aptos",
+          fontSize: 7.7,
+        },
+      );
       if (vm.isLimitedCoverage || vm.isScoringUnavailable) {
         addCard(slide, pptx, {
           x: 5.2,

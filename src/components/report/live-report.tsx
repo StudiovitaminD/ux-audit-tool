@@ -349,7 +349,7 @@ export function LiveReport({
         </div>
 
         <div
-          className="no-print mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5"
+          className="no-print sticky bottom-4 z-20 mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur"
           data-report-pagination
         >
           <div className="flex items-center justify-between gap-3">

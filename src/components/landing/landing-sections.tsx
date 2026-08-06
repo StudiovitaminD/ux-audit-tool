@@ -9,34 +9,34 @@ import minusIcon from "../../../-.png";
 
 const services = [
   {
+    title: "Visual Feedback",
+    tone: "dark",
+    copy: "Check hover, click, loading, and success feedback so every action feels responsive.",
+  },
+  {
+    title: "Color & Contrast",
+    tone: "light",
+    copy: "Review contrast, color reliance, and legibility so the interface remains readable for everyone.",
+  },
+  {
+    title: "Typography & Readability",
+    tone: "dark",
+    copy: "Assess type scale, hierarchy, spacing, and scanability so content is easy to read and compare.",
+  },
+  {
+    title: "Keyboard Navigation",
+    tone: "light",
+    copy: "Identify tab order, focus states, and keyboard-only gaps that block efficient interaction.",
+  },
+  {
+    title: "Screen Reader Support",
+    tone: "light",
+    copy: "Review semantic HTML, ARIA, labels, and alt text so assistive tech can interpret the experience.",
+  },
+  {
     title: "Navigation & Findability",
     tone: "dark",
     copy: "Check menus, pathways, labels, and search cues so users can find what they need quickly.",
-  },
-  {
-    title: "Content & UX Writing",
-    tone: "light",
-    copy: "Review copy clarity, messaging hierarchy, and microcopy so content supports every action.",
-  },
-  {
-    title: "Visual Hierarchy & Layout",
-    tone: "dark",
-    copy: "Assess spacing, structure, emphasis, and page flow so key information stands out.",
-  },
-  {
-    title: "Accessibility & Inclusivity",
-    tone: "light",
-    copy: "Identify contrast, keyboard, semantic, and interaction issues that limit access for users.",
-  },
-  {
-    title: "Input, Errors & Validation",
-    tone: "light",
-    copy: "Review forms, field rules, and error handling so people can complete tasks without confusion.",
-  },
-  {
-    title: "Feedback & System States",
-    tone: "dark",
-    copy: "Check loading, success, empty, and confirmation states so the product always feels responsive.",
   },
   {
     title: "Consistency & UI Patterns",
@@ -44,9 +44,39 @@ const services = [
     copy: "Compare repeated components, styles, and interaction patterns to reduce friction and confusion.",
   },
   {
-    title: "code optimisation",
+    title: "Content (Impact)",
     tone: "dark",
-    copy: "Prioritise the highest-impact UX fixes that improve conversion, trust, and overall performance.",
+    copy: "Review copy clarity, messaging hierarchy, and microcopy so content supports every action.",
+  },
+  {
+    title: "Performance",
+    tone: "light",
+    copy: "Prioritise the highest-impact UX fixes that improve conversion, trust, and load performance.",
+  },
+  {
+    title: "Visual Consistency",
+    tone: "dark",
+    copy: "Assess spacing, structure, emphasis, and page flow so key information stands out.",
+  },
+  {
+    title: "Motion & Microinteractions",
+    tone: "light",
+    copy: "Check transitions and small interaction cues so feedback feels polished without distraction.",
+  },
+  {
+    title: "Content (Delight)",
+    tone: "dark",
+    copy: "Review tone, personality, and microcopy so writing feels warm, distinctive, and on-brand.",
+  },
+  {
+    title: "Brand Expression",
+    tone: "light",
+    copy: "Check whether the visual language feels distinctive, memorable, and aligned with the brand.",
+  },
+  {
+    title: "Icons & Imagery",
+    tone: "dark",
+    copy: "Review icon clarity and image quality so visuals support understanding instead of adding noise.",
   },
 ];
 

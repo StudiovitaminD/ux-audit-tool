@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { QUESTION_BANK } from "../../../../worker/src/question-bank";
-import { asString, stringifyValue, type AnyRecord } from "@/lib/report-model";
+import { asString, displayBucketName, stringifyValue, type AnyRecord } from "@/lib/report-model";
 
 export function normalizeList(value: unknown, limit = 8) {
   if (Array.isArray(value)) return value.map(stringifyValue).filter(Boolean).slice(0, limit);
@@ -188,7 +188,7 @@ export function BucketAnswersCard({
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-base font-semibold">{bucketName}</div>
+          <div className="text-base font-semibold">{displayBucketName(bucketName)}</div>
           <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
             AI question-by-question reasoning for this bucket
           </div>

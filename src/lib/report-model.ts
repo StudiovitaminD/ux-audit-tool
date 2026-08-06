@@ -81,6 +81,77 @@ export function asString(value: unknown, fallback = "") {
   return fallback;
 }
 
+export function displayBucketName(value: unknown) {
+  const text = asString(value);
+  if (!text) return "";
+  return text.replace(/\s+\((Impact|Delight)\)$/, "");
+}
+
+export type BusinessImpactPillar = "Accessibility" | "Impact" | "Delight";
+export type BusinessImpactMetricLabel =
+  | "Drop-off Rate"
+  | "Task Completion Rate"
+  | "Customer Satisfaction";
+
+export type BusinessImpactMetric = {
+  label: BusinessImpactMetricLabel;
+  value: number | null;
+  weights: Record<BusinessImpactPillar, number>;
+};
+
+export type BusinessImpactPillarScores = Partial<
+  Record<BusinessImpactPillar, { score?: number | null } | number | null | undefined>
+>;
+
+export const BUSINESS_IMPACT_MATRIX = [
+  {
+    label: "Drop-off Rate",
+    weights: { Accessibility: 40, Impact: 45, Delight: 15 },
+  },
+  {
+    label: "Task Completion Rate",
+    weights: { Accessibility: 35, Impact: 50, Delight: 15 },
+  },
+  {
+    label: "Customer Satisfaction",
+    weights: { Accessibility: 25, Impact: 35, Delight: 40 },
+  },
+] as const satisfies ReadonlyArray<{
+  label: BusinessImpactMetricLabel;
+  weights: Record<BusinessImpactPillar, number>;
+}>;
+
+function scoreFromPillarValue(value: BusinessImpactPillarScores[BusinessImpactPillar]) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const rec = asRecord(value);
+  const score = rec ? asNumber(rec.score) : null;
+  return score;
+}
+
+export function calculateBusinessImpactMetrics(
+  pillarScores: BusinessImpactPillarScores,
+): BusinessImpactMetric[] {
+  return BUSINESS_IMPACT_MATRIX.map((metric) => {
+    let total = 0;
+    let missing = false;
+
+    (Object.entries(metric.weights) as Array<[BusinessImpactPillar, number]>).forEach(([pillar, weight]) => {
+      const score = scoreFromPillarValue(pillarScores[pillar]);
+      if (score === null) {
+        missing = true;
+        return;
+      }
+      total += (score * weight) / 100;
+    });
+
+    return {
+      label: metric.label,
+      value: missing ? null : Math.round(total),
+      weights: metric.weights,
+    };
+  });
+}
+
 export function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {

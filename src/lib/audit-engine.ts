@@ -7,6 +7,7 @@ import {
   validateExplorationCoverage,
 } from "@/lib/evidence-collector";
 import { getErrorMessage } from "@/lib/error-utils";
+import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../shared/audit-framework";
 
 const DEFAULT_OPENROUTER_MODEL = "openrouter/owl-alpha";
 
@@ -140,15 +141,40 @@ export const IntakeSchema = z.preprocess(
 export type Intake = z.infer<typeof IntakeSchema>;
 
 const PILLAR_MAP: Record<string, string> = {
+  "Visual Feedback": "Accessibility",
+  "Color & Contrast": "Accessibility",
+  "Typography & Readability": "Accessibility",
+  "Keyboard Navigation": "Accessibility",
+  "Screen Reader Support": "Accessibility",
   "Navigation & Findability": "Impact",
-  "Content & UX Writing": "Delight",
-  "Visual Hierarchy & Layout": "Delight",
-  "Accessibility & Inclusivity": "Accessibility",
-  "Input, Errors & Validation": "Accessibility",
-  "Feedback & System States": "Accessibility",
   "Consistency & UI Patterns": "Impact",
-  "code optimisation": "Impact",
+  "Content (Impact)": "Impact",
+  "Performance": "Impact",
+  "Visual Consistency": "Delight",
+  "Motion & Microinteractions": "Delight",
+  "Content (Delight)": "Delight",
+  "Brand Expression": "Delight",
+  "Icons & Imagery": "Delight",
 };
+
+const BUCKET_ALIASES: Record<string, string> = {
+  "Visual Feedback": "Feedback & System States",
+  "Color & Contrast": "Accessibility & Inclusivity",
+  "Typography & Readability": "Visual Hierarchy & Layout",
+  "Keyboard Navigation": "Input, Errors & Validation",
+  "Screen Reader Support": "Accessibility & Inclusivity",
+  "Content (Impact)": "Content & UX Writing",
+  "Performance": "code optimisation",
+  "Visual Consistency": "Visual Hierarchy & Layout",
+  "Motion & Microinteractions": "Feedback & System States",
+  "Content (Delight)": "Content & UX Writing",
+  "Brand Expression": "Visual Hierarchy & Layout",
+  "Icons & Imagery": "Accessibility & Inclusivity",
+};
+
+function normalizeBucketName(bucket: string) {
+  return BUCKET_ALIASES[bucket] || bucket;
+}
 
 function getHealth(score: number) {
   if (score >= 85) return { label: "Exceptional", risk: "Optimised", priority: "P4" };
@@ -186,31 +212,48 @@ function productTypeInstructions(type: Intake["product_type"]) {
 
 function bucketSpecificGuidance(bucket: string) {
   const map: Record<string, string[]> = {
+    "Visual Feedback": [
+      "Prefer evidence from hover states, button clicks, loading states, success states, and error feedback.",
+    ],
+    "Color & Contrast": [
+      "Prefer evidence from contrast, color reliance, readable text, and zoomed layouts.",
+    ],
+    "Typography & Readability": [
+      "Prefer evidence from heading hierarchy, text size, spacing, scanability, and long-form readability.",
+    ],
+    "Keyboard Navigation": [
+      "Prefer evidence from tab order, focus visibility, keyboard-only flow, and shortcut availability.",
+    ],
+    "Screen Reader Support": [
+      "Prefer evidence from semantic HTML, ARIA labels, form labels, alt text, and announcement clarity.",
+    ],
     "Navigation & Findability": [
       "Prefer evidence from navigation labels, tabs, repeated section names, page titles, and wayfinding cues.",
       "When clear navigation labels are visible, do not default to mark 3.",
     ],
-    "Content & UX Writing": [
-      "Prefer evidence from headings, CTA labels, helper text, alerts, empty states, and repeated terminology.",
-    ],
-    "Visual Hierarchy & Layout": [
-      "Use visible heading hierarchy, CTA prominence, tabs, labels, and grouping clues from capture to judge structure.",
-    ],
-    "Accessibility & Inclusivity": [
-      "Prefer evidence from semantic headings, form labels, placeholders, alerts, and button text.",
-      "Use mark 3 only for accessibility checks that truly cannot be inferred from capture.",
-    ],
-    "Input, Errors & Validation": [
-      "Prefer evidence from form labels, placeholders, submit buttons, alerts, and validation-related wording.",
-    ],
-    "Feedback & System States": [
-      "Prefer evidence from alerts, success/error text, empty-state copy, loading/progress wording, and submit/save buttons.",
-    ],
     "Consistency & UI Patterns": [
       "Prefer evidence from repeated buttons, repeated labels, repeated tabs, and terminology consistency across pages.",
     ],
-    "code optimisation": [
-      "Use structural evidence for semantic-quality judgments and reserve mark 3 for runtime metrics that are not directly measurable from capture.",
+    "Content (Impact)": [
+      "Prefer evidence from headings, CTA labels, helper text, alerts, empty states, and repeated terminology.",
+    ],
+    "Performance": [
+      "Use structural evidence for runtime and efficiency judgments and reserve mark 3 for metrics that are not directly measurable from capture.",
+    ],
+    "Visual Consistency": [
+      "Use visible styling, spacing, and component rhythm from capture to judge consistency.",
+    ],
+    "Motion & Microinteractions": [
+      "Prefer evidence from transitions, hover feedback, motion restraint, and interaction flourishes.",
+    ],
+    "Content (Delight)": [
+      "Prefer evidence from tone, personality, microcopy, and emotionally resonant writing.",
+    ],
+    "Brand Expression": [
+      "Use visual personality, tone of voice, and distinct identity cues from capture.",
+    ],
+    "Icons & Imagery": [
+      "Prefer evidence from icon clarity, illustration quality, and image support.",
     ],
   };
   return (map[bucket] || []).join(" ");
@@ -311,6 +354,7 @@ function compactIntakeForModel(intake: Intake) {
 }
 
 function summarizeEvidenceForBucket(evidence: EvidenceBundle | null, bucket: string) {
+  bucket = normalizeBucketName(bucket);
   if (!evidence?.pages?.length) return "No evidence pages were captured.";
   return evidence.pages
     .slice(0, 3)
@@ -373,6 +417,8 @@ function summarizeEvidenceForBucket(evidence: EvidenceBundle | null, bucket: str
 
 function bucketPrompt(intake: Intake, bucket: string, questions: BucketQuestion[]) {
   const intakeSummary = compactIntakeForModel(intake);
+  const frameworkBrief = buildAuditFrameworkBrief();
+  const bucketBrief = buildBucketFrameworkBrief(bucket);
   const selectedBucketQuestions = questions
     .map((q) => {
       const opts = q.options.map((o) => `${o.mark}: ${trimText(o.text, 90)}`).join("\n");
@@ -380,7 +426,7 @@ function bucketPrompt(intake: Intake, bucket: string, questions: BucketQuestion[
     })
     .join("\n\n---\n\n");
 
-  return `You are a principal UX auditor producing a client-ready evaluation.\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nCompact product context:\n${JSON.stringify(intakeSummary, null, 2)}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nBucket-specific guidance:\n${bucketSpecificGuidance(bucket)}\n\nScoring rubric:\n- 5 = best-in-class and clearly supported by evidence.\n- 4 = strong with minor gaps.\n- 3 = mixed but still scoreable from the captured evidence.\n- 2 = clear friction.\n- 1 = severe blocker.\n\nHard rules:\n- Use only captured evidence.\n- Cite visible details from the capture for every answer.\n- Do not invent screens, features, or problems.\n- If the evidence is missing for a question, do not guess and do not force a low score.\n- For insufficient evidence, return mark as null and explain what was missing.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON in this shape:\n{\n  \"bucket\": \"${bucket}\",\n  \"pillar\": \"${PILLAR_MAP[bucket] || "Impact"}\",\n  \"score_rationale\": {\n    \"summary\": \"1-2 sentences\",\n    \"what_is_working\": [\"...\"],\n    \"what_is_risky\": [\"...\"],\n    \"why_now\": \"...\"\n  },\n  \"questions\": [\n    {\n      \"id\": \"N01\",\n      \"question\": \"...\",\n      \"mark\": 3,\n      \"evidence\": \"...\",\n      \"observation\": \"...\",\n      \"recommendation\": \"...\",\n      \"effort\": \"S|M|L\",\n      \"impact\": \"Low|Med|High\",\n      \"confidence\": 0.0\n    }\n  ]\n}\n\nQuestions:\n${selectedBucketQuestions}\n`;
+  return `You are a principal UX auditor producing a client-ready evaluation.\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nCompact product context:\n${JSON.stringify(intakeSummary, null, 2)}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nBucket-specific guidance:\n${bucketSpecificGuidance(bucket)}\n\nScoring rubric:\n- 5 = best-in-class and clearly supported by evidence.\n- 4 = strong with minor gaps.\n- 3 = mixed but still scoreable from the captured evidence.\n- 2 = clear friction.\n- 1 = severe blocker.\n\nHard rules:\n- Use only captured evidence.\n- Cite visible details from the capture for every answer.\n- Do not invent screens, features, or problems.\n- If the evidence is missing for a question, do not guess and do not force a low score.\n- For insufficient evidence, return mark as null and explain what was missing.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON in this shape:\n{\n  \"bucket\": \"${bucket}\",\n  \"pillar\": \"${PILLAR_MAP[bucket] || "Impact"}\",\n  \"score_rationale\": {\n    \"summary\": \"1-2 sentences\",\n    \"what_is_working\": [\"...\"],\n    \"what_is_risky\": [\"...\"],\n    \"why_now\": \"...\"\n  },\n  \"questions\": [\n    {\n      \"id\": \"N01\",\n      \"question\": \"...\",\n      \"mark\": 3,\n      \"evidence\": \"...\",\n      \"observation\": \"...\",\n      \"recommendation\": \"...\",\n      \"effort\": \"S|M|L\",\n      \"impact\": \"Low|Med|High\",\n      \"confidence\": 0.0\n    }\n  ]\n}\n\nQuestions:\n${selectedBucketQuestions}\n`;
 }
 
 function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
@@ -1913,6 +1959,7 @@ function missingEvidenceForQuestion(
   evidence: EvidenceBundle | null,
   productType: "saas" | "ecommerce" | "marketing_website" = "saas",
 ) {
+  bucket = normalizeBucketName(bucket);
   const coverageStatus = evidence?.coverage?.status || "";
   const coverageSummary = (evidence?.coverage?.evidenceSummary || {}) as Record<string, unknown>;
   const pages = Array.isArray(evidence?.pages) ? evidence.pages : [];

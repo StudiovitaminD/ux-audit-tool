@@ -20,14 +20,20 @@ function asNumber(value: unknown): number | null {
 }
 
 const PILLAR_MAP: Record<string, string> = {
+  "Visual Feedback": "Accessibility",
+  "Color & Contrast": "Accessibility",
+  "Typography & Readability": "Accessibility",
+  "Keyboard Navigation": "Accessibility",
+  "Screen Reader Support": "Accessibility",
   "Navigation & Findability": "Impact",
-  "Content & UX Writing": "Delight",
-  "Visual Hierarchy & Layout": "Delight",
-  "Accessibility & Inclusivity": "Accessibility",
-  "Input, Errors & Validation": "Accessibility",
-  "Feedback & System States": "Accessibility",
   "Consistency & UI Patterns": "Impact",
-  "code optimisation": "Impact",
+  "Content (Impact)": "Impact",
+  "Performance": "Impact",
+  "Visual Consistency": "Delight",
+  "Motion & Microinteractions": "Delight",
+  "Content (Delight)": "Delight",
+  "Brand Expression": "Delight",
+  "Icons & Imagery": "Delight",
 };
 
 function getHealth(score: number) {

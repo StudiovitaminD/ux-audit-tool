@@ -1,65 +1,82 @@
-export type BucketKey =
-  | "Navigation & Findability"
-  | "Content & UX Writing"
-  | "Visual Hierarchy & Layout"
-  | "Accessibility & Inclusivity"
-  | "Input, Errors & Validation"
-  | "Feedback & System States"
-  | "Consistency & UI Patterns"
-  | "code optimisation";
-
-type BucketRow = {
-  bucket: BucketKey;
-  pillar: "Impact" | "Delight" | "Accessibility";
-  coverage: string;
-};
-
-const rows: BucketRow[] = [
+const bucketRows = [
+  {
+    bucket: "Visual Feedback",
+    pillar: "Accessibility",
+    coverage: "Hover, click, loading, success, and error-state feedback",
+  },
+  {
+    bucket: "Color & Contrast",
+    pillar: "Accessibility",
+    coverage: "Text contrast, color reliance, zoom, and legibility",
+  },
+  {
+    bucket: "Typography & Readability",
+    pillar: "Accessibility",
+    coverage: "Type scale, scanability, spacing, and reading comfort",
+  },
+  {
+    bucket: "Keyboard Navigation",
+    pillar: "Accessibility",
+    coverage: "Tab order, focus states, shortcuts, and keyboard-only use",
+  },
+  {
+    bucket: "Screen Reader Support",
+    pillar: "Accessibility",
+    coverage: "Semantic HTML, ARIA, labels, alt text, and announcements",
+  },
   {
     bucket: "Navigation & Findability",
     pillar: "Impact",
-    coverage: "Menus, search, IA, and wayfinding",
-  },
-  {
-    bucket: "Content & UX Writing",
-    pillar: "Delight",
-    coverage: "Labels, microcopy, tone, and helper text",
-  },
-  {
-    bucket: "Visual Hierarchy & Layout",
-    pillar: "Delight",
-    coverage: "Spacing, emphasis, alignment, and scanability",
-  },
-  {
-    bucket: "Accessibility & Inclusivity",
-    pillar: "Accessibility",
-    coverage: "Contrast, keyboard support, and inclusive UX",
-  },
-  {
-    bucket: "Input, Errors & Validation",
-    pillar: "Accessibility",
-    coverage: "Forms, validation, errors, and input feedback",
-  },
-  {
-    bucket: "Feedback & System States",
-    pillar: "Accessibility",
-    coverage: "Loading, empty, success, and progress states",
+    coverage: "Menus, search, IA, breadcrumbs, and wayfinding",
   },
   {
     bucket: "Consistency & UI Patterns",
     pillar: "Impact",
-    coverage: "Reusable components and consistent interaction patterns",
+    coverage: "Reusable components and predictable interaction patterns",
   },
   {
-    bucket: "code optimisation",
+    bucket: "Content (Impact)",
     pillar: "Impact",
-    coverage: "Performance, load time, and maintainability",
+    coverage: "Messaging clarity, labels, microcopy, and content structure",
   },
-];
+  {
+    bucket: "Performance",
+    pillar: "Impact",
+    coverage: "Load speed, runtime responsiveness, and asset efficiency",
+  },
+  {
+    bucket: "Visual Consistency",
+    pillar: "Delight",
+    coverage: "Shared styling, spacing rhythm, and cohesive presentation",
+  },
+  {
+    bucket: "Motion & Microinteractions",
+    pillar: "Delight",
+    coverage: "Transitions, feedback motion, and small interaction flourishes",
+  },
+  {
+    bucket: "Content (Delight)",
+    pillar: "Delight",
+    coverage: "Tone, personality, and emotionally resonant writing",
+  },
+  {
+    bucket: "Brand Expression",
+    pillar: "Delight",
+    coverage: "Voice, visual personality, and distinctive identity cues",
+  },
+  {
+    bucket: "Icons & Imagery",
+    pillar: "Delight",
+    coverage: "Icon clarity, illustration quality, and image support",
+  },
+] as const;
 
-const pillarOrder: BucketRow["pillar"][] = ["Accessibility", "Impact", "Delight"];
+type BucketRow = (typeof bucketRows)[number];
+type Pillar = BucketRow["pillar"];
 
-function pillarClass(pillar: BucketRow["pillar"]) {
+const pillarOrder: Pillar[] = ["Accessibility", "Impact", "Delight"];
+
+function pillarClass(pillar: Pillar) {
   if (pillar === "Impact") return "text-amber-300";
   if (pillar === "Delight") return "text-sky-300";
   return "text-rose-300";
@@ -68,7 +85,7 @@ function pillarClass(pillar: BucketRow["pillar"]) {
 function groupRowsByPillar() {
   return pillarOrder.map((pillar) => ({
     pillar,
-    rows: rows.filter((row) => row.pillar === pillar),
+    rows: bucketRows.filter((row) => row.pillar === pillar),
   }));
 }
 
@@ -84,7 +101,7 @@ export function BucketPicker({
   const selected = new Set(value);
   const groupedRows = groupRowsByPillar();
 
-  function toggle(bucket: BucketKey) {
+  function toggle(bucket: BucketRow["bucket"]) {
     const next = new Set(selected);
     if (next.has(bucket)) next.delete(bucket);
     else next.add(bucket);
@@ -136,7 +153,7 @@ export function BucketPicker({
                         rowSpan={pillarRows.length}
                         className="border-r border-[color:var(--card-border)]/60 align-middle px-1 py-0 text-center"
                       >
-                        <div className="mx-auto [writing-mode:vertical-rl] rotate-180 text-[8px] font-semibold uppercase tracking-[0.12em] leading-none text-[color:var(--muted)]">
+                        <div className={`mx-auto [writing-mode:vertical-rl] rotate-180 text-[8px] font-semibold uppercase tracking-[0.12em] leading-none ${pillarClass(pillar)}`}>
                           {pillar}
                         </div>
                       </td>
@@ -155,7 +172,7 @@ export function BucketPicker({
                           {isChecked ? "✓" : ""}
                         </span>
                         <span className="text-[15px] font-medium text-[color:var(--ink)]">
-                          {row.bucket}
+                          {row.bucket.includes("Content") ? "Content" : row.bucket}
                         </span>
                       </div>
                     </td>

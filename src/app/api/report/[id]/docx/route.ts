@@ -1,4 +1,9 @@
-import { asString, buildReportViewModel, stringifyValue } from "@/lib/report-model";
+import {
+  asString,
+  buildReportViewModel,
+  calculateBusinessImpactMetrics,
+  stringifyValue,
+} from "@/lib/report-model";
 import { loadStoredReport } from "@/lib/report-record";
 
 export const runtime = "nodejs";
@@ -110,11 +115,14 @@ function buildDocxXml(report: unknown, reportId: string) {
   parts.push(paragraph(`Product type: ${vm.productType || vm.auditType || "UX Audit Report"}`));
   parts.push(paragraph(`Overall score: ${vm.overallScore ?? "—"}/100`));
   parts.push(paragraph(`Experiences: ${vm.overallHealth || "—"}`));
-  parts.push(paragraph("Business Metrics", "Heading2"));
-  parts.push(bulletParagraph("Conversion Rate"));
-  parts.push(bulletParagraph("Drop-off Rate"));
-  parts.push(bulletParagraph("Task Completion Rate"));
-  parts.push(bulletParagraph("Customer Satisfaction"));
+  parts.push(paragraph("Business Impact Index", "Heading2"));
+  calculateBusinessImpactMetrics(vm.pillarScores).forEach((metric) => {
+    parts.push(
+      bulletParagraph(
+        `${metric.label}: ${metric.value === null ? "—/100" : `${metric.value}/100`}`,
+      ),
+    );
+  });
   parts.push(spacer());
 
   parts.push(paragraph("Score Card", "Heading1"));

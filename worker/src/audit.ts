@@ -2,16 +2,23 @@ import type { EvidenceBundle, Intake, BucketResult } from "./types.js";
 import type { WorkerEnv } from "./env.js";
 import { QUESTION_BANK } from "./question-bank.js";
 import { openRouterChat } from "./openrouter.js";
+import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../shared/audit-framework";
 
 const PILLAR_MAP: Record<string, string> = {
+  "Visual Feedback": "Accessibility",
+  "Color & Contrast": "Accessibility",
+  "Typography & Readability": "Accessibility",
+  "Keyboard Navigation": "Accessibility",
+  "Screen Reader Support": "Accessibility",
   "Navigation & Findability": "Impact",
-  "Content & UX Writing": "Delight",
-  "Visual Hierarchy & Layout": "Delight",
-  "Accessibility & Inclusivity": "Accessibility",
-  "Input, Errors & Validation": "Accessibility",
-  "Feedback & System States": "Accessibility",
   "Consistency & UI Patterns": "Impact",
-  "code optimisation": "Impact",
+  "Content (Impact)": "Impact",
+  "Performance": "Impact",
+  "Visual Consistency": "Delight",
+  "Motion & Microinteractions": "Delight",
+  "Content (Delight)": "Delight",
+  "Brand Expression": "Delight",
+  "Icons & Imagery": "Delight",
 };
 
 function getHealth(score: number) {
@@ -57,6 +64,8 @@ function buildBucketPrompt(intake: Intake, bucket: string, evidence: EvidenceBun
   const qs = QUESTION_BANK[bucket] || [];
   const flows = (intake.audit_flows || []).join(", ");
   const goals = (intake.audit_goal || []).join(", ");
+  const frameworkBrief = buildAuditFrameworkBrief();
+  const bucketBrief = buildBucketFrameworkBrief(bucket);
   const selectedBucketQuestions = qs
     .map((q) => {
       const opts = q.options.map((o) => `${o.mark}: ${o.text}`).join("\n");
@@ -64,7 +73,7 @@ function buildBucketPrompt(intake: Intake, bucket: string, evidence: EvidenceBun
     })
     .join("\n\n---\n\n");
 
-  return `You are a senior UX auditor. Evaluate ONLY using the evidence provided below (do not claim you browsed the site).\n\nProduct:\n- Name: ${intake.product_name}\n- URL: ${intake.product_url}\n- Type: ${String(intake.product_type)}\n- Platform: ${intake.primary_platform}\n- Goals: ${goals}\n- Key flows: ${flows}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nHard rules:\n- If evidence is insufficient to verify, you MUST use mark 3 and say \"Not verifiable from evidence\".\n- Do NOT assign 1 or 2 unless you quote specific evidence from the bundle.\n- Output ONLY valid JSON.\n\nReturn JSON:\n{ \"bucket\": \"${bucket}\", \"questions\": [ {\"id\":\"N01\",\"question\":\"...\",\"mark\":3,\"evidence\":\"...\",\"observation\":\"...\",\"recommendation\":\"...\"} ] }\n\nQuestions:\n${selectedBucketQuestions}\n\n${evidenceBlock(evidence)}\n`;
+  return `You are a senior UX auditor. Evaluate ONLY using the evidence provided below (do not claim you browsed the site).\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nProduct:\n- Name: ${intake.product_name}\n- URL: ${intake.product_url}\n- Type: ${String(intake.product_type)}\n- Platform: ${intake.primary_platform}\n- Goals: ${goals}\n- Key flows: ${flows}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nHard rules:\n- If evidence is insufficient to verify, you MUST use mark 3 and say \"Not verifiable from evidence\".\n- Do NOT assign 1 or 2 unless you quote specific evidence from the bundle.\n- Output ONLY valid JSON.\n\nReturn JSON:\n{ \"bucket\": \"${bucket}\", \"questions\": [ {\"id\":\"N01\",\"question\":\"...\",\"mark\":3,\"evidence\":\"...\",\"observation\":\"...\",\"recommendation\":\"...\"} ] }\n\nQuestions:\n${selectedBucketQuestions}\n\n${evidenceBlock(evidence)}\n`;
 }
 
 function safeJsonParse(raw: string): any | null {

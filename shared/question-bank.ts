@@ -108,6 +108,25 @@ export const QUESTION_BANK: Record<string, BucketQuestion[]> = {
 
 export const QUESTION_BANK_VERSION = "2026-06-24";
 
+const NEW_BUCKET_ALIASES: Array<[string, string]> = [
+  ["Visual Feedback", "Feedback & System States"],
+  ["Color & Contrast", "Accessibility & Inclusivity"],
+  ["Typography & Readability", "Visual Hierarchy & Layout"],
+  ["Keyboard Navigation", "Input, Errors & Validation"],
+  ["Screen Reader Support", "Accessibility & Inclusivity"],
+  ["Content (Impact)", "Content & UX Writing"],
+  ["Performance", "code optimisation"],
+  ["Visual Consistency", "Visual Hierarchy & Layout"],
+  ["Motion & Microinteractions", "Feedback & System States"],
+  ["Content (Delight)", "Content & UX Writing"],
+  ["Brand Expression", "Visual Hierarchy & Layout"],
+  ["Icons & Imagery", "Accessibility & Inclusivity"],
+];
+
+for (const [target, source] of NEW_BUCKET_ALIASES) {
+  QUESTION_BANK[target] = QUESTION_BANK[source] || [];
+}
+
 export function getSelectedBucketQuestions(bucketNames: string[]) {
   return bucketNames.reduce<Record<string, BucketQuestion[]>>((acc, bucketName) => {
     const questions = QUESTION_BANK[bucketName];

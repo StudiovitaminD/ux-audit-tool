@@ -1128,7 +1128,15 @@ export function ReportView() {
   }
 
   if (!effectiveReport) {
-    return <DemoReport />;
+    return (
+      <div className="p-6">
+        <div className="text-lg font-semibold">Preparing your report…</div>
+        <div className="mt-3 flex items-center gap-3 text-sm text-[color:var(--muted)]">
+          <LoadingSpinner />
+          <div>Hang tight while the live report finishes loading.</div>
+        </div>
+      </div>
+    );
   }
 
   return (

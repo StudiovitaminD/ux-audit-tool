@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { calculateBusinessImpactMetrics } from "@/lib/report-model";
 
 type ScorecardRow = {
   section: string;
@@ -73,22 +74,42 @@ function normalizeKey(value: unknown) {
 
 const PILLAR_BUCKETS = {
   Accessibility: [
-    "Accessibility & Inclusivity",
-    "Input, Errors & Validation",
-    "Feedback & System States",
+    "Visual Feedback",
+    "Color & Contrast",
+    "Typography & Readability",
+    "Keyboard Navigation",
+    "Screen Reader Support",
   ],
-  Impact: ["Navigation & Findability", "Visual Hierarchy & Layout", "code optimisation"],
-  Delight: ["Content & UX Writing", "Consistency & UI Patterns"],
+  Impact: ["Navigation & Findability", "Consistency & UI Patterns", "Content (Impact)", "Performance"],
+  Delight: [
+    "Visual Consistency",
+    "Motion & Microinteractions",
+    "Content (Delight)",
+    "Brand Expression",
+    "Icons & Imagery",
+  ],
 } as const;
 
 const SUMMARY_PILLAR_BUCKETS = {
-  Delight: ["Content & UX Writing", "Consistency & UI Patterns"],
-  Impact: ["Navigation & Findability", "Visual Hierarchy & Layout", "code optimisation"],
-  Accessibility: ["Accessibility & Inclusivity", "Input, Errors & Validation", "Feedback & System States"],
+  Accessibility: [
+    "Visual Feedback",
+    "Color & Contrast",
+    "Typography & Readability",
+    "Keyboard Navigation",
+    "Screen Reader Support",
+  ],
+  Impact: ["Navigation & Findability", "Consistency & UI Patterns", "Content (Impact)", "Performance"],
+  Delight: [
+    "Visual Consistency",
+    "Motion & Microinteractions",
+    "Content (Delight)",
+    "Brand Expression",
+    "Icons & Imagery",
+  ],
 } as const;
 
 const SUMMARY_BUCKET_DETAILS = {
-  "Accessibility & Inclusivity": {
+  "Color & Contrast": {
     topProblems: [
       "Persistent labels are missing, so placeholder-only fields lose context while typing.",
       "Tap targets and icon controls need larger hit areas on mobile devices.",
@@ -100,7 +121,7 @@ const SUMMARY_BUCKET_DETAILS = {
       "Basic content labels are present, which gives us a good foundation to improve from.",
     ],
   },
-  "Input, Errors & Validation": {
+  "Keyboard Navigation": {
     topProblems: [
       "Forms need pre-submission format hints so users know what to enter before errors appear.",
       "Inline validation is missing, so users only discover mistakes after submitting.",
@@ -112,7 +133,7 @@ const SUMMARY_BUCKET_DETAILS = {
       "This bucket has a strong opportunity for quick, high-confidence improvements.",
     ],
   },
-  "Feedback & System States": {
+  "Visual Feedback": {
     topProblems: [
       "Loading indicators are missing during transitions and submission states.",
       "Users do not get immediate confirmation that their action is being processed.",
@@ -136,7 +157,7 @@ const SUMMARY_BUCKET_DETAILS = {
       "This bucket benefits from a strong information architecture foundation.",
     ],
   },
-  "Visual Hierarchy & Layout": {
+  "Visual Consistency": {
     topProblems: [
       "Important content needs stronger emphasis so the eye knows where to go first.",
       "Spacing and grouping should guide scanning more clearly.",
@@ -148,7 +169,7 @@ const SUMMARY_BUCKET_DETAILS = {
       "Typography and grouping can be tuned without changing the whole system.",
     ],
   },
-  "code optimisation": {
+  "Performance": {
     topProblems: [
       "Conversion-critical moments should remove friction and unnecessary steps.",
       "The path to action can be tightened to support faster completion.",
@@ -160,7 +181,7 @@ const SUMMARY_BUCKET_DETAILS = {
       "There is a good base for turning clarity improvements into conversion lifts.",
     ],
   },
-  "Content & UX Writing": {
+  "Content (Delight)": {
     topProblems: [
       "Copy should be clearer at key decision points so users feel more confident.",
       "Plain language is needed where jargon currently slows understanding.",
@@ -232,31 +253,15 @@ const DEMO = {
   } satisfies Record<string, PillarScore>,
   scorecard: [
     {
-      section: "Navigation & Findability",
-      score: "94/100",
-      health: "Excellent",
-      risk_level: "Optimised",
-      priority: "P4",
-      pillar: "Impact",
+      section: "Visual Feedback",
+      score: "54/100",
+      health: "Poor",
+      risk_level: "High",
+      priority: "P1",
+      pillar: "Accessibility",
     },
     {
-      section: "Content & UX Writing",
-      score: "64/100",
-      health: "Moderate",
-      risk_level: "Moderate",
-      priority: "P2",
-      pillar: "Delight",
-    },
-    {
-      section: "Visual Hierarchy & Layout",
-      score: "90/100",
-      health: "Excellent",
-      risk_level: "Optimised",
-      priority: "P4",
-      pillar: "Delight",
-    },
-    {
-      section: "Accessibility & Inclusivity",
+      section: "Color & Contrast",
       score: "50/100",
       health: "Poor",
       risk_level: "High",
@@ -264,19 +269,27 @@ const DEMO = {
       pillar: "Accessibility",
     },
     {
-      section: "Input, Errors & Validation",
+      section: "Keyboard Navigation",
       score: "34/100",
       health: "Critical",
       risk_level: "Critical",
       priority: "P1",
-      pillar: "Impact",
+      pillar: "Accessibility",
     },
     {
-      section: "Feedback & System States",
-      score: "54/100",
+      section: "Screen Reader Support",
+      score: "46/100",
       health: "Poor",
       risk_level: "High",
       priority: "P1",
+      pillar: "Accessibility",
+    },
+    {
+      section: "Navigation & Findability",
+      score: "94/100",
+      health: "Excellent",
+      risk_level: "Optimised",
+      priority: "P4",
       pillar: "Impact",
     },
     {
@@ -288,12 +301,60 @@ const DEMO = {
       pillar: "Impact",
     },
     {
-      section: "code optimisation",
+      section: "Content (Impact)",
+      score: "73/100",
+      health: "Good",
+      risk_level: "Low Risk",
+      priority: "P3",
+      pillar: "Impact",
+    },
+    {
+      section: "Performance",
       score: "60/100",
       health: "Moderate",
       risk_level: "Moderate",
       priority: "P2",
       pillar: "Impact",
+    },
+    {
+      section: "Visual Consistency",
+      score: "90/100",
+      health: "Excellent",
+      risk_level: "Optimised",
+      priority: "P4",
+      pillar: "Delight",
+    },
+    {
+      section: "Motion & Microinteractions",
+      score: "71/100",
+      health: "Good",
+      risk_level: "Low Risk",
+      priority: "P3",
+      pillar: "Delight",
+    },
+    {
+      section: "Content (Delight)",
+      score: "64/100",
+      health: "Moderate",
+      risk_level: "Moderate",
+      priority: "P2",
+      pillar: "Delight",
+    },
+    {
+      section: "Brand Expression",
+      score: "78/100",
+      health: "Good",
+      risk_level: "Low Risk",
+      priority: "P3",
+      pillar: "Delight",
+    },
+    {
+      section: "Icons & Imagery",
+      score: "69/100",
+      health: "Moderate",
+      risk_level: "Moderate",
+      priority: "P2",
+      pillar: "Delight",
     },
   ] satisfies ScorecardRow[],
   executive_summary: {
@@ -302,7 +363,7 @@ const DEMO = {
     one_line_verdict:
       "Critical failures in form input validation and feedback mechanisms on the contact form are the biggest conversion blockers.",
     what_works:
-      "Navigation & Findability scores excellently at 94/100 with a clear, consistent top navigation bar and intuitive labels that surface all key pages in one click. Visual Hierarchy & Layout also performs strongly at 90/100, with clear typographic hierarchy, consistent spacing, and responsive layouts across devices. Consistency & UI Patterns score 86/100, showing a cohesive visual style and predictable interactions throughout the site. These strengths provide a solid foundation for user orientation and visual clarity.",
+      "Navigation & Findability scores excellently at 94/100 with a clear, consistent top navigation bar and intuitive labels that surface all key pages in one click. Visual Consistency also performs strongly at 90/100, with clear hierarchy, consistent spacing, and responsive layouts across devices. Consistency & UI Patterns score 86/100, showing a cohesive visual style and predictable interactions throughout the site. These strengths provide a solid foundation for user orientation and visual clarity.",
     top_3_problems: [
       "Contact form lacks any pre-submission format hints or input constraints, causing user confusion and errors.",
       "No real-time or inline validation feedback on form fields; errors only appear after full submission with all fields cleared, forcing re-entry.",
@@ -327,12 +388,12 @@ const DEMO = {
     impact_narrative:
       "Navigation is a standout strength, with a clear, consistent top nav bar and intuitive labels that make key pages accessible within one click. Interaction patterns are predictable and consistent, supporting user confidence. However, critical issues in input handling and feedback severely impact conversion potential. The contact form provides no format hints, no inline validation, clears user input on errors, and allows multiple submissions, all of which create friction and user frustration. Additionally, the absence of loading indicators during page transitions leaves users uncertain about system status.",
     accessibility_narrative:
-      "Accessibility is a major concern with a low score of 50/100. Key issues include missing persistent visible labels on form fields, tap targets below recommended sizes on mobile, and error indicators relying solely on color without icons or descriptive labels. Many images lack alt text, and animations do not respect reduced-motion preferences. Keyboard navigation is partially supported but some custom components are inaccessible or lack visible focus states. Contrast issues with light gray text on white backgrounds further reduce readability for users with visual impairments.",
+      "Accessibility is a major concern with a low score of 50/100. Key issues include contrast problems, tap targets below recommended sizes on mobile, and error indicators relying solely on color without icons or descriptive labels. Many images lack alt text, and animations do not respect reduced-motion preferences. Keyboard navigation is partially supported but some custom components are inaccessible or lack visible focus states. Contrast issues with light gray text on white backgrounds further reduce readability for users with visual impairments.",
   },
   findings_detailed: [
     {
       rank: 1,
-      bucket: "Input, Errors & Validation",
+      bucket: "Keyboard Navigation",
       what_we_found:
         "The contact form shows no format hints or constraints on any field before submission, no real-time or inline validation, and clears all user input on submission errors.",
       why_it_matters:
@@ -350,7 +411,7 @@ const DEMO = {
     },
     {
       rank: 2,
-      bucket: "Feedback & System States",
+      bucket: "Visual Feedback",
       what_we_found:
         "No loading indicators or spinners appear during page transitions or form submissions; submit button remains active and clickable after submission.",
       why_it_matters:
@@ -367,7 +428,7 @@ const DEMO = {
     },
     {
       rank: 3,
-      bucket: "Accessibility & Inclusivity",
+      bucket: "Screen Reader Support",
       what_we_found:
         "Contact form fields rely solely on placeholder text that disappears on typing, with no persistent visible labels above fields.",
       why_it_matters:
@@ -384,7 +445,7 @@ const DEMO = {
     },
     {
       rank: 4,
-      bucket: "Accessibility & Inclusivity",
+      bucket: "Color & Contrast",
       what_we_found:
         "Tap and click targets on mobile for navigation links and icon buttons are smaller than the recommended 44x44 pixels.",
       why_it_matters:
@@ -401,7 +462,7 @@ const DEMO = {
     },
     {
       rank: 5,
-      bucket: "Accessibility & Inclusivity",
+      bucket: "Keyboard Navigation",
       what_we_found:
         "Form validation errors are communicated only through red text color without icons or descriptive labels.",
       why_it_matters:
@@ -418,7 +479,7 @@ const DEMO = {
     },
     {
       rank: 6,
-      bucket: "Content & UX Writing",
+      bucket: "Content (Delight)",
       what_we_found:
         "Microcopy is limited to placeholder text in form fields; service pages lack tooltips or helper text at key decision points.",
       why_it_matters:
@@ -435,7 +496,7 @@ const DEMO = {
     },
     {
       rank: 7,
-      bucket: "Content & UX Writing",
+      bucket: "Content (Delight)",
       what_we_found:
         "Copy contains jargon and buzzwords such as 'synergy', 'cutting-edge', and 'revolutionary' on services and about pages.",
       why_it_matters:
@@ -452,7 +513,7 @@ const DEMO = {
     },
     {
       rank: 8,
-      bucket: "code optimisation",
+      bucket: "Performance",
       what_we_found:
         "Most large images are unoptimized JPEGs over 500KB with no use of modern formats like WebP or AVIF.",
       why_it_matters:
@@ -732,37 +793,14 @@ export function DemoReport() {
     rows: scorecard.filter((row) => bucketPillarFromRow(row) === pillar),
   }));
   const businessMetrics = [
-    { label: "Conversion Rate", value: pillars.Impact.score },
-    { label: "Drop-off Rate", value: Math.max(0, 100 - overallScore) },
-      { label: "Task Completion Rate", value: pillars.Accessibility.score },
-      { label: "Customer Satisfaction", value: pillars.Delight.score },
-    ];
+    ...calculateBusinessImpactMetrics(pillars),
+  ];
 
     return [
       {
         title: "Overview",
         body: (
           <div className="space-y-5">
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-6">
-              <div className="text-lg font-semibold text-[color:var(--ink)]">
-                Overall Report Summary
-              </div>
-              <div className="mt-3 text-sm leading-7 text-[color:var(--muted)]">
-                {[
-                  DEMO.executive_summary.what_works ||
-                    "The website provides clear navigation, intuitive structure, strong visual hierarchy, and consistent UI patterns, making it easy for users to explore and understand",
-                  `However, ${
-                    DEMO.executive_summary.top_3_problems?.[0] ||
-                    "the contact form is a major conversion blocker due to missing format hints, input constraints, and validation feedback"
-                  }`,
-                  DEMO.executive_summary.first_priority_recommendation ||
-                    "Improve it with clear field guidance, real-time inline validation, input preservation after errors, and immediate submit-button feedback to prevent duplicate submissions",
-                ]
-                  .map((item) => item.replace(/[.]+$/, ""))
-                  .join(". ") + "."}
-              </div>
-            </div>
-
             <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -795,8 +833,8 @@ export function DemoReport() {
             </div>
 
             <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-lg font-semibold normal-case">Business Metrics</div>
-              <div className="mt-5 grid gap-5 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:divide-[color:var(--card-border)]/60">
+              <div className="text-lg font-semibold normal-case">Business Impact Index</div>
+              <div className="mt-5 grid gap-5 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-[color:var(--card-border)]/60">
                 {businessMetrics.map((metric) => (
                   <div key={metric.label} className="space-y-3 lg:px-4 first:lg:pl-0 last:lg:pr-0">
                     <div className="text-xs text-[color:var(--muted)] normal-case">
@@ -1141,7 +1179,7 @@ export function DemoReport() {
         {current.body}
       </div>
 
-      <div className="mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5">
+      <div className="sticky bottom-4 z-20 mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm text-[color:var(--ink-muted)]">
             Page {page + 1} / {pages.length}
