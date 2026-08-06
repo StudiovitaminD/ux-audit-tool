@@ -3,23 +3,33 @@ import { BulletList, normalizeList, placeholderText } from "./shared";
 import { asArray, asRecord, asString, displayBucketName } from "@/lib/report-model";
 import { QUESTION_BANK } from "../../../../worker/src/question-bank";
 
-const PILLAR_BUCKETS = {
+const SUMMARY_PILLARS = {
   Accessibility: [
-    "Visual Feedback",
-    "Color & Contrast",
-    "Typography & Readability",
-    "Keyboard Navigation",
-    "Screen Reader Support",
+    { name: "Visual Feedback", aliases: ["Feedback & System States"] },
+    { name: "Color & Contrast", aliases: ["Accessibility & Inclusivity"] },
+    { name: "Typography & Readability", aliases: ["Visual Hierarchy & Layout"] },
+    { name: "Keyboard Navigation", aliases: ["Input, Errors & Validation"] },
+    { name: "Screen Reader Support", aliases: ["Accessibility & Inclusivity"] },
   ],
-  Impact: ["Navigation & Findability", "Consistency & UI Patterns", "Content (Impact)", "Performance"],
+  Impact: [
+    { name: "Navigation & Findability", aliases: ["Navigation & Findability"] },
+    { name: "Consistency & UI Patterns", aliases: ["Consistency & UI Patterns"] },
+    { name: "Content (Impact)", aliases: ["Content & UX Writing"] },
+    { name: "Performance", aliases: ["code optimisation"] },
+  ],
   Delight: [
-    "Visual Consistency",
-    "Motion & Microinteractions",
-    "Content (Delight)",
-    "Brand Expression",
-    "Icons & Imagery",
+    { name: "Visual Consistency", aliases: ["Visual Hierarchy & Layout"] },
+    { name: "Motion & Microinteractions", aliases: ["Feedback & System States"] },
+    { name: "Content (Delight)", aliases: ["Content & UX Writing"] },
+    { name: "Brand Expression", aliases: ["Visual Hierarchy & Layout"] },
+    { name: "Icons & Imagery", aliases: ["Accessibility & Inclusivity"] },
   ],
 } as const;
+
+type SummaryBucketSpec = {
+  name: string;
+  aliases: readonly string[];
+};
 
 function bucketName(bucket: Record<string, unknown>) {
   return (
@@ -83,6 +93,17 @@ function bucketLabel(bucket: Record<string, unknown>) {
   );
 }
 
+function normalizeKey(value: unknown) {
+  return asString(value).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function matchesBucket(bucket: Record<string, unknown>, spec: SummaryBucketSpec) {
+  const actualName = normalizeKey(bucketName(bucket));
+  const pillarBucketName = normalizeKey(spec.name);
+  if (actualName === pillarBucketName) return true;
+  return spec.aliases.some((alias) => actualName === normalizeKey(alias));
+}
+
 function lookupQuestionOptions(bucketNameValue: string, questionId: string) {
   const direct = QUESTION_BANK[bucketNameValue] || [];
   const exact = direct.find((item) => item.id === questionId);
@@ -122,8 +143,8 @@ function synthesizeQuestionTakeaway(
 
 export function NarrativeSummarySection({ vm }: SharedSectionProps) {
   const bucketsByPillar = new Map<string, Array<Record<string, unknown>>>();
-  const pillarBucketsOrder = Object.entries(PILLAR_BUCKETS) as Array<
-    [keyof typeof PILLAR_BUCKETS, readonly string[]]
+  const pillarBucketsOrder = Object.entries(SUMMARY_PILLARS) as Array<
+    [keyof typeof SUMMARY_PILLARS, readonly SummaryBucketSpec[]]
   >;
 
   for (const bucket of vm.bucketResults) {
@@ -135,9 +156,10 @@ export function NarrativeSummarySection({ vm }: SharedSectionProps) {
   return (
     <div className="space-y-4">
       {pillarBucketsOrder.map(([pillar, bucketNames]) => {
-        const pillarBuckets = (bucketsByPillar.get(pillar) || []).filter((bucket) =>
-          bucketNames.includes(bucketName(bucket)),
-        );
+        const pillarBuckets = bucketNames.map((spec) => {
+          const matched = (bucketsByPillar.get(pillar) || []).find((bucket) => matchesBucket(bucket, spec));
+          return matched ? { spec, bucket: matched } : { spec, bucket: null };
+        });
 
         return (
           <div
@@ -147,59 +169,47 @@ export function NarrativeSummarySection({ vm }: SharedSectionProps) {
             <div className="text-sm font-semibold">
               {pillar}{" "}
               <span className="font-normal text-[color:var(--muted)]">
-                ({bucketNames.map(displayBucketName).join(", ")})
+                ({bucketNames.map((bucket) => displayBucketName(bucket.name)).join(", ")})
               </span>
             </div>
             <div className="my-4 border-t border-[color:var(--card-border)]/60" />
 
             <div className="space-y-5">
-              {pillarBuckets.length ? (
-                pillarBuckets.map((bucket, index) => {
-                  const currentBucketName = bucketName(bucket);
-                  return (
-                    <div
-                      key={`${pillar}-${currentBucketName}-${index}`}
-                      className={index === 0 ? "" : "border-t border-[color:var(--card-border)]/60 pt-5"}
-                    >
-                      <div className="text-sm font-medium text-[color:var(--ink)]">
-                        {displayBucketName(currentBucketName)}
-                      </div>
+              {pillarBuckets.map(({ spec, bucket }, index) => {
+                const currentBucketName = bucket ? bucketName(bucket) : spec.name;
+                const currentBucketLabel = displayBucketName(currentBucketName);
+                return (
+                  <div
+                    key={`${pillar}-${currentBucketName}-${index}`}
+                    className={index === 0 ? "" : "border-t border-[color:var(--card-border)]/60 pt-5"}
+                  >
+                    <div className="text-sm font-medium text-[color:var(--ink)]">
+                      {currentBucketLabel}
+                    </div>
 
-                      <div className="mt-4 space-y-5">
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
-                            Top Problems
-                          </div>
-                          <BulletList
-                            items={bucketRationaleItems(bucket, "what_is_risky")}
-                            emptyLabel="Top problems not available."
-                          />
+                    <div className="mt-4 space-y-5">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
+                          Top Problems
                         </div>
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
-                            What&apos;s Working
-                          </div>
-                          <BulletList
-                            items={bucketRationaleItems(bucket, "what_is_working")}
-                            emptyLabel="Working points not available."
-                          />
+                        <BulletList
+                          items={bucket ? bucketRationaleItems(bucket, "what_is_risky") : []}
+                          emptyLabel="Bucket-level data not available yet."
+                        />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
+                          What&apos;s Working
                         </div>
+                        <BulletList
+                          items={bucket ? bucketRationaleItems(bucket, "what_is_working") : []}
+                          emptyLabel="Bucket-level data not available yet."
+                        />
                       </div>
                     </div>
-                  );
-                })
-              ) : (
-                <BulletList
-                  items={
-                    pillar === "Delight"
-                      ? vm.sectionNarrative.delight_narrative
-                      : pillar === "Impact"
-                        ? vm.sectionNarrative.impact_narrative
-                        : vm.sectionNarrative.accessibility_narrative
-                  }
-                  emptyLabel="Narrative not available."
-                />
-              )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
