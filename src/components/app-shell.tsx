@@ -1,11 +1,13 @@
 "use client";
 
 import { PropsWithChildren } from "react";
+import { Navbar } from "@/components/navbar";
 
 export function AppShell({ children }: PropsWithChildren) {
   return (
     <div className="min-h-dvh">
-      <main id="main" className="min-h-dvh w-full">
+      <Navbar />
+      <main id="main" className="min-h-dvh w-full pt-[104px]">
         {children}
       </main>
     </div>

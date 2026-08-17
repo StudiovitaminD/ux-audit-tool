@@ -14,15 +14,8 @@ import {
   type AppSession,
 } from "@/lib/app-session";
 
-const navItems = [
-  { label: "Home", href: "/" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Sample Report", href: "/report?demo=1" },
-];
-
 export function Navbar() {
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [session, setSession] = useState<AppSession>(() => readAppSession());
 
   useEffect(() => {
@@ -53,30 +46,16 @@ export function Navbar() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [menuOpen]);
-
   async function handleSignOut() {
     const next = buildOptimisticAppSession({ email: "guest@local.test" });
     setSession(next);
     writeAppSession(next);
     void signOutAppSession().catch(() => undefined);
-    setMenuOpen(false);
-    router.replace("/");
+    router.replace("/report");
     router.refresh();
   }
 
   const isGuest = session.email === "guest@local.test";
-  const showAdminLink = session.role === "admin";
-  const visibleNavItems = showAdminLink
-    ? [...navItems, { label: "Dashboard", href: "/admin" }]
-    : navItems;
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 w-full bg-[#f6f1e8] px-16 pt-5 text-[#191919]">
@@ -88,13 +67,14 @@ export function Navbar() {
           <span>AI UX Audit</span>
         </Link>
 
-        <nav className="hidden items-center gap-7 text-sm font-medium text-[#4d4d4d] lg:flex">
-          {visibleNavItems.map((item) => (
-            <Link key={item.href} href={item.href} className="transition hover:text-[#191919]">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="hidden items-center lg:flex">
+          <Link
+            href="/admin"
+            className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
+          >
+            Dashboard
+          </Link>
+        </div>
 
         <div className="hidden items-center gap-3 lg:flex">
           {isGuest ? (
@@ -129,81 +109,7 @@ export function Navbar() {
             Start audit <span className="ml-1.5" aria-hidden="true">→</span>
           </Link>
         </div>
-
-        <button
-          type="button"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((value) => !value)}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#101010]/12 bg-white text-[#101010] lg:hidden"
-        >
-          <span className="text-lg leading-none">{menuOpen ? "×" : "≡"}</span>
-        </button>
       </div>
-
-      {menuOpen ? (
-        <div className="mx-auto mt-3 max-w-none rounded-[28px] border border-[#101010]/10 bg-white p-5 shadow-[0_20px_50px_rgba(0,0,0,0.08)] lg:hidden">
-          <div className="flex flex-col gap-4 text-sm font-medium text-[#101010]">
-            {visibleNavItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMenuOpen(false)}
-                className="rounded-2xl border border-[#191919]/8 px-4 py-3"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-
-          <div className="mt-5 flex flex-col gap-3">
-            {isGuest ? (
-              <Link
-                href="/sign-in?returnTo=/audit"
-                onClick={() => setMenuOpen(false)}
-                className="inline-flex justify-center rounded-full border border-[#191919]/12 bg-white px-4 py-3 text-sm font-medium text-[#191919]"
-              >
-                Sign in
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/report"
-                  onClick={() => setMenuOpen(false)}
-                  className="inline-flex justify-center rounded-full border border-[#191919]/12 bg-white px-4 py-3 text-sm font-medium text-[#191919]"
-                >
-                  Previous report
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="inline-flex justify-center rounded-full border border-[#191919]/12 bg-white px-4 py-3 text-sm font-medium text-[#191919]"
-                >
-                  Sign out
-                </button>
-              </>
-            )}
-
-            {showAdminLink ? (
-              <Link
-                href="/admin"
-                onClick={() => setMenuOpen(false)}
-                className="inline-flex justify-center rounded-full border border-[#191919]/12 bg-white px-4 py-3 text-sm font-medium text-[#191919]"
-              >
-                Admin
-              </Link>
-            ) : null}
-
-            <Link
-              href="/audit"
-              onClick={() => setMenuOpen(false)}
-              className="inline-flex justify-center rounded-full bg-[#191919] px-5 py-3 text-sm font-semibold text-white"
-            >
-              Start audit <span className="ml-1.5" aria-hidden="true">→</span>
-            </Link>
-          </div>
-        </div>
-      ) : null}
     </header>
   );
 }
