@@ -74,6 +74,12 @@ export function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
+function asRecordArray(value: unknown): AnyRecord[] {
+  return asArray(value)
+    .map((item) => asRecord(item))
+    .filter((item): item is AnyRecord => Boolean(item));
+}
+
 export function asString(value: unknown, fallback = "") {
   if (value === null || value === undefined) return fallback;
   if (typeof value === "string") return value.trim();
@@ -254,7 +260,9 @@ function sanitizeDisplayText(value: unknown): string {
       .replace(/\s*\n\s*/g, " ")
       .replace(/\s{2,}/g, " ")
       .trim(),
-  );
+  )
+    .replace(/\s*(?:\.{3,}|…)\s*$/, "")
+    .trim();
 }
 
 function isPlaceholderText(value: unknown) {
@@ -341,7 +349,8 @@ function isNotScoredBucketRow(item: AnyRecord) {
     risk === "evidence missing" ||
     risk === "scoring unavailable" ||
     scoreText === "not scored" ||
-    scoreNumber === null
+    scoreNumber === null ||
+    scoreNumber <= 0
   );
 }
 
@@ -489,20 +498,14 @@ function deriveWhatsWorkingFromBuckets(report: AnyRecord) {
         const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || "Bucket";
         const findings = asArray(bucket.findings).map((item) => asRecord(item) ?? {});
         const improvements = asArray(bucket.improvements).map((item) => asRecord(item) ?? {});
-        const findingText = findings
-          .map((item) =>
-            questionSummaryText(bucketName, item).problem || questionSummaryText(bucketName, item).action,
-          )
-          .find((item) => Boolean(item) && !isPlaceholderText(item));
-        const improvementText = improvements
-          .map((item) =>
-            questionSummaryText(bucketName, item).action || questionSummaryText(bucketName, item).problem,
-          )
-          .find((item) => Boolean(item) && !isPlaceholderText(item));
+        const strengthText = [
+          ...findings.map((item) => questionSummaryText(bucketName, item).strength),
+          ...improvements.map((item) => questionSummaryText(bucketName, item).strength),
+        ].find((item) => Boolean(item) && !isPlaceholderText(item));
         const summaryText = sanitizeDisplayText(
           bucket.health || bucket.summary || bucket.note || bucket.rationale,
         );
-        const text = findingText || improvementText || summaryText;
+        const text = strengthText || summaryText;
         return text ? `${bucketName}: ${text}` : bucketName;
       })
       .filter(Boolean),
@@ -526,20 +529,21 @@ function effortRank(value: string) {
   return 9;
 }
 
-function questionSummaryText(bucketName: string, question: AnyRecord) {
+function questionSummaryText(bucketName: string, question: AnyRecord | null | undefined) {
+  const rec = asRecord(question) ?? {};
   const displayName = displayBucketName(bucketName) || bucketName;
-  const selectedText = sanitizeDisplayText(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
-  const selectedMark = asNumber(question.selected_option ?? question.mark);
-  const options = lookupQuestionOptions(bucketName, asString(question.id));
+  const selectedText = sanitizeDisplayText(rec.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  const selectedMark = asNumber(rec.selected_option ?? rec.mark);
+  const options = lookupQuestionOptions(bucketName, asString(rec.id));
   const matched = options.find((option) => option.mark === selectedMark);
-  const questionLabel = sanitizeDisplayText(question.question);
+  const questionLabel = sanitizeDisplayText(rec.question);
   const selectedAnswer =
     (selectedText && !isPlaceholderText(selectedText) ? selectedText : "") ||
     (matched?.text ? matched.text.trim() : "");
   const observationRaw =
-    sanitizeDisplayText(question.observation) ||
-    sanitizeDisplayText(question.evidence) ||
-    sanitizeDisplayText(question.question);
+    sanitizeDisplayText(rec.observation) ||
+    sanitizeDisplayText(rec.evidence) ||
+    sanitizeDisplayText(rec.question);
   const observation =
     observationRaw &&
     !isPlaceholderText(observationRaw) &&
@@ -547,8 +551,8 @@ function questionSummaryText(bucketName: string, question: AnyRecord) {
       ? observationRaw
       : selectedAnswer;
   const recommendationRaw =
-    sanitizeDisplayText(question.recommendation) ||
-    sanitizeDisplayText(question.observation);
+    sanitizeDisplayText(rec.recommendation) ||
+    sanitizeDisplayText(rec.observation);
   const recommendation =
     recommendationRaw &&
     !isPlaceholderText(recommendationRaw) &&
@@ -558,6 +562,7 @@ function questionSummaryText(bucketName: string, question: AnyRecord) {
   return {
     problem: observation ? `${displayName}: ${observation}` : "",
     action: recommendation ? `${displayName}: ${recommendation}` : "",
+    strength: selectedAnswer ? `${displayName}: ${selectedAnswer}` : observation ? `${displayName}: ${observation}` : "",
   };
 }
 
@@ -569,7 +574,8 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
   const scoredQuestions = bucketResults.flatMap((bucket) => {
     const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || "Bucket";
     return asArray(bucket.questions)
-      .map((question) => asRecord(question) ?? {})
+      .map((question) => asRecord(question))
+      .filter((question): question is AnyRecord => Boolean(question))
       .map((question) => ({
         bucketName,
         mark: asNumber(question.mark),
@@ -604,7 +610,7 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
         if ((left.mark ?? 0) !== (right.mark ?? 0)) return (right.mark ?? 0) - (left.mark ?? 0);
         return (right.confidence ?? 0) - (left.confidence ?? 0);
       })
-      .map((item) => questionSummaryText(item.bucketName, item.question).action || questionSummaryText(item.bucketName, item.question).problem)
+      .map((item) => questionSummaryText(item.bucketName, item.question).strength)
       .filter(Boolean),
     10,
   );
@@ -699,7 +705,8 @@ function derivePillarNarrativeSummary(report: AnyRecord, pillarName: string) {
   const questions = buckets.flatMap((bucket) => {
     const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || "Bucket";
     return asArray(bucket.questions)
-      .map((question) => asRecord(question) ?? {})
+      .map((question) => asRecord(question))
+      .filter((question): question is AnyRecord => Boolean(question))
       .map((question) => ({
         bucketName,
         mark: asNumber(question.mark),
@@ -1477,6 +1484,7 @@ function normalizeBucketForScoring(item: AnyRecord) {
     .filter((mark): mark is number => mark !== null);
   const bucketStatus = asString(item.bucket_status);
   const isScoringUnavailable = bucketStatus === "scoring_unavailable";
+  const existingScore = asNumber(item.score);
   const derivedScore =
     derivedMarks.length > 0
       ? Math.round(
@@ -1486,6 +1494,7 @@ function normalizeBucketForScoring(item: AnyRecord) {
   const shouldBeUnscored =
     bucketStatus === "insufficient_evidence" ||
     isScoringUnavailable ||
+    existingScore === 0 ||
     scoreableQuestions === 0;
 
   if (!shouldBeUnscored) {
@@ -1497,7 +1506,12 @@ function normalizeBucketForScoring(item: AnyRecord) {
           : derivedMarks.reduce((sum, mark) => sum + mark, 0),
       max_marks:
         asNumber(item.max_marks) !== null ? asNumber(item.max_marks) : derivedMarks.length * 5,
-      score: asNumber(item.score) !== null ? asNumber(item.score) : derivedScore,
+      score:
+        existingScore !== null && existingScore > 0
+          ? existingScore
+          : derivedScore !== null && derivedScore > 0
+            ? derivedScore
+            : null,
       bucket_status: "scored",
       health:
         asString(item.health) || "Scored",
@@ -1519,6 +1533,31 @@ function normalizeBucketForScoring(item: AnyRecord) {
     priority: asString(item.priority) || "P0",
     __totalQuestions: totalQuestions,
     __scoreableQuestions: scoreableQuestions,
+  } as AnyRecord;
+}
+
+function normalizeScorecardRow(row: AnyRecord) {
+  const scoreNumber = asNumber(row.score);
+  const scoreText = asString(row.score).trim().toLowerCase();
+  const bucketStatus = asString(row.bucket_status).toLowerCase();
+  const isUnscored =
+    bucketStatus === "insufficient_evidence" ||
+    bucketStatus === "scoring_unavailable" ||
+    scoreNumber === null ||
+    scoreNumber <= 0 ||
+    scoreText === "0/100" ||
+    scoreText === "0";
+
+  if (!isUnscored) return row;
+
+  return {
+    ...row,
+    score: bucketStatus === "scoring_unavailable" ? "Scoring unavailable" : "Insufficient evidence",
+    health: "Not scored",
+    risk:
+      bucketStatus === "scoring_unavailable" ? "Scoring unavailable" : "Evidence missing",
+    bucket_status:
+      bucketStatus === "scoring_unavailable" ? "scoring_unavailable" : "insufficient_evidence",
   } as AnyRecord;
 }
 
@@ -1578,6 +1617,25 @@ function deriveQuestionScoringStats(report: AnyRecord) {
     questionsScoreable,
     hasScoringFailure,
     scoreEligible: effectiveScoreEligible,
+  };
+}
+
+function normalizeReportCollections(report: AnyRecord): AnyRecord {
+  const bucketResults = asRecordArray(report.bucket_results).map((bucket) => ({
+    ...bucket,
+    questions: asRecordArray(bucket.questions).map((question) => ({
+      ...question,
+    })),
+    findings: asRecordArray(bucket.findings),
+    improvements: asRecordArray(bucket.improvements),
+  }));
+
+  return {
+    ...report,
+    bucket_results: bucketResults,
+    scorecard: asRecordArray(report.scorecard),
+    findings_detailed: asRecordArray(report.findings_detailed),
+    quick_wins_table: asRecordArray(report.quick_wins_table),
   };
 }
 
@@ -1723,7 +1781,7 @@ function bestAvailableAnswer(report: AnyRecord, item: AnyRecord) {
     if (option?.text) return option.text.trim();
   }
 
-  const observation = asString(question.observation);
+  const observation = asString(question?.observation);
   if (
     observation &&
     !isPlaceholderText(observation) &&
@@ -1853,10 +1911,10 @@ function narrativeFromBuckets(report: AnyRecord, pillarName: string) {
 
     return [
       topFinding
-        ? `${bucketName}: ${asString(topFinding.observation) || asString(topFinding.question)}`
+        ? `${bucketName}: ${asString(topFinding?.observation) || asString(topFinding?.question)}`
         : "",
       topImprovement
-        ? `Next step for ${bucketName}: ${asString(topImprovement.recommendation) || asString(topImprovement.observation) || asString(topImprovement.question)}`
+        ? `Next step for ${bucketName}: ${asString(topImprovement?.recommendation) || asString(topImprovement?.observation) || asString(topImprovement?.question)}`
         : "",
     ].filter(Boolean);
   });
@@ -2095,7 +2153,7 @@ function buildCaptureCoverage(report: AnyRecord) {
 }
 
 export function buildReportViewModel(input: unknown): ReportViewModel {
-  const report = asRecord(input) ?? {};
+  const report = normalizeReportCollections(asRecord(input) ?? {});
   const derivedScoring = deriveQuestionScoringStats(report);
   const captureCoverage = buildCaptureCoverage(report);
   const intake = getNestedRecord(report, "intake");
@@ -2151,8 +2209,19 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
       asString(bucket.bucket_name) ||
       asString(bucket.bucket) ||
       "Bucket",
-    score: asNumber(bucket.score) !== null ? `${asNumber(bucket.score)}/100` : "Not scored",
-    health: asString(bucket.health) || "Not scored",
+    score:
+      asString(bucket.bucket_status) === "insufficient_evidence"
+        ? "Insufficient evidence"
+        : asString(bucket.bucket_status) === "scoring_unavailable"
+          ? "Scoring unavailable"
+          : asNumber(bucket.score) !== null
+            ? `${asNumber(bucket.score)}/100`
+            : "Not scored",
+    health:
+      asString(bucket.bucket_status) === "insufficient_evidence" ||
+      asString(bucket.bucket_status) === "scoring_unavailable"
+        ? "Not scored"
+        : asString(bucket.health) || "Not scored",
     risk:
       asString(bucket.risk) ||
       (asString(bucket.bucket_status) === "scoring_unavailable"
@@ -2174,7 +2243,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
   ].includes(effectiveCoverageStatus);
   const scoredBucketCount = derivedScoring.bucketResults.filter((bucket) => {
     const status = asString(bucket.bucket_status);
-    return status === "scored" || asNumber(bucket.score) !== null;
+    return status === "scored" || (asNumber(bucket.score) !== null && status !== "insufficient_evidence");
   }).length;
   const hasPartialScoring = scoredBucketCount > 0;
   const isLimitedCoverage = hasCoverageShortfall && !hasPartialScoring;
@@ -2208,10 +2277,12 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
         });
         if (!matchingBucket) return false;
         const storedLooksNotScored = isNotScoredBucketRow(item);
+        const matchingScore = asNumber(matchingBucket.score);
         const derivedLooksNotScored =
           asString(matchingBucket.bucket_status) === "insufficient_evidence" ||
           asString(matchingBucket.bucket_status) === "scoring_unavailable" ||
-          asNumber(matchingBucket.score) === null;
+          matchingScore === null ||
+          matchingScore <= 0;
         return storedLooksNotScored !== derivedLooksNotScored;
       }));
   const pillarSummary = asRecord(rawExecutiveSummary.pillar_summary) ?? {};
@@ -2564,8 +2635,9 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
               ];
             }),
           ),
-    scorecard:
-      shouldUseDerivedScorecard || !storedScorecard.length ? derivedScorecard : storedScorecard,
+    scorecard: (
+      shouldUseDerivedScorecard || !storedScorecard.length ? derivedScorecard : storedScorecard
+    ).map((row) => normalizeScorecardRow(asRecord(row) ?? {})),
     bucketResults: derivedScoring.bucketResults,
     executiveSummary,
     sectionNarrative: {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminDashboard, type AdminDashboardProps } from "@/components/admin/admin-dashboard";
+import { type AdminAuditModelChoice, DEFAULT_ADMIN_AUDIT_MODEL_CHOICE } from "@/lib/admin-model-types";
 
 type AdminDashboardClientProps = {
   session: {
@@ -48,6 +49,11 @@ function DashboardSkeleton() {
 export function AdminDashboardClient({ session }: AdminDashboardClientProps) {
   const [data, setData] = useState<AdminDashboardProps | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savingChoice, setSavingChoice] = useState(false);
+  const [choiceError, setChoiceError] = useState<string | null>(null);
+  const [auditModelChoice, setAuditModelChoice] = useState<AdminAuditModelChoice>(
+    DEFAULT_ADMIN_AUDIT_MODEL_CHOICE,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +75,10 @@ export function AdminDashboardClient({ session }: AdminDashboardClientProps) {
         if (cancelled) return;
         setData({
           session,
+          auditModelChoice:
+            payload.auditModelChoice === "free" || payload.auditModelChoice === "paid"
+              ? payload.auditModelChoice
+              : DEFAULT_ADMIN_AUDIT_MODEL_CHOICE,
           metrics: payload.metrics!,
           reportSeries: payload.reportSeries!,
           planMix: payload.planMix!,
@@ -89,6 +99,47 @@ export function AdminDashboardClient({ session }: AdminDashboardClientProps) {
     };
   }, [session]);
 
+  useEffect(() => {
+    if (data?.auditModelChoice) {
+      setAuditModelChoice(data.auditModelChoice);
+    }
+  }, [data?.auditModelChoice]);
+
+  const hasChanges = useMemo(
+    () => Boolean(data && auditModelChoice !== data.auditModelChoice),
+    [auditModelChoice, data],
+  );
+
+  async function saveAuditModelChoice(nextChoice: AdminAuditModelChoice) {
+    setChoiceError(null);
+    setSavingChoice(true);
+    try {
+      const response = await fetch("/api/admin/dashboard", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auditModelChoice: nextChoice }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string; auditModelChoice?: AdminAuditModelChoice } | null;
+      if (!response.ok || !payload) {
+        throw new Error(payload?.error || "Failed to update model choice.");
+      }
+      setAuditModelChoice(payload.auditModelChoice || nextChoice);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              auditModelChoice: payload.auditModelChoice || nextChoice,
+            }
+          : prev,
+      );
+    } catch (saveError) {
+      setChoiceError(saveError instanceof Error ? saveError.message : "Failed to update model choice.");
+    } finally {
+      setSavingChoice(false);
+    }
+  }
+
   if (error) {
     return (
       <div className="rounded-[32px] border border-[color:var(--cream-dark)] bg-white p-6 text-sm text-[color:var(--ink-muted)]">
@@ -99,5 +150,54 @@ export function AdminDashboardClient({ session }: AdminDashboardClientProps) {
 
   if (!data) return <DashboardSkeleton />;
 
-  return <AdminDashboard {...data} />;
+  return (
+    <div className="space-y-4">
+      {choiceError ? (
+        <div className="rounded-[20px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {choiceError}
+        </div>
+      ) : null}
+      <div className="rounded-[28px] border border-[color:var(--cream-dark)] bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.05)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
+              AI model tier
+            </div>
+            <p className="mt-1 text-sm text-[color:var(--ink-muted)]">
+              Choose which model tier new admin audits should use.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {(["free", "paid"] as const).map((choice) => {
+              const active = auditModelChoice === choice;
+              return (
+                <button
+                  key={choice}
+                  type="button"
+                  onClick={() => {
+                    setAuditModelChoice(choice);
+                    void saveAuditModelChoice(choice);
+                  }}
+                  disabled={savingChoice}
+                  className={[
+                    "rounded-full border px-5 py-2 text-sm font-semibold transition-colors",
+                    active
+                      ? "border-[color:var(--ink)] bg-[color:var(--ink)] text-[color:var(--cream)]"
+                      : "border-[color:var(--cream-dark)] bg-white text-[color:var(--ink)] hover:bg-[color:var(--cream)]",
+                    savingChoice ? "opacity-60" : "",
+                  ].join(" ")}
+                >
+                  {choice === "free" ? "Free" : "Paid"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="mt-3 text-xs text-[color:var(--ink-faint)]">
+          {hasChanges ? "Saving… please wait" : "Changes are saved automatically."}
+        </div>
+      </div>
+      <AdminDashboard {...data} auditModelChoice={auditModelChoice} />
+    </div>
+  );
 }

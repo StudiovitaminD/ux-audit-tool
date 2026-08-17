@@ -4,7 +4,7 @@ import { AuditAccessPanel } from "@/components/account/access-panels";
 
 export default function AuditPage() {
   return (
-    <div className="space-y-6 pt-24 sm:pt-28">
+    <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="font-display text-3xl font-semibold tracking-tight">
           Run an Audit

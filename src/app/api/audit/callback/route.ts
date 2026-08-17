@@ -297,6 +297,14 @@ function fitReportForFirestore(report: Record<string, unknown>) {
   const output = { ...report };
   const targetBytes = 850_000;
 
+  delete output.evidence;
+  delete output.captureDebug;
+  delete output.debug;
+  delete output.form_payload;
+  delete output.raw_html;
+  delete output.html;
+  delete output.markdown;
+
   if (jsonSize(output) <= targetBytes) return output;
 
   if (Array.isArray(output.bucket_results)) {

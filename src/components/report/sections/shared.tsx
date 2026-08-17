@@ -209,12 +209,19 @@ export function BucketAnswersCard({
             const selectedOption = asString(question.selected_option);
             const selectedMark = asString(question.mark || question.selected_option);
             const options = lookupQuestionOptions(bucketName, questionId);
-            const selectedOptionText =
+          const selectedOptionText =
               selectedOptionTextForQuestion(bucketName, question) ||
               fallbackQuestionConclusion(question, answerStatus);
             const isInsufficient = answerStatus === "insufficient_evidence";
             const isScoringUnavailable = answerStatus === "scoring_unavailable";
             const isNotScored = isInsufficient || isScoringUnavailable;
+            const scoreLabel = isInsufficient
+              ? "No score"
+              : isScoringUnavailable
+                ? "Scoring unavailable"
+                : asString(question.mark || question.selected_option)
+                  ? `${asString(question.mark || question.selected_option)}/100`
+                  : "Not scored";
 
             return (
               <div
@@ -226,14 +233,14 @@ export function BucketAnswersCard({
                     {index + 1}. {asString(question.question) || "Question"}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {isInsufficient ? <Pill>Status: Insufficient evidence</Pill> : null}
+                    {isInsufficient ? <Pill>Status: No score</Pill> : null}
                     {isScoringUnavailable ? <Pill>Status: Scoring unavailable</Pill> : null}
                     {selectedOptionText ? (
                       <span className="inline-flex items-center rounded-full border border-[color:var(--card-border)] bg-white/5 px-2 py-0.5 text-xs text-[color:var(--ink-muted)] print-color-adjust">
                         Answer: {selectedOptionText}
                       </span>
                     ) : null}
-                    {isNotScored ? <Pill>Score: Not scored</Pill> : null}
+                    {isNotScored ? <Pill>Score: {scoreLabel}</Pill> : null}
                   </div>
                 </div>
 
@@ -248,15 +255,20 @@ export function BucketAnswersCard({
                           className="w-full rounded-lg border-2 border-emerald-600 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 shadow-[0_0_0_2px_rgba(16,185,129,0.08)]"
                           value={selectedMark || selectedOption || ""}
                           onChange={(event) =>
-                            onAnswerChange(
-                              bucketName,
-                              questionId,
-                              Number(event.target.value),
-                              asString(question.user_reason) || asString(question.observation),
-                              asString(question.user_evidence) || asString(question.evidence),
-                            )
+                            event.target.value
+                              ? onAnswerChange(
+                                  bucketName,
+                                  questionId,
+                                  Number(event.target.value),
+                                  asString(question.user_reason) || asString(question.observation),
+                                  asString(question.user_evidence) || asString(question.evidence),
+                                )
+                              : undefined
                           }
                         >
+                          <option value="" disabled>
+                            Select an answer
+                          </option>
                           {options.map((option) => (
                             <option key={`${questionId}-select-${option.mark}`} value={option.mark}>
                               {option.mark}. {option.text}
@@ -431,6 +443,8 @@ export type ReportPage = {
   title: string;
   body: ReactNode;
   locked?: boolean;
+  variant?: "cover" | "standard";
+  showTitle?: boolean;
 };
 
 export type SharedSectionProps = {

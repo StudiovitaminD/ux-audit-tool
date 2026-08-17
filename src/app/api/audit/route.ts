@@ -6,6 +6,7 @@ import {
   getAccountSessionFromRequest,
   incrementServerSideReportUsage,
 } from "@/lib/account-server";
+import { adminChoiceToModelTier, loadAdminAuditModelChoice } from "@/lib/admin-model-settings";
 import {
   buildStoredIntakePreview,
   findLargestObjectKeys,
@@ -197,6 +198,11 @@ export async function POST(req: Request) {
     const serializedIntakeBytes = Buffer.byteLength(serializedIntake, "utf8");
     const previewBytes = Buffer.byteLength(JSON.stringify(intakePreview), "utf8");
     const largestKeys = findLargestObjectKeys(body).slice(0, 10);
+    const resolvedModelTier =
+      accountSession?.role === "admin"
+        ? adminChoiceToModelTier(await loadAdminAuditModelChoice())
+        : accountSession?.modelTier ||
+          (typeof userAccess.model_tier === "string" ? userAccess.model_tier : "free_limited");
 
     try {
       const storageResult = await storeFullIntakeBlob(ref.id, body as Record<string, unknown>);
@@ -246,9 +252,7 @@ export async function POST(req: Request) {
         locked_sections:
           accountSession?.lockedSections ||
           (Array.isArray(userAccess.locked_sections) ? userAccess.locked_sections : []),
-        model_tier:
-          accountSession?.modelTier ||
-          (typeof userAccess.model_tier === "string" ? userAccess.model_tier : "free_limited"),
+        model_tier: resolvedModelTier,
         free_report_usage:
           accountSession?.reportsUsed ||
           (typeof userAccess.reports_used === "number" ? userAccess.reports_used : 0),

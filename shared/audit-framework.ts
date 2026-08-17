@@ -22,7 +22,7 @@ export const AUDIT_FRAMEWORK = {
   scoringScale:
     "Score 0 when the requirement is missing or creates a critical failure; 1 for major issues; 2 when partially met with noticeable gaps; 3 when it meets with minor issues; 4 when it fully meets the requirement.",
   auditNote:
-    "Accessibility should combine automated checks with manual keyboard and screen-reader testing. Performance should be measured under realistic device and network conditions.",
+    "Accessibility should combine automated checks with manual keyboard and screen-reader testing. Performance should be measured under realistic device and network conditions. If Screen Reader Support or Performance are selected, capture at least one semantic/ARIA inspection and one mobile/responsive pass so the model has enough evidence to give a best-effort score.",
   pillars: [
     {
       name: "Accessibility",

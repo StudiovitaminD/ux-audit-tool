@@ -5,6 +5,7 @@ import type {
   AdminPaymentRow,
   AdminUserRow,
 } from "@/components/admin/admin-dashboard";
+import { loadAdminAuditModelChoice } from "@/lib/admin-model-settings";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 
 function readString(value: unknown) {
@@ -72,6 +73,7 @@ export async function loadAdminDashboardData() {
     db.collection("ux_users").get(),
     db.collection("ux_billing_orders").get(),
   ]);
+  const auditModelChoice = await loadAdminAuditModelChoice();
 
   const recentAudits = auditSnap.docs
     .map((doc) => {
@@ -152,6 +154,7 @@ export async function loadAdminDashboardData() {
   const reportSeries = buildSeries(recentAudits);
 
   return {
+    auditModelChoice,
     metrics: {
       totalAudits: recentAudits.length,
       completedAudits,

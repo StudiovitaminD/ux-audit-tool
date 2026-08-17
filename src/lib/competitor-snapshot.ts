@@ -36,7 +36,7 @@ function safeText(value: unknown) {
 
 function truncate(text: string, max = 1800) {
   const normalized = text.replace(/\s+/g, " ").trim();
-  return normalized.length > max ? `${normalized.slice(0, max)}...` : normalized;
+  return normalized.length > max ? normalized.slice(0, max) : normalized;
 }
 
 function timeoutAfter(ms: number, message: string): Promise<never> {

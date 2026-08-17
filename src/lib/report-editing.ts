@@ -37,10 +37,9 @@ const PILLAR_MAP: Record<string, string> = {
 };
 
 function getHealth(score: number) {
-  if (score >= 85) return { label: "Exceptional", risk: "Optimised", priority: "P4" };
-  if (score >= 75) return { label: "Good", risk: "Low Risk", priority: "P3" };
-  if (score >= 50) return { label: "Average", risk: "Moderate", priority: "P2" };
-  return { label: "Needs Immediate Improvement", risk: "Critical", priority: "P1" };
+  if (score >= 80) return { label: "Good", risk: "Low Risk", priority: "P3" };
+  if (score <= 50) return { label: "Critical", risk: "Critical", priority: "P1" };
+  return { label: "Average", risk: "Moderate", priority: "P2" };
 }
 
 function lookupQuestionOptions(bucketName: string, questionId: string) {
@@ -58,15 +57,15 @@ function lookupQuestionOptions(bucketName: string, questionId: string) {
 
 function buildFinding(question: AnyRecord, bucketName: string, severity: "Critical" | "High" | "Moderate") {
   return {
-    question_id: asString(question.id),
-    question: asString(question.question),
-    mark: asNumber(question.mark) ?? 3,
-    evidence: asString(question.evidence),
-    observation: asString(question.observation),
-    recommendation: asString(question.recommendation),
-    effort: asString(question.effort),
-    impact: asString(question.impact),
-    confidence: asNumber(question.confidence) ?? 0,
+    question_id: asString(question?.id),
+    question: asString(question?.question),
+    mark: asNumber(question?.mark) ?? 3,
+    evidence: asString(question?.evidence),
+    observation: asString(question?.observation),
+    recommendation: asString(question?.recommendation),
+    effort: asString(question?.effort),
+    impact: asString(question?.impact),
+    confidence: asNumber(question?.confidence) ?? 0,
     severity,
     bucket: bucketName,
   };
@@ -133,28 +132,30 @@ function questionOptions(bucketName: string, questionId: string) {
   return [];
 }
 
-function bestQuestionText(bucketName: string, question: AnyRecord) {
-  const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+function bestQuestionText(bucketName: string, question: AnyRecord | null | undefined) {
+  const rec = asRecord(question) ?? {};
+  const selectedText = asString(rec.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
   if (selectedText) return selectedText;
 
-  const selectedMark = asNumber(question.selected_option ?? question.mark);
-  const option = questionOptions(bucketName, asString(question.id)).find((item) => item.mark === selectedMark);
+  const selectedMark = asNumber(rec.selected_option ?? rec.mark);
+  const option = questionOptions(bucketName, asString(rec.id)).find((item) => item.mark === selectedMark);
   if (option?.text) return option.text.trim();
 
-  const observation = asString(question.observation);
+  const observation = asString(rec.observation);
   if (observation && !isPlaceholderText(observation)) return observation;
 
-  const recommendation = asString(question.recommendation);
+  const recommendation = asString(rec.recommendation);
   if (recommendation && !isPlaceholderText(recommendation)) return recommendation;
 
-  return asString(question.evidence) || asString(question.question);
+  return asString(rec.evidence) || asString(rec.question);
 }
 
 function deriveQuestionInsights(bucketResults: AnyRecord[]) {
   const questions = bucketResults.flatMap((bucket) => {
     const bucketName = asString(bucket.bucket_name);
     return asArray(bucket.questions)
-      .map((item) => asRecord(item) ?? {})
+      .map((item) => asRecord(item))
+      .filter((question): question is AnyRecord => Boolean(question))
       .map((question) => ({
         bucketName,
         mark: asNumber(question.mark ?? question.selected_option),
@@ -626,7 +627,7 @@ export function updateReportAnswer(
         mark: selectedOption,
         user_reason: normalizedReason,
         user_evidence: normalizedEvidence,
-        observation: normalizedReason || asString(question.observation),
+        observation: normalizedReason || asString(question?.observation),
         evidence: normalizedEvidence || "Manually selected by reviewer from the report editor.",
       };
     });

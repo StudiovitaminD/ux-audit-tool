@@ -413,6 +413,9 @@ export function AuditForm() {
       : primaryType === "ecommerce"
         ? "How should we audit this store?"
         : "How should we access this SaaS?";
+  const selectedBucketSet = new Set(payload.selectedBuckets.map((bucket) => bucket.trim()));
+  const wantsScreenReaderCapture = selectedBucketSet.has("Screen Reader Support");
+  const wantsPerformanceCapture = selectedBucketSet.has("Performance");
 
   const extensionWorkflowTitle =
     primaryType === "marketing_website"
@@ -1219,13 +1222,13 @@ export function AuditForm() {
       done.add(6);
     }
     // UPDATED: step 7 is audit flow
-    if (payload.auditFlowText.trim()) done.add(7);
+    if (primaryType === "saas" && payload.auditFlowText.trim()) done.add(7);
     return done;
   }, [payload]);
 
   const progressPct = Math.max(
     5,
-    Math.round((completion.size / steps.length) * 100),
+    Math.min(100, Math.round((completion.size / steps.length) * 100)),
   );
 
   // ADDED
@@ -1446,7 +1449,7 @@ export function AuditForm() {
             Founder Context Intake
           </div>
           <div className="mt-2 text-lg font-semibold tracking-tight">
-            7 steps
+            {steps.length} steps
           </div>
           <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
             Fill this once. Your agent reads it and runs the audit.
@@ -2376,6 +2379,28 @@ Audit Flow for SCY Platform
               <div className="rounded-xl border border-[color:var(--card-border)] bg-white/60 p-4 text-sm text-zinc-600 dark:bg-white/5 dark:text-zinc-300">
                 The backend will convert this into ordered audit steps for exploration and evaluation. Use numbered steps, required screenshots, and explicit rules when needed.
               </div>
+
+              {wantsScreenReaderCapture || wantsPerformanceCapture ? (
+                <div className="rounded-xl border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-100">
+                  <div className="font-semibold">Recommended capture prompts for selected buckets</div>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {wantsScreenReaderCapture ? (
+                      <li>
+                        For <span className="font-medium">Screen Reader Support</span>, add at least one
+                        guided step that inspects semantics, labels, alt text, or announcements, and set
+                        the screenshot type to <code>semantic_capture</code>.
+                      </li>
+                    ) : null}
+                    {wantsPerformanceCapture ? (
+                      <li>
+                        For <span className="font-medium">Performance</span>, add at least one guided step
+                        that switches to a mobile or low-powered pass and set the screenshot type to{" "}
+                        <code>mobile_test</code>.
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+              ) : null}
 
               <div className="space-y-4 rounded-xl border border-[color:var(--card-border)] bg-white/60 p-4 dark:bg-white/5">
                 <div>

@@ -14,10 +14,50 @@ function scoreFromText(value: unknown) {
 function experienceLabelFromScore(value: unknown) {
   const score = typeof value === "number" ? value : scoreFromText(value);
   if (score === null || !Number.isFinite(score)) return "—";
-  if (score >= 85) return "Exceptional";
-  if (score >= 75) return "Good";
-  if (score >= 50) return "Average";
-  return "Needs Immediate Improvement";
+  if (score >= 80) return "Good";
+  if (score <= 50) return "Critical";
+  return "Average";
+}
+
+function scoreToneFromValue(value: unknown) {
+  const score = typeof value === "number" ? value : scoreFromText(value);
+  if (score === null || !Number.isFinite(score)) return "neutral";
+  if (score <= 50) return "critical";
+  if (score < 80) return "warning";
+  return "good";
+}
+
+function scoreToneClasses(value: unknown) {
+  const tone = scoreToneFromValue(value);
+  if (tone === "critical") {
+    return {
+      card: "border-[color:var(--report-red)] bg-[color:var(--report-red)]",
+      title: "text-[color:var(--report-white)]",
+      score: "text-[color:var(--report-white)]",
+      suffix: "text-[color:var(--report-white)]",
+    };
+  }
+  if (tone === "warning") {
+    return {
+      card: "border-[color:var(--report-orange)] bg-[color:var(--report-orange)]",
+      title: "text-[color:var(--report-white)]",
+      score: "text-[color:var(--report-white)]",
+      suffix: "text-[color:var(--report-white)]",
+    };
+  }
+  return {
+    card: "border-[color:var(--report-green-font)] bg-[color:var(--report-green-font)]",
+    title: "text-[color:var(--report-white)]",
+    score: "text-[color:var(--report-white)]",
+    suffix: "text-[color:var(--report-white)]",
+  };
+}
+
+function metricToneClass(value: number | null | undefined) {
+  const tone = scoreToneFromValue(value);
+  if (tone === "critical") return "text-[color:var(--report-red)]";
+  if (tone === "warning") return "text-[color:var(--report-orange)]";
+  return "text-[color:var(--report-green-font)]";
 }
 
 function formatPriority(value: unknown) {
@@ -106,6 +146,7 @@ function scoreFromRow(row: AnyRecord) {
 }
 
 export function OverviewSection({ vm }: SharedSectionProps) {
+  const overallTone = scoreToneClasses(vm.overallScore);
   const scoreRows = dedupeScoreRows([
     ...(vm.scorecard.length ? vm.scorecard : vm.bucketResults),
   ]).sort((left, right) => {
@@ -124,142 +165,280 @@ export function OverviewSection({ vm }: SharedSectionProps) {
   const overallScore = clampPercent(vm.overallScore ?? null);
   const businessMetrics = calculateBusinessImpactMetrics(vm.pillarScores);
   const pillarOrder = ["Accessibility", "Impact", "Delight"];
+  const scoreCardOrder = ["Accessibility", "Impact", "Delight"];
+  const scoreRowLookup = new Map<string, AnyRecord>();
+  for (const row of scoreRows) {
+    const pillar = bucketPillarFromRow(row);
+    const bucketName = displayBucketName(bucketNameFromRow(row)) || "Bucket";
+    const key = `${pillar}::${normalizeKey(bucketName)}`;
+    if (!scoreRowLookup.has(key)) {
+      scoreRowLookup.set(key, row);
+    }
+  }
   const groupedScoreRows = pillarOrder.map((pillar) => ({
     pillar,
-    rows: scoreRows.filter((row) => bucketPillarFromRow(row) === pillar),
+    rows: PILLAR_BUCKETS[pillar as keyof typeof PILLAR_BUCKETS].map((bucketName) => ({
+      bucketName,
+      row: scoreRowLookup.get(`${pillar}::${normalizeKey(bucketName)}`) ?? null,
+    })),
   }));
 
   return (
-    <div className="space-y-5">
-      <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="text-lg font-semibold text-[color:var(--ink)]">Overall Score</div>
-            <div className="mt-1 text-sm text-[color:var(--muted)]">
-              Composite score across key UX audit buckets
-            </div>
-          </div>
-          <div className="rounded-full border border-[color:var(--accent)]/30 bg-[color:var(--accent-light)] px-4 py-2 text-sm font-medium text-[color:var(--accent)]">
-            {vm.overallScore ?? "—"}/100{" "}
-            <span className="ml-2 text-[color:var(--ink-soft)]">
-              Experiences: {experienceLabelFromScore(vm.overallScore)}
-            </span>
+    <div className="flex w-full flex-col items-start bg-[color:var(--report-white)]">
+      <div className="flex w-full min-w-0 flex-col items-start self-stretch bg-[color:var(--report-white)]">
+        <div className="print-avoid-break flex w-full flex-col items-start self-stretch border-b border-[rgba(15,23,42,0.14)] pb-4">
+          <div
+            className="max-w-[980px] text-[12px] leading-[18px] text-[color:var(--report-grey-font)]"
+            style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+          >
+            This report is based on an expert review using a structured UX Audit Framework. It provides an
+            indicative assessment of the user experience with an estimated 70% accuracy level and is intended
+            to guide design decisions.
           </div>
         </div>
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {Object.entries(vm.pillarScores).map(([name, p]) => (
+        <div className="print-avoid-break flex flex-none w-full min-w-0 flex-col items-start gap-3 self-stretch overflow-hidden rounded-2xl bg-[color:var(--report-grey-bg)] p-3">
+          <div className="flex w-full min-w-0 flex-col items-start gap-2 self-stretch">
             <div
-              key={name}
-              className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
+              className="text-[16px] font-bold leading-none text-[color:var(--report-black)]"
+              style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
             >
-              <div className="text-sm text-[color:var(--muted)]">{name} Score</div>
-              <div className="mt-3 flex items-end gap-2">
-                <div className="font-mono text-4xl font-bold">
-                  {p.score ?? "—"}
-                </div>
-                <div className="pb-1 text-sm text-[color:var(--muted)]">/100</div>
-              </div>
+              Overall Score
             </div>
-          ))}
-        </div>
-        {vm.isLimitedCoverage || vm.isScoringUnavailable ? (
-          <div className="mt-4 rounded-xl border border-amber-200/70 bg-amber-50/70 p-4 text-sm text-amber-900 print-color-adjust">
-            {vm.isLimitedCoverage
-              ? "UX score was not calculated because the required product screens were not captured."
-              : "UX score was not calculated because scoring could not be completed from the captured evidence."}
+            <div className="flex items-end gap-2">
+              <span
+                className={`text-[16px] font-bold leading-none ${
+                  scoreToneFromValue(vm.overallScore) === "critical"
+                    ? "text-[color:var(--report-red)]"
+                    : "text-[#FC6D27]"
+                }`}
+                style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+              >
+                {vm.overallScore ?? "—"}/100
+              </span>
+              <span
+                aria-hidden="true"
+                className={`text-[16px] font-normal leading-none ${
+                  scoreToneFromValue(vm.overallScore) === "critical"
+                    ? "text-[color:var(--report-red)]"
+                    : "text-[#BDBDBD]"
+                }`}
+                style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+              >
+                |
+              </span>
+              <span
+                className={`text-[16px] font-bold leading-none ${
+                  scoreToneFromValue(vm.overallScore) === "critical"
+                    ? "text-[color:var(--report-red)]"
+                    : "text-[#FC6D27]"
+                }`}
+                style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+              >
+                {experienceLabelFromScore(vm.overallScore)}
+              </span>
+            </div>
+            <div
+            className="mt-1 text-[14px] font-medium leading-[20px] text-[color:var(--report-grey-font)]"
+            style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+          >
+            Composite score across key UX audit buckets
           </div>
-        ) : null}
-      </div>
+          </div>
 
-      <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-        <div className="text-lg font-semibold normal-case">Business Impact Index</div>
-        <div className="mt-5 grid gap-5 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-[color:var(--card-border)]/60">
-          {businessMetrics.map((metric) => (
-            <div key={metric.label} className="space-y-3 lg:px-4 first:lg:pl-0 last:lg:pr-0">
-              <div className="text-xs text-[color:var(--muted)] normal-case">
-                {metric.label}
-              </div>
-              <div className="overflow-hidden rounded-full bg-black/[0.08]">
-                <div
-                  className="h-2 rounded-full bg-black/[0.14]"
-                  style={{ width: `${metric.value}%` }}
-                />
-              </div>
-              <div className="text-right text-xs font-mono text-[color:var(--muted)]">
-                {metric.value === null ? "—" : `${metric.value}/100`}
-              </div>
+          <div className="flex w-full min-w-0 flex-col items-start space-y-4 self-stretch">
+            <div className="flex w-full min-w-0 items-start gap-3 self-stretch">
+              {scoreCardOrder.map((name) => {
+                const p = vm.pillarScores[name];
+                const tone = scoreToneClasses(p.score);
+                return (
+                  <div
+                    key={name}
+                    className={`flex min-w-0 flex-1 basis-0 flex-col items-start gap-1 overflow-hidden rounded-2xl border p-3 ${tone.card}`}
+                  >
+                    <div
+                      className={`text-[12px] font-semibold leading-normal ${tone.title}`}
+                      style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                    >
+                      {name}
+                    </div>
+                    <div className="flex min-w-0 items-end gap-1">
+                    <div
+                        className={`text-[24px] font-bold leading-none ${tone.score}`}
+                        style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                      >
+                        {p.score ?? "—"}
+                      </div>
+                      <div
+                        className={`text-[16px] font-bold leading-none ${tone.suffix}`}
+                        style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                      >
+                        /100
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+            {vm.isLimitedCoverage || vm.isScoringUnavailable ? (
+              <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-4 text-sm text-amber-900 print-color-adjust">
+                {vm.isLimitedCoverage
+                  ? "UX score was not calculated because the required product screens were not captured."
+                  : "UX score was not calculated because scoring could not be completed from the captured evidence."}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-        <div className="text-lg font-semibold normal-case">Score Card</div>
-        <div className="mt-4 overflow-x-auto">
-          <div className="min-w-[980px] rounded-2xl border border-[color:var(--card-border)]/60 overflow-hidden">
-            <table className="w-full table-fixed text-left text-sm">
+      <div className="h-3 shrink-0" aria-hidden="true" />
+
+      <div className="print-avoid-break flex-none w-full min-w-0 self-stretch overflow-hidden rounded-2xl bg-[color:var(--report-grey-bg)] p-3">
+          <div className="flex flex-col gap-3">
+          <div
+            className="text-[16px] font-bold leading-none text-[color:var(--report-black)]"
+            style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+          >
+            Business Impact Index
+          </div>
+          <div className="grid gap-3 lg:grid-cols-3">
+            {businessMetrics.map((metric, index) => {
+              const isFirst = index === 0;
+              const betterLabel = metric.label === "Drop-off Rate" ? "Lower is better" : "Higher is better";
+              return (
+                <div
+                  key={metric.label}
+                  className="flex h-fit flex-col gap-1 rounded-2xl border border-transparent bg-[color:var(--report-white)] p-4"
+                >
+                  <div className="space-y-1">
+                    <div
+                      className="text-[14px] font-semibold leading-normal text-[color:var(--report-grey-font)]"
+                      style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                    >
+                      {metric.label}
+                    </div>
+                    <div
+                      className="text-[12px] font-medium leading-normal text-[color:var(--report-grey-font)]"
+                      style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                    >
+                      {betterLabel}
+                    </div>
+                  </div>
+                  <div className="mt-1 flex items-end gap-0.5">
+                    <div
+                      className={`text-[24px] font-bold leading-none ${metricToneClass(metric.value)}`}
+                      style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                    >
+                      {metric.value === null ? "—" : metric.value}
+                    </div>
+                    <div
+                      className={`text-[16px] font-bold leading-none ${metricToneClass(metric.value)}`}
+                      style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                    >
+                      {metric.value === null ? "" : "%"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="h-3 shrink-0" aria-hidden="true" />
+
+      <div className="flex-none w-full min-w-0 self-stretch rounded-2xl bg-[color:var(--report-white)] p-3">
+        <div className="mb-3 text-[16px] font-bold leading-normal text-[color:var(--report-black)]">Score Card</div>
+        <div className="max-w-full overflow-hidden rounded-xl border border-[color:var(--report-table-border)] bg-[color:var(--report-white)]">
+          <table className="w-full table-fixed border-collapse text-left text-sm">
             <colgroup>
-              <col className="w-[54px]" />
-              <col className="w-[24%]" />
-              <col className="w-[24%]" />
-              <col className="w-[24%]" />
-              <col className="w-[24%]" />
+              <col style={{ width: "32px" }} />
+              <col style={{ width: "200px" }} />
+              <col />
+              <col style={{ width: "200px" }} />
+              <col />
             </colgroup>
-            <thead className="border-b border-[color:var(--card-border)]/60 text-xs uppercase tracking-wider text-[color:var(--muted)]">
+            <thead className="bg-[color:var(--report-black)] text-[12px] uppercase tracking-wider text-[color:var(--report-white)]">
               <tr>
-                <th className="px-1 py-3 text-center">
+                <th className="px-1 py-2 text-center">
                   <span className="sr-only">Pillar</span>
                 </th>
-                <th className="px-4 py-4 text-center">Bucket</th>
-                <th className="px-4 py-4 text-center">Score</th>
-                <th className="px-4 py-4 text-center">Experiences</th>
-                <th className="px-4 py-4 text-center">Priority</th>
+                <th className="px-[12px] py-[4px] text-center">Bucket</th>
+                <th className="px-[12px] py-[4px] text-center">Score</th>
+                <th className="px-[12px] py-[4px] text-center">Health</th>
+                <th className="px-[12px] py-[4px] text-center">Priority</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[color:var(--card-border)]/60">
-              {groupedScoreRows.flatMap(({ pillar, rows }) =>
-                rows.length
-                  ? rows.map((row, index) => {
-                      const bucketName = displayBucketName(bucketNameFromRow(row)) || "Bucket";
-                      const score = asString(row.score) || "Not scored";
-                      const experience = experienceLabelFromScore(scoreFromText(row.score));
-                      const priority = formatPriority(row.priority);
-
-                      return (
-                        <tr key={`${pillar}-${bucketName}-${index}`}>
-                          {index === 0 ? (
-                            <td
-                              rowSpan={rows.length}
-                              className="border-r border-[color:var(--card-border)]/60 align-middle px-2 py-0 text-center"
-                            >
-                              <div className="mx-auto [writing-mode:vertical-rl] rotate-180 text-[9px] font-semibold uppercase tracking-[0.12em] leading-none text-[color:var(--muted)]">
-                                {pillar}
-                              </div>
-                            </td>
-                          ) : null}
-                          <td className="px-4 py-5 text-center font-medium text-[color:var(--ink)]">{bucketName}</td>
-                          <td className="px-4 py-5 text-center font-mono text-[color:var(--ink)]">{score}</td>
-                          <td className="px-4 py-5 text-center text-[color:var(--ink)]">{experience}</td>
-                          <td className="px-4 py-5 text-center font-semibold text-[color:var(--ink)]">{priority}</td>
-                        </tr>
-                      );
-                    })
-                    : [
-                      <tr key={pillar}>
-                        <td className="border-r border-[color:var(--card-border)]/60 px-2 py-0 text-center">
-                          <div className="mx-auto [writing-mode:vertical-rl] rotate-180 text-[9px] font-semibold uppercase tracking-[0.12em] leading-none text-[color:var(--muted)]">
+            <tbody className="divide-y divide-[color:var(--report-table-border)]">
+              {groupedScoreRows.flatMap(({ pillar, rows }) => {
+                if (!rows.length) {
+                  return [
+                    <tr key={pillar}>
+                      <td className="relative w-[32px] min-w-[32px] border-r border-[color:var(--report-table-border)] px-0 py-0 text-center align-middle">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-fit whitespace-nowrap text-center [writing-mode:vertical-rl] rotate-180 text-[10px] font-medium normal-case tracking-normal leading-none text-[color:var(--report-grey-font)]">
                             {pillar}
                           </div>
+                        </div>
+                      </td>
+                      <td colSpan={4} className="px-4 py-4 text-[color:var(--report-grey-font)]">
+                        No buckets available for this pillar.
+                      </td>
+                    </tr>,
+                  ];
+                }
+
+                return rows.map(({ bucketName: displayName, row }, index) => {
+                  const bucketName = displayBucketName(displayName) || "Bucket";
+                  const rawScore = row ? asString(row.score) : "";
+                  const score = rawScore.toLowerCase() === "insufficient evidence" ? "No score" : rawScore || "No score";
+                  const experience = row ? experienceLabelFromScore(scoreFromText(row.score)) : "—";
+                  const priority = row ? formatPriority(row.priority) : "—";
+                  const healthColors =
+                    experience === "Good"
+                      ? "border-[color:var(--report-green-font)] bg-[color:var(--report-green-bg)] text-[color:var(--report-green-font)]"
+                      : experience === "Average"
+                        ? "border-[color:var(--report-orange)] bg-[color:var(--report-orange-bg)] text-[color:var(--report-orange)]"
+                        : "border-[color:var(--report-red)] bg-[color:var(--report-red-bg)] text-[color:var(--report-red)]";
+
+                  return (
+                    <tr
+                      key={`${pillar}-${bucketName}-${index}`}
+                      className={`align-middle ${
+                        index % 2 === 0 ? "bg-[color:var(--report-white)]" : "bg-[color:var(--report-grey-bg)]"
+                      } [&>td]:py-[4px]`}
+                    >
+                      {index === 0 ? (
+                        <td
+                          rowSpan={rows.length}
+                          className="relative w-[32px] min-w-[32px] border-r border-[color:var(--report-table-border)] px-0 text-center"
+                        >
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-fit whitespace-nowrap text-center [writing-mode:vertical-rl] rotate-180 text-[10px] font-medium normal-case tracking-normal leading-none text-[color:var(--report-grey-font)]">
+                              {pillar}
+                            </div>
+                          </div>
                         </td>
-                        <td colSpan={4} className="px-4 py-5 text-[color:var(--muted)]">
-                          No buckets available for this pillar.
-                        </td>
-                      </tr>,
-                    ],
-              )}
-                  </tbody>
-            </table>
-          </div>
+                      ) : null}
+                      <td className="w-[200px] max-w-[200px] whitespace-nowrap px-[12px] text-left font-medium leading-tight text-[color:var(--report-black)] align-middle">
+                        {bucketName}
+                      </td>
+                      <td className="whitespace-nowrap px-[12px] text-center font-mono font-semibold leading-tight text-[color:var(--report-black)] align-middle">{score}</td>
+                      <td className="w-[200px] max-w-[200px] px-[12px] text-center align-middle">
+                        <span
+                          className={`inline-flex w-[200px] max-w-[200px] items-center justify-center rounded-full border px-[4px] py-[4px] text-[11px] font-semibold leading-tight ${healthColors}`}
+                        >
+                          {experience}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-[12px] text-center font-semibold leading-tight text-[color:var(--report-black)] align-middle">
+                        <span className="inline-flex">{priority.toUpperCase()}</span>
+                      </td>
+                    </tr>
+                  );
+                });
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 

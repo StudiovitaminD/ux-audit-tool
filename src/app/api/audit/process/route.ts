@@ -52,13 +52,28 @@ function shouldConvertBucketFailureToPlaceholder(message: string) {
     value.includes("provider returned error") ||
     value.includes("prompt tokens limit exceeded") ||
     value.includes("context length") ||
-    value.includes("maximum context")
+    value.includes("maximum context") ||
+    value.includes("cannot read properties of undefined (reading 'observation')") ||
+    value.includes("cannot read properties of null (reading 'observation')") ||
+    value.includes("reading 'observation'")
   );
 }
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   if (!v || typeof v !== "object") return null;
   return v as Record<string, unknown>;
+}
+
+function isCancelledDoc(doc: Record<string, unknown>) {
+  const status = typeof doc.status === "string" ? doc.status : "";
+  return (
+    status === "cancelled" ||
+    Boolean(doc.cancelledAt) ||
+    (typeof doc.progress === "object" &&
+      doc.progress !== null &&
+      !Array.isArray(doc.progress) &&
+      (doc.progress as Record<string, unknown>).currentStage === "cancelled")
+  );
 }
 
 function extractStoredBucketResults(doc: Record<string, unknown>): BucketResult[] {
@@ -73,6 +88,201 @@ function extractStoredBucketResults(doc: Record<string, unknown>): BucketResult[
   }
 
   return [];
+}
+
+function normalizeStoredBucketResults(results: BucketResult[]): BucketResult[] {
+  return results
+    .map((bucket) => {
+      const bucketRec = asRecord(bucket) ?? {};
+      const normalizeQuestion = (item: unknown) => {
+        const rec = asRecord(item);
+        if (!rec) return null;
+        return {
+          ...rec,
+          id: typeof rec.id === "string" ? rec.id : String(rec.id ?? ""),
+          question: typeof rec.question === "string" ? rec.question : String(rec.question ?? ""),
+          evidence: typeof rec.evidence === "string" ? rec.evidence : String(rec.evidence ?? ""),
+          observation:
+            typeof rec.observation === "string" ? rec.observation : String(rec.observation ?? ""),
+          recommendation:
+            typeof rec.recommendation === "string"
+              ? rec.recommendation
+              : String(rec.recommendation ?? ""),
+          effort: typeof rec.effort === "string" ? rec.effort : String(rec.effort ?? ""),
+          impact: typeof rec.impact === "string" ? rec.impact : String(rec.impact ?? ""),
+          answer_status:
+            rec.answer_status === "insufficient_evidence" ||
+            rec.answer_status === "scoring_unavailable"
+              ? rec.answer_status
+              : "answered",
+        };
+      };
+
+      return {
+        ...bucketRec,
+        bucket_name:
+          typeof bucketRec.bucket_name === "string"
+            ? bucketRec.bucket_name
+            : String(bucketRec.bucket_name ?? ""),
+        pillar:
+          typeof bucketRec.pillar === "string" ? bucketRec.pillar : String(bucketRec.pillar ?? "Impact"),
+        total_marks:
+          typeof bucketRec.total_marks === "number" || bucketRec.total_marks === null
+            ? bucketRec.total_marks
+            : null,
+        max_marks:
+          typeof bucketRec.max_marks === "number" || bucketRec.max_marks === null
+            ? bucketRec.max_marks
+            : null,
+        score: typeof bucketRec.score === "number" || bucketRec.score === null ? bucketRec.score : null,
+        bucket_status:
+          typeof bucketRec.bucket_status === "string"
+            ? bucketRec.bucket_status
+            : "insufficient_evidence",
+        health: typeof bucketRec.health === "string" ? bucketRec.health : "Not scored",
+        risk: typeof bucketRec.risk === "string" ? bucketRec.risk : "Evidence missing",
+        priority: typeof bucketRec.priority === "string" ? bucketRec.priority : "P0",
+        questions: Array.isArray(bucketRec.questions)
+          ? bucketRec.questions.map(normalizeQuestion).filter(Boolean)
+          : [],
+        findings: Array.isArray(bucketRec.findings)
+          ? bucketRec.findings.map((item) => asRecord(item)).filter(Boolean)
+          : [],
+        improvements: Array.isArray(bucketRec.improvements)
+          ? bucketRec.improvements.map((item) => asRecord(item)).filter(Boolean)
+          : [],
+      } as unknown as BucketResult;
+    })
+    .filter((bucket) => Boolean(bucket.bucket_name));
+}
+
+function truncateStorageString(value: unknown, max = 240) {
+  const text = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : String(value ?? "").trim();
+  return text.length > max ? `${text.slice(0, max)}...` : text;
+}
+
+function compactEvidenceForStorage(evidence: EvidenceBundle | null) {
+  if (!evidence) return null;
+  const rec = evidence as Record<string, unknown>;
+  const pages = Array.isArray(rec.pages)
+    ? rec.pages.slice(0, 4).map((page) => {
+        const pageRec = asRecord(page) ?? {};
+        return {
+          label: pageRec.label,
+          url: pageRec.url,
+          title: pageRec.title,
+          textSnippet: truncateStorageString(pageRec.textSnippet, 400),
+          h1: Array.isArray(pageRec.h1) ? pageRec.h1.slice(0, 4).map((item) => truncateStorageString(item, 80)) : [],
+          topNavLinks: Array.isArray(pageRec.topNavLinks)
+            ? pageRec.topNavLinks.slice(0, 4).map((item) => {
+                const link = asRecord(item) ?? {};
+                return {
+                  text: truncateStorageString(link.text, 80),
+                  href: truncateStorageString(link.href, 120),
+                };
+              })
+            : [],
+          primaryCtas: Array.isArray(pageRec.primaryCtas)
+            ? pageRec.primaryCtas.slice(0, 3).map((item) => {
+                const cta = asRecord(item) ?? {};
+                return {
+                  text: truncateStorageString(cta.text, 80),
+                  href: truncateStorageString(cta.href, 120),
+                };
+              })
+            : [],
+          tableHeaders: Array.isArray(pageRec.tableHeaders)
+            ? pageRec.tableHeaders.slice(0, 6).map((item) => truncateStorageString(item, 80))
+            : [],
+          formLabels: Array.isArray(pageRec.formLabels)
+            ? pageRec.formLabels.slice(0, 6).map((item) => truncateStorageString(item, 80))
+            : [],
+        };
+      })
+    : [];
+
+  const screenshots = Array.isArray(rec.screenshots)
+    ? rec.screenshots.slice(0, 0)
+    : [];
+  const warnings = Array.isArray(rec.warnings)
+    ? rec.warnings.slice(0, 20).map((item) => truncateStorageString(item, 240))
+    : [];
+  const coverage = asRecord(rec.coverage) ?? {};
+  const evidenceSummary = asRecord(coverage.evidenceSummary) ?? {};
+  const debug = asRecord(rec.debug) ?? {};
+
+  return {
+    pages,
+    screenshots,
+    warnings,
+    coverage: {
+      ...coverage,
+      evidenceSummary,
+    },
+    auth: asRecord(rec.auth) ?? null,
+    debug: {
+      provider: debug.provider,
+      actualProvider: debug.actualProvider,
+      requestedProvider: debug.requestedProvider,
+      guidedStepsCount: debug.guidedStepsCount,
+      guidedStepsAttempted: debug.guidedStepsAttempted,
+      guidedStepsCompleted: debug.guidedStepsCompleted,
+      internalRoutesCount: debug.internalRoutesCount,
+      internalRoutesAttempted: debug.internalRoutesAttempted,
+      internalRoutesCompleted: debug.internalRoutesCompleted,
+      uploadedScreenshotsCount: debug.uploadedScreenshotsCount,
+      uploadedScreenshotsStored: debug.uploadedScreenshotsStored,
+      selectedBuckets: Array.isArray(debug.selectedBuckets) ? debug.selectedBuckets.slice(0, 12) : [],
+      guidedStepResults: Array.isArray(debug.guidedStepResults)
+        ? debug.guidedStepResults.slice(0, 20).map((item) => {
+            const step = asRecord(item) ?? {};
+            return {
+              stepName: truncateStorageString(step.stepName, 120),
+              success: step.success,
+              reason: truncateStorageString(step.reason, 200),
+            };
+          })
+        : [],
+      internalRouteResults: Array.isArray(debug.internalRouteResults)
+        ? debug.internalRouteResults.slice(0, 20).map((item) => {
+            const route = asRecord(item) ?? {};
+            return {
+              stepName: truncateStorageString(route.stepName, 120),
+              success: route.success,
+              reason: truncateStorageString(route.reason, 200),
+            };
+          })
+        : [],
+    },
+  };
+}
+
+function compactBucketResultForStorage(bucket: BucketResult) {
+  return {
+    bucket_name: bucket.bucket_name,
+    pillar: bucket.pillar,
+    total_marks: bucket.total_marks,
+    max_marks: bucket.max_marks,
+    bucket_status: bucket.bucket_status,
+    score: bucket.score,
+    health: bucket.health,
+    risk: bucket.risk,
+    priority: bucket.priority,
+    questions: Array.isArray(bucket.questions)
+      ? bucket.questions.slice(0, 4).map((question) => {
+          const q = asRecord(question) ?? {};
+          return {
+            id: q.id,
+            question: truncateStorageString(q.question, 120),
+            answer_status: q.answer_status,
+            selected_option: q.selected_option,
+            mark: q.mark,
+            evidence: truncateStorageString(q.evidence, 180),
+            observation: truncateStorageString(q.observation, 180),
+          };
+        })
+      : [],
+  };
 }
 
 function buildProgressState(args: {
@@ -322,8 +532,28 @@ export async function POST(req: Request) {
   let attemptCount = 0; // ADDED
   let evidenceBundle: EvidenceBundle | null = null;
   let existingResults: BucketResult[] = [];
+  let currentPhase = "starting";
+
+  const recordProcessError = async (phase: string, error: unknown) => {
+    const message = getErrorMessage(error) || "Processing failed";
+    const stack = error instanceof Error ? error.stack || "" : "";
+    await ref.set(
+      {
+        status: "error",
+        error: message,
+        lastError: message,
+        lastErrorAt: new Date().toISOString(),
+        lastErrorPhase: phase,
+        lastErrorStack: truncateStorageString(stack, 4000),
+        failedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+    console.error(`Audit processing failed during ${phase}:`, error);
+  };
 
   try {
+    currentPhase = "load_document";
     const snap = await ref.get();
     if (!snap.exists) return Response.json({ error: "Not found" }, { status: 404 });
 
@@ -332,6 +562,7 @@ export async function POST(req: Request) {
     if (status === "complete") return Response.json({ status: "complete" });
     if (status === "error")
       return Response.json({ status: "error", error: String(doc.error || "Failed") });
+    if (isCancelledDoc(doc)) return Response.json({ status: "cancelled" });
 
     const intakeRaw = (await loadStoredIntake(doc)) ?? readStoredIntake(doc);
     intake = IntakeSchema.parse(intakeRaw);
@@ -370,9 +601,15 @@ export async function POST(req: Request) {
         { merge: true },
       );
       evidence = await prepareEvidence(intakeObj);
+      const latestAfterPrepare = await ref.get();
+      if (isCancelledDoc(latestAfterPrepare.data() ?? {})) {
+        return Response.json({ status: "cancelled" });
+      }
       await ref.set(
         {
-          evidence,
+          evidence: compactEvidenceForStorage(
+            evidence && typeof evidence === "object" ? (evidence as EvidenceBundle) : null,
+          ),
           captureDebug: {
             phase: "evidence_prepared",
             ...payloadDebug,
@@ -390,6 +627,7 @@ export async function POST(req: Request) {
     const evidenceDebug = getEvidenceDebug(evidenceBundle);
 
     if (!didExecuteCapturePipeline(evidenceBundle)) {
+      currentPhase = "capture_pipeline";
       const captureError = buildCapturePipelineFailureMessage(
         intakeObj,
         evidenceBundle,
@@ -424,6 +662,7 @@ export async function POST(req: Request) {
     }
 
     if (!hasEnoughExtensionEvidence(intakeObj, evidenceBundle)) {
+      currentPhase = "extension_evidence_validation";
       const captureError =
         "Extension capture mode requires at least one captured page, screenshot, or video evidence before scoring.";
       await ref.set(
@@ -505,9 +744,17 @@ export async function POST(req: Request) {
       return Response.json({ status: "error", error: coverageError }, { status: 400 });
     }
 
-    existingResults = extractStoredBucketResults(doc);
+    currentPhase = "load_existing_results";
+    existingResults = normalizeStoredBucketResults(extractStoredBucketResults(doc));
 
     const finalizeStoredReport = async (finalBucketIndex: number, results: BucketResult[]) => {
+      const safeResults = normalizeStoredBucketResults(results);
+      currentPhase = "finalizing_progress";
+      const latest = await ref.get();
+      if (latest.exists && isCancelledDoc(latest.data() ?? {})) {
+        return false;
+      }
+
       await ref.set(
         {
           progress: buildProgressState({
@@ -523,50 +770,75 @@ export async function POST(req: Request) {
         { merge: true },
       );
 
-      const report = await finalizeAudit({
-        intake: intakeObj,
-        evidence: evidenceBundle,
-        bucket_results: results,
-        modelOverride: activeModel,
-      });
+      const afterProgressUpdate = await ref.get();
+      if (afterProgressUpdate.exists && isCancelledDoc(afterProgressUpdate.data() ?? {})) {
+        return false;
+      }
 
-      await ref.set(
-        {
-          status: "complete",
-          completedAt:
-            typeof doc.completedAt === "string" && doc.completedAt
-              ? doc.completedAt
-              : new Date().toISOString(),
-          progress: buildProgressState({
-            bucketIndex: finalBucketIndex,
-            totalBuckets: buckets.length,
-            retryCount: 0,
-            attemptCount: 0,
-            currentBucketName: null,
-            currentStage: "report_complete",
-            currentBucketStartedAt: null,
-          }),
-          report,
-          bucketResults: results,
-          overall_score: report.overall_score ?? null,
-          overall_health: report.overall_health ?? null,
-          overall_risk: report.overall_risk ?? null,
-          audit_mode: report.audit_mode ?? null,
-          coverage_status: report.coverage_status ?? null,
-          ux_score_eligible: report.ux_score_eligible ?? null,
-          questions_scoreable: report.questions_scoreable ?? null,
-          questions_total: report.questions_total ?? null,
-          scorecard: Array.isArray(report.scorecard) ? report.scorecard : [],
-          captureDebug: {
-            phase: "report_complete",
-            ...payloadDebug,
-            modelTier: typeof doc.model_tier === "string" ? doc.model_tier : "free_limited",
-            activeModel,
-            ...evidenceDebug,
+      let report;
+      try {
+        currentPhase = "finalize_audit";
+        report = await finalizeAudit({
+          intake: intakeObj,
+          evidence: evidenceBundle,
+          bucket_results: safeResults,
+          modelOverride: activeModel,
+        });
+      } catch (error) {
+        await recordProcessError("finalize_audit", error);
+        return false;
+      }
+
+      currentPhase = "finalize_pre_write";
+      const beforeFinalWrite = await ref.get();
+      if (beforeFinalWrite.exists && isCancelledDoc(beforeFinalWrite.data() ?? {})) {
+        return false;
+      }
+
+      try {
+        currentPhase = "finalize_write";
+        await ref.set(
+          {
+            status: "complete",
+            completedAt:
+              typeof doc.completedAt === "string" && doc.completedAt
+                ? doc.completedAt
+                : new Date().toISOString(),
+            progress: buildProgressState({
+              bucketIndex: finalBucketIndex,
+              totalBuckets: buckets.length,
+              retryCount: 0,
+              attemptCount: 0,
+              currentBucketName: null,
+              currentStage: "report_complete",
+              currentBucketStartedAt: null,
+            }),
+            report,
+            bucketResults: safeResults.map(compactBucketResultForStorage),
+            evidence: compactEvidenceForStorage(evidenceBundle),
+            overall_score: report.overall_score ?? null,
+            overall_health: report.overall_health ?? null,
+            overall_risk: report.overall_risk ?? null,
+            audit_mode: report.audit_mode ?? null,
+            coverage_status: report.coverage_status ?? null,
+            ux_score_eligible: report.ux_score_eligible ?? null,
+            questions_scoreable: report.questions_scoreable ?? null,
+            questions_total: report.questions_total ?? null,
+            scorecard: Array.isArray(report.scorecard) ? report.scorecard : [],
+            captureDebug: {
+              phase: "report_complete",
+              ...payloadDebug,
+              modelTier: typeof doc.model_tier === "string" ? doc.model_tier : "free_limited",
+              activeModel,
+            },
           },
-        },
-        { merge: true },
-      );
+          { merge: true },
+        );
+      } catch (error) {
+        await recordProcessError("finalize_write", error);
+        return false;
+      }
+      return true;
     };
 
     const scoreBucketWithRecovery = async (index: number) => {
@@ -642,12 +914,22 @@ export async function POST(req: Request) {
     };
 
     if (bucketIndex >= buckets.length) {
-      await finalizeStoredReport(bucketIndex, existingResults);
-      return Response.json({ status: "complete" });
+      const finalized = await finalizeStoredReport(bucketIndex, existingResults);
+      return Response.json({ status: finalized ? "complete" : "cancelled" });
     }
 
     while (bucketIndex < buckets.length) {
+      const latestBeforeBucket = await ref.get();
+      if (isCancelledDoc(latestBeforeBucket.data() ?? {})) {
+        return Response.json({ status: "cancelled" });
+      }
+
       const bucketResult = await scoreBucketWithRecovery(bucketIndex);
+      const latestAfterBucket = await ref.get();
+      if (isCancelledDoc(latestAfterBucket.data() ?? {})) {
+        return Response.json({ status: "cancelled" });
+      }
+
       existingResults = [...existingResults, bucketResult];
       bucketIndex += 1;
 
@@ -663,16 +945,16 @@ export async function POST(req: Request) {
             currentStage: bucketIndex >= buckets.length ? "finalizing" : "queued_next_bucket",
             currentBucketStartedAt: null,
           }),
-          bucketResults: existingResults,
+          bucketResults: existingResults.map(compactBucketResultForStorage),
         },
         { merge: true },
       );
     }
 
-    await finalizeStoredReport(bucketIndex, existingResults);
-    return Response.json({ status: "complete" });
+    const finalized = await finalizeStoredReport(bucketIndex, existingResults);
+    return Response.json({ status: finalized ? "complete" : "cancelled" });
   } catch (err) {
-    console.error("Audit processing failed:", err);
+    console.error(`Audit processing failed during ${currentPhase}:`, err);
     const message = getErrorMessage(err) || "Processing failed";
     const now = new Date().toISOString();
     if (!intake) {
@@ -689,6 +971,8 @@ export async function POST(req: Request) {
         error: message,
         lastError: message,
         lastErrorAt: now,
+        lastErrorPhase: currentPhase,
+        lastErrorStack: err instanceof Error ? truncateStorageString(err.stack || "", 4000) : null,
         failedAt: now,
       },
       { merge: true },

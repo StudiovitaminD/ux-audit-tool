@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { calculateBusinessImpactMetrics, displayBucketName } from "@/lib/report-model";
+import { IntroPageSection } from "./sections/IntroPageSection";
+import { OverviewSection } from "./sections/OverviewSection";
+import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
+import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
+import type { ReportPage } from "./sections/shared";
 
 type ScorecardRow = {
   section: string;
@@ -62,10 +67,9 @@ function experienceLabelFromScore(value: unknown) {
   const match = String(value ?? "").match(/(\d+(?:\.\d+)?)/);
   const score = match ? Number(match[1]) : Number.NaN;
   if (!Number.isFinite(score)) return "—";
-  if (score >= 85) return "Exceptional";
-  if (score >= 75) return "Good";
-  if (score >= 50) return "Average";
-  return "Needs Immediate Improvement";
+  if (score >= 80) return "Good";
+  if (score <= 50) return "Critical";
+  return "Average";
 }
 
 function normalizeKey(value: unknown) {
@@ -96,24 +100,6 @@ function bucketPillarFromName(bucketName: string, fallbackPillar = "") {
 }
 
 const PILLAR_BUCKETS = {
-  Accessibility: [
-    "Visual Feedback",
-    "Color & Contrast",
-    "Typography & Readability",
-    "Keyboard Navigation",
-    "Screen Reader Support",
-  ],
-  Impact: ["Navigation & Findability", "Consistency & UI Patterns", "Content (Impact)", "Performance"],
-  Delight: [
-    "Visual Consistency",
-    "Motion & Microinteractions",
-    "Content (Delight)",
-    "Brand Expression",
-    "Icons & Imagery",
-  ],
-} as const;
-
-const SUMMARY_PILLAR_BUCKETS = {
   Accessibility: [
     "Visual Feedback",
     "Color & Contrast",
@@ -775,6 +761,7 @@ export function DemoReport() {
   const [hydratedCompetitors, setHydratedCompetitors] = useState<DemoCompetitor[]>(
     DEMO.competitor_analysis as DemoCompetitor[],
   );
+  const [demoStopped, setDemoStopped] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -813,299 +800,115 @@ export function DemoReport() {
     };
   }, []);
 
-  const pages = useMemo(() => {
+  const coverVm = useMemo(
+    () =>
+      ({
+        productName: DEMO.product_name,
+        productUrl: DEMO.product_url,
+        productType: "website",
+        generatedAt: DEMO.generated_at,
+        auditReason: DEMO.audit_reason,
+        auditType: "Demo audit",
+        isLimitedCoverage: false,
+        isScoringUnavailable: false,
+        hasPartialScoring: false,
+        overallScore: DEMO.overall_score,
+        overallHealth: DEMO.overall_health,
+        overallRisk: DEMO.overall_risk,
+        captureCoverage: {
+          status: "complete",
+          summary: "Demo preview",
+          loginPageCaptured: true,
+          authenticatedDashboardCaptured: true,
+          navigationCaptured: true,
+          internalProductScreensCaptured: 5,
+          internalProductScreensTarget: 5,
+          formsCaptured: true,
+          tablesCaptured: true,
+          dropdownCaptured: true,
+          errorEmptyLoadingCaptured: true,
+          browserSessionUsed: false,
+          guidedStepsAttempted: 0,
+          guidedStepsCompleted: 0,
+          questionsScoreable: 0,
+          questionsTotal: 0,
+          scoreEligible: true,
+          failedStepReasons: [],
+          whatWasCaptured: [],
+          whatWasMissing: [],
+          suggestedNextSteps: [],
+        },
+        pillarScores: DEMO.pillar_scores,
+        scorecard: DEMO.scorecard,
+        bucketResults: [],
+        executiveSummary: DEMO.executive_summary,
+        sectionNarrative: DEMO.section_narrative,
+        findingsDetailed: DEMO.findings_detailed,
+        quickWinsTable: DEMO.quick_wins_table,
+        roadmap: DEMO.roadmap,
+        closingNote: DEMO.closing_note,
+      }) as unknown,
+    [],
+  );
+
+  const pages = useMemo<ReportPage[]>(() => {
     const scorecard = DEMO.scorecard;
     const pillars = DEMO.pillar_scores;
     const findings = DEMO.findings_detailed;
     const quickWins = DEMO.quick_wins_table;
     const roadmap = DEMO.roadmap;
     const competitors = hydratedCompetitors;
-  const topFindings = findings.slice(0, 5);
-  const overallScore = Math.max(0, Math.min(100, DEMO.overall_score));
-  const pillarOrder = ["Accessibility", "Impact", "Delight"];
+    const topFindings = findings.slice(0, 5);
+    const overallScore = Math.max(0, Math.min(100, DEMO.overall_score));
+    const pillarOrder = ["Accessibility", "Impact", "Delight"] as const;
+  const scoreCardOrder = ["Accessibility", "Impact", "Delight"] as const;
   const groupedScoreRows = pillarOrder.map((pillar) => ({
     pillar,
     rows: dedupeScoreRows(scorecard).filter((row) => bucketPillarFromRow(row) === pillar),
   }));
-  const businessMetrics = [
-    ...calculateBusinessImpactMetrics(pillars),
-  ];
+  const businessMetrics = [...calculateBusinessImpactMetrics(pillars)];
+  const summaryBucketData = {
+    Accessibility: {
+      "Visual Feedback": summaryBucketDetails("Visual Feedback"),
+      "Color & Contrast": summaryBucketDetails("Color & Contrast"),
+      "Typography & Readability": summaryBucketDetails("Typography & Readability"),
+      "Keyboard Navigation": summaryBucketDetails("Keyboard Navigation"),
+      "Screen Reader Support": summaryBucketDetails("Screen Reader Support"),
+    },
+    Impact: {
+      "Navigation & Findability": summaryBucketDetails("Navigation & Findability"),
+      "Consistency & UI Patterns": summaryBucketDetails("Consistency & UI Patterns"),
+      "Content (Impact)": summaryBucketDetails("Content (Impact)"),
+      Performance: summaryBucketDetails("Performance"),
+    },
+    Delight: {
+      "Visual Consistency": summaryBucketDetails("Visual Consistency"),
+      "Motion & Microinteractions": summaryBucketDetails("Motion & Microinteractions"),
+      "Content (Delight)": summaryBucketDetails("Content (Delight)"),
+      "Brand Expression": summaryBucketDetails("Brand Expression"),
+      "Icons & Imagery": summaryBucketDetails("Icons & Imagery"),
+    },
+  } as const;
 
-    return [
+  return [
       {
+        key: "intro",
+        title: "Intro",
+        body: <IntroPageSection vm={coverVm as never} />,
+        variant: "cover",
+      },
+      {
+        key: "overview",
         title: "Overview",
-        body: (
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="text-lg font-semibold text-[color:var(--ink)]">Overall Score</div>
-                  <div className="mt-1 text-sm text-[color:var(--muted)]">
-                    Composite score across key UX audit buckets
-                  </div>
-                </div>
-                <div className="rounded-full border border-[color:var(--accent)]/30 bg-[color:var(--accent-light)] px-4 py-2 text-sm font-medium text-[color:var(--accent)]">
-                  {DEMO.overall_score}/100{" "}
-                  <span className="ml-2 text-[color:var(--ink-soft)]">
-                    Experiences: {experienceLabelFromScore(DEMO.overall_score)}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-6 grid gap-4 lg:grid-cols-3">
-                {Object.entries(pillars).map(([name, p]) => (
-                  <div
-                    key={name}
-                    className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
-                  >
-                    <div className="text-sm text-[color:var(--muted)]">{name} Score</div>
-                    <div className="mt-3 flex items-end gap-2">
-                      <div className="font-mono text-4xl font-bold">{p.score}</div>
-                      <div className="pb-1 text-sm text-[color:var(--muted)]">/100</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-lg font-semibold normal-case">Business Impact Index</div>
-              <div className="mt-5 grid gap-5 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-[color:var(--card-border)]/60">
-                {businessMetrics.map((metric) => (
-                  <div key={metric.label} className="space-y-3 lg:px-4 first:lg:pl-0 last:lg:pr-0">
-                    <div className="text-xs text-[color:var(--muted)] normal-case">
-                      {metric.label}
-                    </div>
-                    <div className="overflow-hidden rounded-full bg-black/[0.08]">
-                      <div
-                        className="h-2 rounded-full bg-black/[0.14]"
-                        style={{ width: `${metric.value}%` }}
-                      />
-                    </div>
-                    <div className="text-right text-xs font-mono text-[color:var(--muted)]">
-                      {metric.value}/100
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-lg font-semibold normal-case">Score Card</div>
-              <div className="mt-4 overflow-x-auto">
-                <div className="min-w-[980px] rounded-2xl border border-[color:var(--card-border)]/60 overflow-hidden">
-                  <table className="w-full table-fixed text-left text-sm">
-                    <colgroup>
-                      <col className="w-[54px]" />
-                      <col className="w-[24%]" />
-                      <col className="w-[24%]" />
-                      <col className="w-[24%]" />
-                      <col className="w-[24%]" />
-                    </colgroup>
-                    <thead className="border-b border-[color:var(--card-border)]/60 text-xs uppercase tracking-wider text-[color:var(--muted)]">
-                      <tr>
-                        <th className="px-1 py-3 text-center">
-                          <span className="sr-only">Pillar</span>
-                        </th>
-                        <th className="px-4 py-4 text-center">Bucket</th>
-                        <th className="px-4 py-4 text-center">Score</th>
-                        <th className="px-4 py-4 text-center">Experiences</th>
-                        <th className="px-4 py-4 text-center">Priority</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[color:var(--card-border)]/60">
-                      {groupedScoreRows.flatMap(({ pillar, rows }) =>
-                        rows.length
-                          ? rows.map((r, index) => {
-                              const score = String(r.score ?? "").trim() || "Not scored";
-                              const experience = experienceLabelFromScore(r.score);
-                              const priority = formatPriority(r.priority);
-                              const bucket = bucketNameFromRow(r) || "Bucket";
-
-                              return (
-                                <tr key={`${pillar}-${bucket}-${index}`}>
-                                  {index === 0 ? (
-                                    <td
-                                      rowSpan={rows.length}
-                                      className="border-r border-[color:var(--card-border)]/60 align-middle px-2 py-0 text-center"
-                                    >
-                                      <div className="mx-auto [writing-mode:vertical-rl] rotate-180 text-[9px] font-semibold uppercase tracking-[0.12em] leading-none text-[color:var(--muted)]">
-                                        {pillar}
-                                      </div>
-                                    </td>
-                                  ) : null}
-                                  <td className="px-4 py-5 text-center font-medium text-[color:var(--ink)]">{bucket}</td>
-                                  <td className="px-4 py-5 text-center font-mono text-[color:var(--ink)]">{score}</td>
-                                  <td className="px-4 py-5 text-center text-[color:var(--ink)]">{experience}</td>
-                                  <td className="px-4 py-5 text-center font-semibold text-[color:var(--ink)]">{priority}</td>
-                                </tr>
-                              );
-                            })
-                        : [
-                            <tr key={pillar}>
-                              <td className="border-r border-[color:var(--card-border)]/60 px-2 py-0 text-center">
-                                <div className="mx-auto [writing-mode:vertical-rl] rotate-180 text-[9px] font-semibold uppercase tracking-[0.12em] leading-none text-[color:var(--muted)]">
-                                  {pillar}
-                                </div>
-                              </td>
-                                <td colSpan={4} className="px-4 py-5 text-[color:var(--muted)]">
-                                  No buckets available for this pillar.
-                                </td>
-                              </tr>,
-                            ],
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        ),
+        body: <OverviewSection vm={coverVm as never} />,
+        variant: "standard",
       },
+      ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Accessibility", bucketData: summaryBucketData.Accessibility }),
+      ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Impact", bucketData: summaryBucketData.Impact }),
+      ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Delight", bucketData: summaryBucketData.Delight }),
+      ...buildCompetitorAnalysisPages({ competitors }),
       {
-        title: "Summary",
-        body: (
-          <div className="space-y-4">
-            {(
-              [
-                ["Delight", SUMMARY_PILLAR_BUCKETS.Delight],
-                ["Impact", SUMMARY_PILLAR_BUCKETS.Impact],
-                ["Accessibility", SUMMARY_PILLAR_BUCKETS.Accessibility],
-              ] as const
-            ).map(([pillar, bucketNames]) => (
-              <div
-                key={pillar}
-                className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
-              >
-                <div className="text-sm font-semibold">
-                  {pillar}{" "}
-                  <span className="font-normal text-[color:var(--muted)]">
-                    ({bucketNames.map((bucketName) => displayBucketName(bucketName)).join(", ")})
-                  </span>
-                </div>
-                <div className="my-4 border-t border-[color:var(--card-border)]/60" />
-                <div className="space-y-5">
-                  {bucketNames.map((bucketName, index) => (
-                    <div
-                      key={`${pillar}-${bucketName}`}
-                      className={index === 0 ? "" : "border-t border-[color:var(--card-border)]/60 pt-5"}
-                    >
-                      <div className="text-sm font-medium text-[color:var(--ink)]">
-                        {displayBucketName(bucketName)}
-                      </div>
-                      <div className="mt-4 space-y-5">
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
-                            Top Problems
-                          </div>
-                          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                            {summaryBucketDetails(bucketName).topProblems.map((item) => (
-                              <li key={item}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
-                            What&apos;s Working
-                          </div>
-                          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                            {summaryBucketDetails(bucketName).whatsWorking.map((item) => (
-                              <li key={item}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ),
-      },
-      {
-        title: "Competitor Analysis",
-        body: (
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="mt-4 overflow-auto">
-                <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
-                    <tr>
-                      <th className="py-2 pr-4">Competitor</th>
-                      <th className="py-2 pr-4">Positioning</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[color:var(--card-border)]/60">
-                    {competitors.map((competitor) => (
-                      <tr key={competitor.name}>
-                        <td className="py-3 pr-4 font-medium">
-                          <div>{competitor.name}</div>
-                          <div className="mt-1 text-xs text-[color:var(--muted)]">{competitor.url}</div>
-                        </td>
-                        <td className="py-3 pr-4 text-[color:var(--muted)]">{competitor.positioning}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-3">
-              {competitors.map((competitor) => (
-                <div
-                  key={competitor.name}
-                  className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
-                >
-                  <div className="relative mb-4 h-40 w-full overflow-hidden rounded-xl border border-[color:var(--card-border)] bg-white/5">
-                    <div className="absolute left-3 top-3 z-10 rounded-full border border-[color:var(--card-border)] bg-white/90 px-3 py-1 text-xs font-semibold text-[color:var(--ink)] shadow-sm">
-                      {competitor.name}
-                    </div>
-                    {competitor.screenshot ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={competitor.screenshot}
-                        alt={`${competitor.name} screenshot`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--muted)]">
-                        Screenshot unavailable
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-4">
-                    <SectionTitle>Strengths</SectionTitle>
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted)]">
-                      {competitor.strengths.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="mt-4">
-                    <SectionTitle>Gaps</SectionTitle>
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted)]">
-                      {competitor.gaps.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="mt-4">
-                    <SectionTitle>Steal this</SectionTitle>
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted)]">
-                      {competitor.steal_this.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ),
-      },
-      {
+        key: "critical_findings",
         title: "Critical Findings",
         body: (
           <div className="space-y-4">
@@ -1114,8 +917,10 @@ export function DemoReport() {
             ))}
           </div>
         ),
+        variant: "standard",
       },
       {
+        key: "quick_wins_roadmap",
         title: "Quick Wins & Roadmap",
         body: (
           <div className="space-y-5">
@@ -1181,65 +986,144 @@ export function DemoReport() {
             </div>
           </div>
         ),
+        variant: "standard",
       },
     ];
-  }, [hydratedCompetitors]);
+  }, [coverVm, hydratedCompetitors]);
   const [page, setPage] = useState(0);
   const current = pages[page]!;
+
+  function stopDemoReport() {
+    setDemoStopped(true);
+  }
+
+  function resetDemoReport() {
+    setDemoStopped(false);
+    setPage(0);
+  }
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [page]);
 
   return (
-    <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="flex min-h-screen flex-col p-6" data-report-live-root>
+      <div className="no-print flex flex-wrap items-start justify-between gap-4" data-report-toolbar>
         <div>
-          <div className="text-lg font-semibold">
-            Sample report: {DEMO.product_name}
-          </div>
+          <div className="text-lg font-semibold">Sample report: {DEMO.product_name}</div>
           <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
-            Client‑deliverable preview (multi‑page).
+            Client‑deliverable preview (multi-page).
           </div>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+            href="/audit"
+          >
+            Open audit form
+          </Link>
         </div>
       </div>
 
-      <div className="mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-8">
-        <div className="mb-5 text-2xl font-semibold text-[color:var(--ink)]">{current.title}</div>
-        {current.title === "Overview" ? (
-          <div className="mb-5 text-sm leading-7 text-[color:var(--ink-muted)]">
-            This report is based on an expert review using a structured UX Audit Framework. It
-            provides an indicative assessment of the user experience with an estimated 70%
-            accuracy level and is intended to guide design decisions.
+      {demoStopped ? (
+        <div className="mt-5 flex-1 min-h-0 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-8">
+          <div className="max-w-2xl">
+            <div className="text-lg font-semibold">Report stopped</div>
+            <div className="mt-3 text-sm text-[color:var(--ink-muted)]">
+              The sample report is paused so you can go back, adjust the form, and send it again.
+              This only affects the demo preview.
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link className="btnPrimary" href="/audit">
+                Edit audit form
+              </Link>
+              <button
+                type="button"
+                onClick={resetDemoReport}
+                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+              >
+                View report again
+              </button>
+            </div>
           </div>
-        ) : null}
-        {current.body}
-      </div>
+        </div>
+      ) : (
+        <div
+          className="mt-5 flex-1 min-h-0 overflow-x-auto"
+          data-report-live-canvas
+          data-current-page={page + 1}
+          data-total-pages={pages.length}
+        >
+          <div
+            className={`report-a4-page print-page mt-5 print-report-root ${
+              current.variant === "cover"
+                ? "report-a4-page-cover bg-[#fc6d27]"
+                : current.title === "Overview"
+                  ? "report-a4-page-overview"
+                : "bg-[color:var(--white)]"
+            }`}
+            data-report-live-page
+            data-report-page-title={current.title}
+          >
+            <div className={`report-a4-page-inner relative ${current.variant === "cover" ? "h-full" : ""}`}>
+              {current.variant === "cover" ? (
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="h-full">{current.body}</div>
+                </div>
+            ) : (
+              <div className="flex h-full min-h-0 flex-col">
+                <div className="report-a4-page-body">
+                  {current.showTitle !== false ? (
+                    <div
+                      className={`mb-5 flex flex-col items-start gap-1 self-stretch ${
+                        current.title === "Overview"
+                          ? "pb-0"
+                          : "border-b border-[rgba(15,23,42,0.14)] pb-4"
+                      }`}
+                    >
+                      <div
+                        className="text-[24px] font-bold leading-normal text-[color:var(--report-black)]"
+                        style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                      >
+                        {current.title}
+                      </div>
+                    </div>
+                  ) : null}
+                  {current.body}
+                </div>
+                  <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-black)]">
+                    <div>Page {page + 1}</div>
+                    <div>UX Audit Report</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-      <div className="sticky bottom-4 z-20 mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
-        <div className="flex items-center justify-between gap-3">
+      <div className="no-print sticky bottom-4 z-20 mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-[color:var(--ink-muted)]">
-            Page {page + 1} / {pages.length}
+            {demoStopped ? "Demo paused" : `Page ${page + 1} / ${pages.length}`}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="btnPrimary"
+              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              aria-disabled={page === 0}
-              style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+              disabled={page === 0 || demoStopped}
+              style={page === 0 || demoStopped ? { opacity: 0.5, pointerEvents: "none" } : undefined}
             >
               ← Prev
             </button>
             <button
               type="button"
-              className="btnPrimary"
+              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
               onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
-              disabled={page === pages.length - 1}
-              aria-disabled={page === pages.length - 1}
+              disabled={page === pages.length - 1 || demoStopped}
               style={
-                page === pages.length - 1
+                page === pages.length - 1 || demoStopped
                   ? { opacity: 0.5, pointerEvents: "none" }
                   : undefined
               }

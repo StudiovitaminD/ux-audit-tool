@@ -6,7 +6,7 @@ export function ExecutiveSummarySection({ vm }: SharedSectionProps) {
     return (
       <div className="space-y-5">
         <div className="rounded-2xl border border-amber-200/70 bg-amber-50/70 p-5 print-color-adjust">
-          <div className="text-sm font-semibold">Limited Coverage Report</div>
+          <div className="text-[16px] font-semibold leading-normal">Limited Coverage Report</div>
           <div className="mt-2 text-sm text-amber-900">
             UX score was not calculated because the required product screens were not captured.
           </div>
@@ -14,24 +14,24 @@ export function ExecutiveSummarySection({ vm }: SharedSectionProps) {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-            <div className="text-sm font-semibold">What was captured</div>
+            <div className="text-[16px] font-semibold leading-normal">What was captured</div>
             <BulletList items={vm.captureCoverage.whatWasCaptured} emptyLabel="No reliable evidence was captured." />
           </div>
           <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-            <div className="text-sm font-semibold">What was missing</div>
+            <div className="text-[16px] font-semibold leading-normal">What was missing</div>
             <BulletList items={vm.captureCoverage.whatWasMissing} emptyLabel="No missing coverage details available." />
           </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-            <div className="text-sm font-semibold">Why scoring was skipped</div>
+            <div className="text-[16px] font-semibold leading-normal">Why scoring was skipped</div>
             <div className="mt-2 text-sm text-[color:var(--muted)]">
               {vm.captureCoverage.summary || "Insufficient post-login evidence was captured to answer the selected question bank reliably."}
             </div>
           </div>
           <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-            <div className="text-sm font-semibold">Suggested next steps</div>
+            <div className="text-[16px] font-semibold leading-normal">Suggested next steps</div>
             <BulletList items={vm.captureCoverage.suggestedNextSteps} emptyLabel="Add more authenticated evidence and re-run the audit." />
           </div>
         </div>
@@ -68,11 +68,11 @@ export function ExecutiveSummarySection({ vm }: SharedSectionProps) {
     <div className="space-y-5">
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-          <div className="text-sm font-semibold">Top Problems</div>
+          <div className="text-[16px] font-semibold leading-normal">Top Problems</div>
           <BulletList items={topProblems} emptyLabel="No major problems captured." />
         </div>
         <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-          <div className="text-sm font-semibold">First Priority</div>
+          <div className="text-[16px] font-semibold leading-normal">First Priority</div>
           {firstPriorityItems.length ? (
             <BulletList items={firstPriorityItems} emptyLabel="Primary recommendation not available." />
           ) : (
@@ -83,11 +83,11 @@ export function ExecutiveSummarySection({ vm }: SharedSectionProps) {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-          <div className="text-sm font-semibold">What&apos;s Working</div>
+          <div className="text-[16px] font-semibold leading-normal">What&apos;s Working</div>
           <BulletList items={whatWorks} emptyLabel="No strengths captured." />
         </div>
         <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-          <div className="text-sm font-semibold">Quick Wins</div>
+          <div className="text-[16px] font-semibold leading-normal">Quick Wins</div>
           <BulletList
             items={
               summaryQuickWins.length

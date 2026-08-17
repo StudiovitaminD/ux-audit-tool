@@ -21,17 +21,45 @@ export function PrintReport({ report }: { report: unknown }) {
         {pages.map((page, index) => (
           <section
             key={`${page.title}-${index}`}
-            className="report-a4-page print-page"
+            className={`report-a4-page print-page overflow-hidden ${
+              page.variant === "cover"
+                ? "report-a4-page-cover bg-[#fc6d27]"
+                : page.title === "Overview"
+                  ? "report-a4-page-overview"
+                : "bg-[color:var(--white)]"
+            }`}
           >
-            <div className="report-a4-page-inner">
-              <div className="mb-5 flex items-center justify-between gap-3 border-b border-[color:var(--cream-dark)] pb-4">
-                <div className="text-sm text-[color:var(--ink-muted)]">
-                  Page {index + 1} / {pages.length}
-                </div>
-                <div className="text-sm font-semibold">{page.title}</div>
+            {page.variant === "cover" ? (
+              <div className="report-a4-page-inner report-a4-page-inner-cover h-full">
+                {page.body}
               </div>
-              <div className="report-a4-page-body">{page.body}</div>
-            </div>
+            ) : (
+              <div className="report-a4-page-inner flex h-full min-h-0 flex-col">
+                <div className="report-a4-page-body">
+                  {page.showTitle !== false ? (
+                    <div
+                      className={`mb-5 flex shrink-0 flex-col items-start gap-1 self-stretch ${
+                        page.title === "Overview"
+                          ? "pb-0"
+                          : "border-b border-[rgba(15,23,42,0.14)] pb-4"
+                      }`}
+                    >
+                      <div
+                        className="text-[24px] font-bold leading-normal text-[color:var(--report-black)]"
+                        style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                      >
+                        {page.title}
+                      </div>
+                    </div>
+                  ) : null}
+                  {page.body}
+                </div>
+                <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-black)]">
+                  <div>Page {index + 1}</div>
+                  <div>UX Audit Report</div>
+                </div>
+              </div>
+            )}
           </section>
         ))}
       </div>

@@ -1,6 +1,6 @@
-import type { SharedSectionProps } from "./shared";
-import { BulletList, normalizeList, placeholderText } from "./shared";
-import { asArray, asRecord, asString, displayBucketName } from "@/lib/report-model";
+import type { ReportPage, SharedSectionProps } from "./shared";
+import { normalizeList, placeholderText } from "./shared";
+import { asArray, asNumber, asRecord, asString, displayBucketName } from "@/lib/report-model";
 import { QUESTION_BANK } from "../../../../worker/src/question-bank";
 
 const SUMMARY_PILLARS = {
@@ -31,6 +31,18 @@ type SummaryBucketSpec = {
   aliases: readonly string[];
 };
 
+type SummaryPillar = keyof typeof SUMMARY_PILLARS;
+type SummaryBucketData = {
+  topProblems: readonly string[];
+  whatsWorking: readonly string[];
+};
+
+type NarrativeSummarySectionProps = SharedSectionProps & {
+  pillar?: SummaryPillar;
+  bucketData?: Partial<Record<string, SummaryBucketData>>;
+  bucketNames?: readonly string[];
+};
+
 function bucketName(bucket: Record<string, unknown>) {
   return (
     asString(bucket.bucket_name) ||
@@ -40,44 +52,110 @@ function bucketName(bucket: Record<string, unknown>) {
   );
 }
 
+function looksLikeRecommendation(text: unknown) {
+  const normalized = normalizeKey(text);
+  if (!normalized) return false;
+
+  return (
+    /^(implement|add|ensure|introduce|improve|remove|update|create|test|run|conduct|document|rework|fix|make|provide|use)\b/.test(
+      normalized,
+    ) ||
+    /\b(should|need to|needs to|to improve|to guide users|to prevent|so users|to help|verify further)\b/.test(
+      normalized,
+    )
+  );
+}
+
+function looksLikeWeakStatus(text: unknown) {
+  const normalized = normalizeKey(text);
+  if (!normalized) return false;
+
+  return (
+    /^(average|critical|good|excellent|poor|moderate|fair|partially met|mostly meets|fully meets|meets|does not meet|not met|major issues|missing or severe issues|minor gaps remain|usable but inconsistent|insufficient evidence|scoring unavailable|not scored|needs follow-up)$/i.test(
+      normalized,
+    ) ||
+    /\b(partially met|mostly meets|fully meets|meets|major issues|missing or severe issues|minor gaps remain|usable but inconsistent|insufficient evidence|scoring unavailable|not scored|needs follow-up)\b/.test(
+      normalized,
+    )
+  );
+}
+
+function isWorkingStrengthText(text: unknown) {
+  return (
+    Boolean(text) &&
+    !placeholderText(text) &&
+    !looksLikeRecommendation(text) &&
+    !looksLikeWeakStatus(text)
+  );
+}
+
+function synthesizeBucketStrengthFallback(bucket: Record<string, unknown>) {
+  const bucketName = bucketLabel(bucket);
+  const score = asNumber(bucket.score);
+  const health = normalizeKey(asString(bucket.health));
+
+  if (score !== null) {
+    if (score >= 80 || /\b(excellent|good|optimized|optimised)\b/.test(health)) {
+      return [`${bucketName} is functioning well and gives us a solid base to build on.`];
+    }
+
+    if (score >= 50 || /\b(average|moderate|fair)\b/.test(health)) {
+      return [
+        `${bucketName} is mostly usable, with only minor gaps in some UI states that were not fully captured in evidence.`,
+      ];
+    }
+
+    return [`${bucketName} has a baseline in place, but it still needs refinement to feel consistently reliable.`];
+  }
+
+  const healthText = asString(bucket.health).trim();
+  if (healthText && !looksLikeWeakStatus(healthText) && !looksLikeRecommendation(healthText)) {
+    return [healthText];
+  }
+
+  return [];
+}
+
 function bucketRationaleItems(
   bucket: Record<string, unknown>,
   key: "what_is_risky" | "what_is_working",
 ) {
   const rationale = asRecord(bucket.score_rationale) ?? {};
-  const directItems = normalizeList(rationale[key], 8).filter((item) => !placeholderText(item));
+  const directItems = normalizeList(rationale[key], 8).filter(
+    (item) => !placeholderText(item) && (key === "what_is_risky" || isWorkingStrengthText(item)),
+  );
   if (directItems.length) return directItems;
 
-  const summaryItems = normalizeList(rationale.summary, 4).filter((item) => !placeholderText(item));
+  const summaryItems = normalizeList(rationale.summary, 4).filter(
+    (item) => !placeholderText(item) && (key === "what_is_risky" || isWorkingStrengthText(item)),
+  );
   if (summaryItems.length) return summaryItems;
+
+  if (key === "what_is_working") {
+    const questionItems = asArray(bucket.questions)
+      .map((item) => asRecord(item) ?? {})
+      .map((item) => synthesizeWorkingQuestionTakeaway(bucketLabel(bucket), item))
+      .filter((item) => item && !placeholderText(item) && isWorkingStrengthText(item));
+    if (questionItems.length) return normalizeList(questionItems, 4);
+
+    return [];
+  }
 
   const findings = asArray(bucket.findings)
     .map((item) => asRecord(item) ?? {})
-    .map((item) =>
-      key === "what_is_risky"
-        ? asString(item.observation || item.what_we_found || item.question || item.evidence)
-        : asString(item.recommendation || item.observation || item.question || item.what_we_found),
-    )
+    .map((item) => asString(item.observation || item.what_we_found || item.question || item.evidence))
     .filter((item) => item && !placeholderText(item));
   if (findings.length) return normalizeList(findings, 4);
 
   const improvements = asArray(bucket.improvements)
     .map((item) => asRecord(item) ?? {})
-    .map((item) =>
-      key === "what_is_risky"
-        ? asString(item.observation || item.question || item.evidence)
-        : asString(item.recommendation || item.observation || item.question),
-    )
+    .map((item) => asString(item.observation || item.question || item.evidence))
     .filter((item) => item && !placeholderText(item));
   if (improvements.length) return normalizeList(improvements, 4);
 
   const questionItems = asArray(bucket.questions)
     .map((item) => asRecord(item) ?? {})
-    .map((item) =>
-      key === "what_is_risky"
-        ? synthesizeQuestionTakeaway(bucketLabel(bucket), item, "risk")
-        : synthesizeQuestionTakeaway(bucketLabel(bucket), item, "working"),
-    )
+    .map((item) => synthesizeQuestionTakeaway(bucketLabel(bucket), item, "risk"))
     .filter((item) => item && !placeholderText(item));
   if (questionItems.length) return normalizeList(questionItems, 4);
 
@@ -102,6 +180,14 @@ function matchesBucket(bucket: Record<string, unknown>, spec: SummaryBucketSpec)
   const pillarBucketName = normalizeKey(spec.name);
   if (actualName === pillarBucketName) return true;
   return spec.aliases.some((alias) => actualName === normalizeKey(alias));
+}
+
+function splitIntoColumns(items: readonly string[], columns = 2) {
+  const safeColumns = Math.max(1, columns);
+  const rowsPerColumn = Math.ceil(items.length / safeColumns);
+  return Array.from({ length: safeColumns }, (_, index) =>
+    items.slice(index * rowsPerColumn, index * rowsPerColumn + rowsPerColumn),
+  ).filter((column) => column.length > 0);
 }
 
 function lookupQuestionOptions(bucketNameValue: string, questionId: string) {
@@ -130,6 +216,8 @@ function synthesizeQuestionTakeaway(
   const option = lookupQuestionOptions(bucketNameValue, questionId).find((item) => Number(item.mark) === selectedMark);
   if (option?.text) return option.text.trim();
 
+  if (mode === "working") return "";
+
   const observation = asString(question.observation);
   if (observation && !placeholderText(observation)) return observation;
 
@@ -138,82 +226,323 @@ function synthesizeQuestionTakeaway(
 
   return mode === "risk"
     ? `Needs follow-up: ${questionText}.`
-    : `Current evidence suggests this should be verified further: ${questionText}.`;
+    : "";
 }
 
-export function NarrativeSummarySection({ vm }: SharedSectionProps) {
-  const bucketsByPillar = new Map<string, Array<Record<string, unknown>>>();
-  const pillarBucketsOrder = Object.entries(SUMMARY_PILLARS) as Array<
-    [keyof typeof SUMMARY_PILLARS, readonly SummaryBucketSpec[]]
-  >;
+function synthesizeWorkingQuestionTakeaway(bucketNameValue: string, question: Record<string, unknown>) {
+  const selectedMark = Number(asString(question.selected_option || question.mark));
+  if (Number.isFinite(selectedMark) && selectedMark < 4) return "";
 
+  const observation = asString(question.observation).replace(/^\s*\d+\.\s*/, "").trim();
+  if (observation && !placeholderText(observation) && !looksLikeRecommendation(observation) && !looksLikeWeakStatus(observation)) {
+    return observation;
+  }
+
+  const evidence = asString(question.evidence).replace(/^\s*\d+\.\s*/, "").trim();
+  if (evidence && !placeholderText(evidence) && !looksLikeRecommendation(evidence) && !looksLikeWeakStatus(evidence)) {
+    return evidence;
+  }
+
+  const selected = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  if (selected && !placeholderText(selected) && !looksLikeRecommendation(selected) && !looksLikeWeakStatus(selected)) {
+    return selected;
+  }
+
+  const selectedOption = lookupQuestionOptions(bucketNameValue, asString(question.id)).find(
+    (item) => Number(item.mark) === selectedMark,
+  );
+  const optionText = asString(selectedOption?.text).trim();
+  if (optionText && !looksLikeRecommendation(optionText) && !looksLikeWeakStatus(optionText)) {
+    return optionText;
+  }
+
+  return "";
+}
+
+function renderBucketContent(
+  bucket: Record<string, unknown> | null,
+  bucketData?: SummaryBucketData,
+) {
+  const hasRenderableProblems = (items?: readonly string[]) =>
+    Array.isArray(items) && items.some((item) => Boolean(item && !placeholderText(item)));
+  const hasRenderableStrengths = (items?: readonly string[]) =>
+    Array.isArray(items) && items.some((item) => Boolean(item && isWorkingStrengthText(item)));
+  const topProblems =
+    hasRenderableProblems(bucketData?.topProblems)
+      ? (bucketData?.topProblems as readonly string[])
+      : bucket
+        ? bucketRationaleItems(bucket, "what_is_risky")
+        : [];
+  const whatsWorkingFromBucket = bucket ? bucketRationaleItems(bucket, "what_is_working") : [];
+  const whatsWorking =
+    hasRenderableStrengths(bucketData?.whatsWorking)
+      ? (bucketData?.whatsWorking as readonly string[])
+      : whatsWorkingFromBucket.length
+        ? whatsWorkingFromBucket
+        : [];
+  return { topProblems, whatsWorking };
+}
+
+type SummaryBucketEntry = {
+  spec: SummaryBucketSpec;
+  bucket: Record<string, unknown> | null;
+  bucketData?: SummaryBucketData;
+  topProblems: readonly string[];
+  whatsWorking: readonly string[];
+  estimatedHeight: number;
+};
+
+const SUMMARY_PAGE_CARD_GAP = 20;
+const SUMMARY_PAGE_CONTENT_LIMIT = 930;
+const SUMMARY_BULLET_LINE_HEIGHT = 22;
+const SUMMARY_BULLET_ITEM_GAP = 16;
+const SUMMARY_CHARS_PER_LINE = 42;
+
+function estimateBulletItemHeight(text: string) {
+  const normalized = text.replace(/^\s*•\s*/, "").trim();
+  if (!normalized) return SUMMARY_BULLET_LINE_HEIGHT;
+  const lineCount = Math.max(1, Math.ceil(normalized.length / SUMMARY_CHARS_PER_LINE));
+  return lineCount * SUMMARY_BULLET_LINE_HEIGHT;
+}
+
+function estimateBulletColumnHeight(items: readonly string[]) {
+  return items.reduce((total, item, index) => {
+    const next = total + estimateBulletItemHeight(item);
+    return index === 0 ? next : next + SUMMARY_BULLET_ITEM_GAP;
+  }, 0);
+}
+
+function estimateBulletSectionHeight(items: readonly string[]) {
+  if (!items.length) return 0;
+  const columns = splitIntoColumns(items, 2);
+  const columnHeights = columns.map((column) => estimateBulletColumnHeight(column));
+  const contentHeight = columnHeights.length ? Math.max(...columnHeights) : 0;
+  return 18 + 12 + contentHeight;
+}
+
+function estimateBucketCardHeight(resolved: {
+  topProblems: readonly string[];
+  whatsWorking: readonly string[];
+}) {
+  const sectionHeights = [
+    estimateBulletSectionHeight(resolved.topProblems),
+    estimateBulletSectionHeight(resolved.whatsWorking),
+  ].filter((value) => value > 0);
+
+  if (!sectionHeights.length) return 0;
+
+  const gapBetweenSections = sectionHeights.length > 1 ? 32 : 0;
+  return 32 + 20 + 16 + sectionHeights.reduce((sum, value) => sum + value, 0) + gapBetweenSections;
+}
+
+function resolveSummaryBucketEntries({
+  vm,
+  pillar,
+  bucketData,
+  bucketNames,
+}: {
+  vm: SharedSectionProps["vm"];
+  pillar: SummaryPillar;
+  bucketData?: Partial<Record<string, SummaryBucketData>>;
+  bucketNames?: readonly string[];
+}): SummaryBucketEntry[] {
+  const bucketsByPillar = new Map<string, Array<Record<string, unknown>>>();
   for (const bucket of vm.bucketResults) {
-    const pillar = asString(bucket.pillar) || "Unassigned";
-    if (!bucketsByPillar.has(pillar)) bucketsByPillar.set(pillar, []);
-    bucketsByPillar.get(pillar)?.push(bucket);
+    const resolvedPillar = asString(bucket.pillar) || "Unassigned";
+    if (!bucketsByPillar.has(resolvedPillar)) bucketsByPillar.set(resolvedPillar, []);
+    bucketsByPillar.get(resolvedPillar)?.push(bucket);
+  }
+
+  const specs = (bucketNames?.length
+    ? SUMMARY_PILLARS[pillar].filter((spec) => bucketNames.includes(spec.name))
+    : SUMMARY_PILLARS[pillar]) as readonly SummaryBucketSpec[];
+
+  return specs
+    .map((spec) => {
+      const matched = (bucketsByPillar.get(pillar) || []).find((bucket) => matchesBucket(bucket, spec));
+      const directBucketData = bucketData?.[spec.name];
+      const resolved = renderBucketContent(matched ?? null, directBucketData);
+      if (!resolved.topProblems.length && !resolved.whatsWorking.length) return null;
+      return {
+        spec,
+        bucket: matched ?? null,
+        bucketData: directBucketData,
+        topProblems: resolved.topProblems,
+        whatsWorking: resolved.whatsWorking,
+        estimatedHeight: estimateBucketCardHeight(resolved),
+      };
+    })
+    .filter(Boolean) as SummaryBucketEntry[];
+}
+
+function paginateSummaryBucketEntries(entries: readonly SummaryBucketEntry[]) {
+  const pages: SummaryBucketEntry[][] = [];
+  let currentPage: SummaryBucketEntry[] = [];
+  let currentHeight = 0;
+
+  for (const entry of entries) {
+    const gap = currentPage.length ? SUMMARY_PAGE_CARD_GAP : 0;
+    const entryHeight = entry.estimatedHeight;
+
+    if (currentPage.length && currentHeight + gap + entryHeight > SUMMARY_PAGE_CONTENT_LIMIT) {
+      pages.push(currentPage);
+      currentPage = [entry];
+      currentHeight = entryHeight;
+      continue;
+    }
+
+    currentPage.push(entry);
+    currentHeight += gap + entryHeight;
+  }
+
+  if (currentPage.length) pages.push(currentPage);
+  return pages;
+}
+
+export function SummaryBulletColumns({ items }: { items: readonly string[] }) {
+  const columns = splitIntoColumns(items, 2);
+  if (!columns.length) {
+    return <div className="text-sm text-[color:var(--muted)]">Bucket-level data not available yet.</div>;
   }
 
   return (
-    <div className="space-y-4">
-      {pillarBucketsOrder.map(([pillar, bucketNames]) => {
-        const pillarBuckets = bucketNames.map((spec) => {
-          const matched = (bucketsByPillar.get(pillar) || []).find((bucket) => matchesBucket(bucket, spec));
-          return matched ? { spec, bucket: matched } : { spec, bucket: null };
+    <div className="grid grid-cols-2 gap-4">
+      {columns.map((column, index) => (
+        <ul
+          key={`${index}-${column[0] || "empty"}`}
+          className="min-w-0 list-disc space-y-4 pl-5 text-[14px] leading-[1.5] text-[color:var(--report-black)]"
+        >
+          {column.map((item) => (
+            <li key={item} className="break-words">
+              {item}
+            </li>
+          ))}
+        </ul>
+      ))}
+    </div>
+  );
+}
+
+function SummaryBucketCard({
+  spec,
+  bucket,
+  bucketData,
+}: {
+  spec: SummaryBucketSpec;
+  bucket: Record<string, unknown> | null;
+  bucketData?: SummaryBucketData;
+}) {
+  const currentBucketLabel = displayBucketName(spec.name);
+  const resolved = renderBucketContent(bucket, bucketData);
+  const showTopProblems = resolved.topProblems.length > 0;
+  const showWhatsWorking = resolved.whatsWorking.length > 0;
+
+  if (!showTopProblems && !showWhatsWorking) return null;
+
+  return (
+    <div className="print-avoid-break rounded-[12px] border border-transparent bg-[color:var(--report-grey-bg)] p-4 sm:p-5">
+      <div className="text-[16px] font-semibold leading-tight text-[color:var(--report-black)]">
+        {currentBucketLabel}
+      </div>
+      <div className="mt-4 border-t border-[color:var(--card-border)]/60" />
+      <div className="mt-4 space-y-8">
+        {showTopProblems ? (
+          <div className="min-w-0">
+            <div className="text-[14px] font-semibold leading-tight text-[color:var(--report-grey-font)]">
+              Top Problems:
+            </div>
+            <div className="mt-3">
+              <SummaryBulletColumns items={resolved.topProblems} />
+            </div>
+          </div>
+        ) : null}
+        {showWhatsWorking ? (
+          <div className="min-w-0">
+            <div className="text-[14px] font-semibold leading-tight text-[color:var(--report-grey-font)]">
+              What&apos;s Working
+            </div>
+            <div className="mt-3">
+              <SummaryBulletColumns items={resolved.whatsWorking} />
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function NarrativeSummarySection({ vm, pillar, bucketData, bucketNames: selectedBucketNames }: NarrativeSummarySectionProps) {
+  const pillarBucketsOrder = (
+    pillar
+      ? ([[pillar, SUMMARY_PILLARS[pillar]]] as Array<[SummaryPillar, readonly SummaryBucketSpec[]]>)
+      : (Object.entries(SUMMARY_PILLARS) as Array<[SummaryPillar, readonly SummaryBucketSpec[]]>)
+  ) as Array<[SummaryPillar, readonly SummaryBucketSpec[]]>;
+
+  return (
+    <div className="space-y-5">
+      {pillarBucketsOrder.map(([currentPillar, pillarSpecs]) => {
+        const visibleSpecs = selectedBucketNames
+          ? pillarSpecs.filter((spec) => selectedBucketNames.includes(spec.name))
+          : pillarSpecs;
+        const pillarBuckets = resolveSummaryBucketEntries({
+          vm,
+          pillar: currentPillar,
+          bucketData,
+          bucketNames: visibleSpecs.map((spec) => spec.name),
         });
 
         return (
-          <div
-            key={pillar}
-            className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
-          >
-            <div className="text-sm font-semibold">
-              {pillar}{" "}
-              <span className="font-normal text-[color:var(--muted)]">
-                ({bucketNames.map((bucket) => displayBucketName(bucket.name)).join(", ")})
-              </span>
+          <section key={currentPillar} className="space-y-4">
+            <div className="space-y-4">
+              {pillarBuckets.map(({ spec, bucket, bucketData: directBucketData }, index) => (
+                <SummaryBucketCard
+                  key={`${currentPillar}-${spec.name}-${index}`}
+                  spec={spec}
+                  bucket={bucket}
+                  bucketData={directBucketData}
+                />
+              ))}
             </div>
-            <div className="my-4 border-t border-[color:var(--card-border)]/60" />
-
-            <div className="space-y-5">
-              {pillarBuckets.map(({ spec, bucket }, index) => {
-                const currentBucketName = bucket ? bucketName(bucket) : spec.name;
-                const currentBucketLabel = displayBucketName(spec.name);
-                return (
-                  <div
-                    key={`${pillar}-${currentBucketName}-${index}`}
-                    className={index === 0 ? "" : "border-t border-[color:var(--card-border)]/60 pt-5"}
-                  >
-                    <div className="text-sm font-medium text-[color:var(--ink)]">
-                      {currentBucketLabel}
-                    </div>
-
-                    <div className="mt-4 space-y-5">
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
-                          Top Problems
-                        </div>
-                        <BulletList
-                          items={bucket ? bucketRationaleItems(bucket, "what_is_risky") : []}
-                          emptyLabel="Bucket-level data not available yet."
-                        />
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-wider text-[color:var(--muted)]">
-                          What&apos;s Working
-                        </div>
-                        <BulletList
-                          items={bucket ? bucketRationaleItems(bucket, "what_is_working") : []}
-                          emptyLabel="Bucket-level data not available yet."
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          </section>
         );
       })}
     </div>
   );
+}
+
+export function buildNarrativeSummaryPages({
+  vm,
+  pillar,
+  bucketData,
+}: {
+  vm: SharedSectionProps["vm"];
+  pillar: SummaryPillar;
+  bucketData?: Partial<Record<string, SummaryBucketData>>;
+}): ReportPage[] {
+  const entries = resolveSummaryBucketEntries({ vm, pillar, bucketData });
+  const chunks = paginateSummaryBucketEntries(entries);
+  if (!chunks.length) {
+    return [
+      {
+        key: `narrative_summary_${pillar.toLowerCase()}`,
+        title: `Summary - ${pillar}`,
+        body: <NarrativeSummarySection vm={vm} pillar={pillar} bucketData={bucketData} />,
+        variant: "standard",
+      },
+    ];
+  }
+
+  return chunks.map((chunk, index) => ({
+    key: `narrative_summary_${pillar.toLowerCase()}_${index + 1}`,
+    title: `Summary - ${pillar}`,
+    body: (
+      <NarrativeSummarySection
+        vm={vm}
+        pillar={pillar}
+        bucketData={bucketData}
+        bucketNames={chunk.map((entry) => entry.spec.name)}
+      />
+    ),
+    variant: "standard",
+  }));
 }

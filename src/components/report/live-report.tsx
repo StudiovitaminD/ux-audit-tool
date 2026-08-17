@@ -172,6 +172,17 @@ export function LiveReport({
     }
   }
 
+  function resetAnswers() {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm("Reset all edited answers back to the current saved report?")
+    ) {
+      return;
+    }
+    setEditableReport(baseReport);
+    setSaveMessage("Answers reset");
+  }
+
   async function refreshAiContent() {
     if (!reportId) return;
 
@@ -230,7 +241,7 @@ export function LiveReport({
   }, [pages.length]);
 
   return (
-    <div className="p-6" data-report-live-root>
+    <div className="flex min-h-screen flex-col p-6" data-report-live-root>
       <ReportAccessPanel
         reportAccessLevel={reportAccessLevel}
         lockedSections={lockedSections}
@@ -240,101 +251,72 @@ export function LiveReport({
         <div>
           <div className="text-lg font-semibold">Generated report: {vm.productName}</div>
           <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
-            Client‑deliverable preview (multi‑page).
+            Client‑deliverable preview (multi-page).
           </div>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          {reportId ? (
-            <button
-              type="button"
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-              onClick={() => void saveChanges()}
-              disabled={!isDirty || saving || refreshing}
-              style={!isDirty || saving || refreshing ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-            >
-              {saving ? "Saving…" : "Save Changes"}
-            </button>
-          ) : null}
-          {reportId ? (
-            <button
-              type="button"
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-              onClick={() => void refreshAiContent()}
-              disabled={saving || refreshing}
-              style={saving || refreshing ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-            >
-              {refreshing ? "Refreshing AI…" : "Refresh AI content"}
-            </button>
-          ) : null}
-          {reportId ? (
-            <button
-              type="button"
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-              onClick={onReaudit}
-            >
-              Re-audit
-            </button>
-          ) : null}
-          {onDownloadPdf ? (
-            <button
-              type="button"
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-              onClick={() => void saveBeforeExport(onDownloadPdf)}
-              disabled={downloadingPdf || isPreviewReport || saving}
-            >
-              {isPreviewReport ? "Upgrade for PDF" : downloadingPdf ? "Exporting PDF…" : "Export PDF"}
-            </button>
-          ) : null}
-          {onDownloadDocx ? (
-            <button
-              type="button"
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-              onClick={() => void saveBeforeExport(onDownloadDocx)}
-              disabled={downloadingDocx || isPreviewReport || saving}
-            >
-              {isPreviewReport ? "Upgrade for Word" : downloadingDocx ? "Exporting Word…" : "Export Word"}
-            </button>
-          ) : null}
-          {onDownloadPptx ? (
-            <button
-              type="button"
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-              onClick={() => void saveBeforeExport(onDownloadPptx)}
-              disabled={downloadingPptx || isPreviewReport || saving}
-            >
-              {isPreviewReport ? "Upgrade for PPTX" : downloadingPptx ? "Exporting PPTX…" : "Export PPTX"}
-            </button>
-          ) : null}
         </div>
       </div>
 
       <div
-        className="mt-5"
+        className="mt-5 flex-1 min-h-0 overflow-x-auto"
         data-report-live-canvas
         data-current-page={page + 1}
         data-total-pages={pages.length}
       >
         <div
-          className="mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-8 print-report-root"
+          className={`report-a4-page print-page mt-5 print-report-root ${
+            current.variant === "cover"
+              ? "report-a4-page-cover bg-[#fc6d27]"
+              : current.title === "Overview"
+                ? "report-a4-page-overview"
+              : "bg-[color:var(--white)]"
+          }`}
           data-report-live-page
           data-report-page-title={current.title}
         >
-          <div className="relative">
-            <div
-              className={currentPageLocked ? "pointer-events-none select-none blur-md opacity-60" : ""}
-            >
-              <div className="mb-5 text-2xl font-semibold text-[color:var(--ink)]">
-                {current.title}
-              </div>
-              {current.title === "Overview" ? (
-                <div className="mb-5 text-sm leading-7 text-[color:var(--ink-muted)]">
-                  This report is based on an expert review using a structured UX Audit Framework.
-                  It provides an indicative assessment of the user experience with an estimated 70%
-                  accuracy level and is intended to guide design decisions.
+          <div className={`report-a4-page-inner relative ${current.variant === "cover" ? "h-full" : ""}`}>
+            {current.variant === "cover" ? (
+              <div className="flex h-full min-h-0 flex-col">
+                <div
+                  className={
+                    currentPageLocked
+                      ? "pointer-events-none select-none blur-md opacity-60 h-full"
+                      : "h-full"
+                  }
+                >
+                  {current.body}
                 </div>
-              ) : null}
-              {current.body}
-            </div>
+              </div>
+            ) : (
+              <div
+                className={`flex h-full min-h-0 flex-col ${
+                  currentPageLocked ? "pointer-events-none select-none blur-md opacity-60" : ""
+                }`}
+              >
+                <div className="report-a4-page-body">
+                  {current.showTitle !== false ? (
+                    <div
+                      className={`mb-5 flex flex-col items-start gap-1 self-stretch ${
+                        current.title === "Overview"
+                          ? "pb-0"
+                          : "border-b border-[rgba(15,23,42,0.14)] pb-4"
+                      }`}
+                    >
+                      <div
+                        className="text-[24px] font-bold leading-normal text-[color:var(--report-black)]"
+                        style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+                      >
+                        {current.title}
+                      </div>
+                    </div>
+                  ) : null}
+                  {current.body}
+                </div>
+                <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-black)]">
+                  <div>Page {page + 1}</div>
+                  <div>UX Audit Report</div>
+                </div>
+              </div>
+            )}
             {currentPageLocked ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="max-w-md rounded-2xl border border-[color:var(--cream-dark)] bg-white/95 p-6 text-center shadow-lg">
@@ -352,14 +334,66 @@ export function LiveReport({
           className="no-print sticky bottom-4 z-20 mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur"
           data-report-pagination
         >
-          <div className="flex items-center justify-between gap-3">
-            <div
-              className="text-sm text-[color:var(--ink-muted)]"
-              data-report-page-indicator
-            >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-[color:var(--ink-muted)]" data-report-page-indicator>
               Page {page + 1} / {pages.length}
             </div>
-            <div className="flex items-center gap-2" data-report-pagination-controls>
+            <div className="flex flex-wrap items-center gap-2" data-report-pagination-controls>
+              {reportId ? (
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                  onClick={() => void saveChanges()}
+                  disabled={!isDirty || saving || refreshing}
+                  style={
+                    !isDirty || saving || refreshing
+                      ? { opacity: 0.5, pointerEvents: "none" }
+                      : undefined
+                  }
+                >
+                  {saving ? "Saving…" : "Save Changes"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                onClick={resetAnswers}
+                disabled={saving || refreshing || !isDirty}
+                style={saving || refreshing || !isDirty ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+              >
+                Reset Answers
+              </button>
+              {reportId ? (
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                  onClick={() => void refreshAiContent()}
+                  disabled={saving || refreshing}
+                  style={saving || refreshing ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+                >
+                  {refreshing ? "Refreshing AI…" : "Refresh AI content"}
+                </button>
+              ) : null}
+              {onDownloadPdf ? (
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                  onClick={() => void saveBeforeExport(onDownloadPdf)}
+                  disabled={downloadingPdf || isPreviewReport || saving}
+                >
+                  {isPreviewReport ? "Upgrade for PDF" : downloadingPdf ? "Exporting PDF…" : "Export PDF"}
+                </button>
+              ) : null}
+              {onDownloadPptx ? (
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                  onClick={() => void saveBeforeExport(onDownloadPptx)}
+                  disabled={downloadingPptx || isPreviewReport || saving}
+                >
+                  {isPreviewReport ? "Upgrade for PPTX" : downloadingPptx ? "Exporting PPTX…" : "Export PPTX"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="btnPrimary"

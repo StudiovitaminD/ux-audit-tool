@@ -101,6 +101,14 @@ function normalizeProgressState(data: Record<string, unknown>) {
   };
 }
 
+function isCancelledReport(data: Record<string, unknown>) {
+  return (
+    asString(data.status) === "cancelled" ||
+    Boolean(asString(data.cancelledAt)) ||
+    asString((asRecord(data.progress) ?? {}).currentStage) === "cancelled"
+  );
+}
+
 function isProgressFinished(data: Record<string, unknown>) {
   const progress = normalizeProgressState(data);
   if (progress.bucketIndex === null || progress.totalBuckets === null) return false;
@@ -215,11 +223,15 @@ export async function GET(
   const reportIsFinalized =
     hasFinalizedReportPayload(rawReportRecord) || hasRenderableNormalizedReport(dataRecord);
   const progressFinished = isProgressFinished(dataRecord);
-  const derivedStatus =
+  const cancelled = isCancelledReport(dataRecord);
+  const hasCompletedReport =
     asString(dataRecord.status) === "complete" ||
     (reportIsFinalized && progressFinished) ||
     Boolean(asString(dataRecord.completedAt)) ||
-    asString(captureDebug?.phase) === "report_complete"
+    asString(captureDebug?.phase) === "report_complete";
+  const derivedStatus = cancelled
+    ? "cancelled"
+    : hasCompletedReport
       ? "complete"
       : asString(dataRecord.status) ?? "processing";
 

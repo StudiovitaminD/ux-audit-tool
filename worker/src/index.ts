@@ -4,7 +4,7 @@ import { getFirestore, getStorage } from "./firebase.js";
 import { IntakeSchema, type Intake } from "./types.js";
 import { collectEvidence } from "./evidence.js";
 import { auditOneBucket, aggregateScores, writeNarrative } from "./audit.js";
-import { QUESTION_BANK } from "./question-bank.js";
+import { QUESTION_BANK, normalizeBucketName } from "./question-bank.js";
 
 const FREE_AUDIT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
 
@@ -115,7 +115,14 @@ async function runJob(env: ReturnType<typeof getEnv>, reportId: string) {
   if (!parsed.success) throw new Error("Invalid intake payload");
 
   const intake = { ...parsed.data, product_type: toSnakeEnum(parsed.data.product_type) } as Intake;
-  const buckets = (intake.selected_buckets || []).filter((b) => (QUESTION_BANK[b] || []).length === 10);
+  const buckets = Array.from(
+    new Set(
+      (intake.selected_buckets || [])
+        .filter(Boolean)
+        .map((bucket) => normalizeBucketName(bucket))
+        .filter((bucket) => (QUESTION_BANK[bucket] || []).length > 0),
+    ),
+  );
   if (!buckets.length) throw new Error("No supported buckets selected");
 
   await ref.set({ status: "processing", startedAt: new Date().toISOString(), progress: { bucketIndex: 0, totalBuckets: buckets.length } }, { merge: true });

@@ -22,7 +22,7 @@ const bucketRows = [
   {
     bucket: "Screen Reader Support",
     pillar: "Accessibility",
-    coverage: "Semantic HTML, ARIA, labels, alt text, and announcements",
+    coverage: "Semantic HTML, ARIA, labels, alt text, announcements, and a screen-reader capture",
   },
   {
     bucket: "Navigation & Findability",
@@ -42,7 +42,7 @@ const bucketRows = [
   {
     bucket: "Performance",
     pillar: "Impact",
-    coverage: "Load speed, runtime responsiveness, and asset efficiency",
+    coverage: "Load speed, runtime responsiveness, asset efficiency, and a mobile performance pass",
   },
   {
     bucket: "Visual Consistency",

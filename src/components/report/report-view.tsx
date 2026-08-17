@@ -318,6 +318,8 @@ export function ReportView() {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingPptx, setDownloadingPptx] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [stoppingReport, setStoppingReport] = useState(false);
+  const [retryingReport, setRetryingReport] = useState(false);
   const [reportHistory, setReportHistory] = useState<
     Array<{
       id: string;
@@ -363,7 +365,7 @@ export function ReportView() {
 
   const kickProcess = useCallback(async (reason: string, minIntervalMs = 0) => {
     if (!rid) return;
-    if (status === "complete" || status === "error") return;
+    if (status === "complete" || status === "error" || status === "cancelled") return;
 
     const now = Date.now();
     if (processInFlightRef.current) return;
@@ -417,6 +419,57 @@ export function ReportView() {
       processInFlightRef.current = false;
     }
   }, [rid, status]);
+
+  async function stopReport() {
+    if (!reportId || stoppingReport) return;
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm("Stop this report and open the audit form so you can update it?")
+    ) {
+      return;
+    }
+
+    setStoppingReport(true);
+    setJobError(null);
+    setLastError(null);
+
+    try {
+      const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/cancel`, {
+        method: "POST",
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string; status?: string } | null;
+      if (!res.ok) throw new Error(data?.error || `Failed to stop report (${res.status})`);
+
+      setStatus("cancelled");
+      router.push(`/audit?sourceReport=${encodeURIComponent(reportId)}`);
+    } catch (error) {
+      setJobError(error instanceof Error ? error.message : "Failed to stop report");
+    } finally {
+      setStoppingReport(false);
+    }
+  }
+
+  async function retryReportGeneration() {
+    if (!reportId || retryingReport) return;
+
+    setRetryingReport(true);
+    setJobError(null);
+    setLastError(null);
+
+    try {
+      const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(data?.error || `Failed to retry report generation (${res.status})`);
+      window.location.assign(`/report?rid=${encodeURIComponent(reportId)}`);
+    } catch (error) {
+      setJobError(error instanceof Error ? error.message : "Failed to retry report generation");
+    } finally {
+      setRetryingReport(false);
+    }
+  }
 
   async function deleteReport(id: string) {
     if (!window.confirm("Delete this report? This cannot be undone.")) return;
@@ -650,6 +703,10 @@ export function ReportView() {
                 failedAt: typeof rec.failedAt === "string" ? rec.failedAt : null,
                 lastError: nextLastError,
                 lastErrorAt: typeof rec.lastErrorAt === "string" ? rec.lastErrorAt : null,
+                lastErrorPhase:
+                  typeof rec.lastErrorPhase === "string" ? rec.lastErrorPhase : null,
+                lastErrorStack:
+                  typeof rec.lastErrorStack === "string" ? rec.lastErrorStack : null,
                 error: nextError,
                 processKickCount,
                 lastProcessKickAt,
@@ -685,7 +742,7 @@ export function ReportView() {
     timer = window.setInterval(() => {
       if (cancelled) return;
       // keep polling until job completes or errors
-      if (status === "complete" || status === "error") return;
+      if (status === "complete" || status === "error" || status === "cancelled") return;
       tick();
     }, 2000);
     return () => {
@@ -699,7 +756,7 @@ export function ReportView() {
   // and `finalizing` continue even if the browser misses a prior trigger.
   useEffect(() => {
     if (!rid) return;
-    if (status === "complete" || status === "error") return;
+    if (status === "complete" || status === "error" || status === "cancelled") return;
 
     const currentStage =
       debugDetails && typeof debugDetails.currentStage === "string"
@@ -1023,6 +1080,21 @@ export function ReportView() {
         {!jobError && lastError ? (
           <div className="mt-3 text-sm text-red-600 dark:text-red-400">{lastError}</div>
         ) : null}
+        {(debugDetails?.lastErrorPhase || debugDetails?.lastErrorStack) ? (
+          <div className="mt-3 rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+            <div className="font-semibold">Failure details</div>
+            <div className="mt-1">
+              {typeof debugDetails.lastErrorPhase === "string" && debugDetails.lastErrorPhase
+                ? `The report failed during ${toDisplayStage(debugDetails.lastErrorPhase) || debugDetails.lastErrorPhase}.`
+                : "The report failed before a phase label could be recorded."}
+            </div>
+            {typeof debugDetails.lastErrorStack === "string" && debugDetails.lastErrorStack ? (
+              <div className="mt-2 whitespace-pre-wrap text-[11px] leading-5 text-red-700/90 dark:text-red-200/90">
+                {debugDetails.lastErrorStack}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {debugDetails ? (
           <CapturePipelineDebug debug={debugDetails} />
         ) : null}
@@ -1040,10 +1112,38 @@ export function ReportView() {
           </button>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => void retryReportGeneration()}
+            disabled={retryingReport}
             className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
           >
-            Try again
+            {retryingReport ? "Retrying…" : "Try again"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (reportId && status === "cancelled") {
+    return (
+      <div className="p-6">
+        <div className="text-lg font-semibold">Report stopped</div>
+        <div className="mt-3 text-sm text-[color:var(--muted)]">
+          The current report run was cancelled so you can fix the audit form and send it again.
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href={`/audit?sourceReport=${encodeURIComponent(reportId)}`}
+            className="btnPrimary"
+          >
+            Edit audit form
+          </Link>
+          <button
+            type="button"
+            onClick={() => void retryReportGeneration()}
+            disabled={retryingReport}
+            className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+          >
+            {retryingReport ? "Retrying…" : "Refresh status"}
           </button>
         </div>
       </div>
@@ -1127,6 +1227,16 @@ export function ReportView() {
         {debugDetails ? (
           <CapturePipelineDebug debug={debugDetails} />
         ) : null}
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={stopReport}
+            disabled={stoppingReport}
+            className="rounded-full border border-red-200 bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {stoppingReport ? "Stopping…" : "Stop & edit"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -1144,13 +1254,13 @@ export function ReportView() {
   }
 
   return (
-      <LiveReport
-        report={effectiveReport}
-        reportId={reportId}
-        onReaudit={() => router.push(`/audit?sourceReport=${encodeURIComponent(reportId || "")}`)}
-        onDownloadPdf={reportId ? () => download("pdf") : undefined}
-        onDownloadDocx={reportId ? () => download("docx") : undefined}
-        onDownloadPptx={reportId ? (reportOverride) => download("pptx", reportOverride) : undefined}
+    <LiveReport
+      report={effectiveReport}
+      reportId={reportId}
+      onReaudit={() => router.push(`/audit?sourceReport=${encodeURIComponent(reportId || "")}`)}
+      onDownloadPdf={reportId ? () => download("pdf") : undefined}
+      onDownloadDocx={reportId ? () => download("docx") : undefined}
+      onDownloadPptx={reportId ? (reportOverride) => download("pptx", reportOverride) : undefined}
       downloadingPdf={downloadingPdf}
       downloadingDocx={downloading}
       downloadingPptx={downloadingPptx}

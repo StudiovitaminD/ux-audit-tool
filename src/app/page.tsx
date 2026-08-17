@@ -1,13 +1,8 @@
-import { LandingHero } from "@/components/landing/landing-hero";
-import { LandingSections } from "@/components/landing/landing-sections";
-import { LandingMotion } from "@/components/landing/landing-motion";
+import { redirect } from "next/navigation";
 
-export default function Home() {
-  return (
-    <div className="landingRoot">
-      <LandingHero />
-      <LandingSections />
-      <LandingMotion />
-    </div>
-  );
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  redirect("/report");
 }

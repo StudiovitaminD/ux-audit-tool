@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
+import type { AdminAuditModelChoice } from "@/lib/admin-model-types";
 
 export type AdminAuditRow = {
   id: string;
@@ -63,6 +64,7 @@ export type AdminDashboardProps = {
     email: string;
     name: string;
   };
+  auditModelChoice: AdminAuditModelChoice;
   metrics: AdminDashboardMetrics;
   reportSeries: AdminDashboardSeriesPoint[];
   planMix: Array<{ label: string; value: number; tone: string }>;

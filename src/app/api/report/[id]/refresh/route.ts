@@ -3,6 +3,7 @@ import { getAccountSessionFromRequest } from "@/lib/account-server";
 import {
   reportBelongsToSession,
   resolveReportSnapshot,
+  loadStoredReport,
   unwrapReportPayload,
 } from "@/lib/report-record";
 import { finalizeAudit, type BucketResult, type Intake } from "@/lib/audit-engine";
@@ -11,6 +12,83 @@ import type { EvidenceBundle } from "@/lib/evidence-collector";
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+}
+
+function normalizeStoredBucketResults(results: unknown[]): BucketResult[] {
+  return results
+    .map((bucket) => {
+      const bucketRec = asRecord(bucket) ?? {};
+      const normalizeQuestion = (item: unknown) => {
+        const rec = asRecord(item);
+        if (!rec) return null;
+        return {
+          ...rec,
+          id: typeof rec.id === "string" ? rec.id : String(rec.id ?? ""),
+          question: typeof rec.question === "string" ? rec.question : String(rec.question ?? ""),
+          mark:
+            typeof rec.mark === "number" || rec.mark === null || rec.mark === undefined
+              ? rec.mark ?? null
+              : Number(rec.mark) || null,
+          selected_option:
+            typeof rec.selected_option === "number" || rec.selected_option === null || rec.selected_option === undefined
+              ? rec.selected_option ?? null
+              : Number(rec.selected_option) || null,
+          evidence: typeof rec.evidence === "string" ? rec.evidence : String(rec.evidence ?? ""),
+          observation:
+            typeof rec.observation === "string" ? rec.observation : String(rec.observation ?? ""),
+          recommendation:
+            typeof rec.recommendation === "string"
+              ? rec.recommendation
+              : String(rec.recommendation ?? ""),
+          effort: typeof rec.effort === "string" ? rec.effort : String(rec.effort ?? ""),
+          impact: typeof rec.impact === "string" ? rec.impact : String(rec.impact ?? ""),
+          answer_status:
+            rec.answer_status === "insufficient_evidence" ||
+            rec.answer_status === "scoring_unavailable"
+              ? rec.answer_status
+              : "answered",
+          missing_evidence: Array.isArray(rec.missing_evidence) ? rec.missing_evidence : [],
+          confidence:
+            typeof rec.confidence === "number" && Number.isFinite(rec.confidence) ? rec.confidence : 0,
+        };
+      };
+
+      return {
+        ...bucketRec,
+        bucket_name:
+          typeof bucketRec.bucket_name === "string"
+            ? bucketRec.bucket_name
+            : String(bucketRec.bucket_name ?? ""),
+        pillar:
+          typeof bucketRec.pillar === "string" ? bucketRec.pillar : String(bucketRec.pillar ?? "Impact"),
+        total_marks:
+          typeof bucketRec.total_marks === "number" || bucketRec.total_marks === null
+            ? bucketRec.total_marks
+            : null,
+        max_marks:
+          typeof bucketRec.max_marks === "number" || bucketRec.max_marks === null
+            ? bucketRec.max_marks
+            : null,
+        score: typeof bucketRec.score === "number" || bucketRec.score === null ? bucketRec.score : null,
+        bucket_status:
+          typeof bucketRec.bucket_status === "string"
+            ? bucketRec.bucket_status
+            : "insufficient_evidence",
+        health: typeof bucketRec.health === "string" ? bucketRec.health : "Not scored",
+        risk: typeof bucketRec.risk === "string" ? bucketRec.risk : "Evidence missing",
+        priority: typeof bucketRec.priority === "string" ? bucketRec.priority : "P0",
+        questions: Array.isArray(bucketRec.questions)
+          ? bucketRec.questions.map(normalizeQuestion).filter(Boolean)
+          : [],
+        findings: Array.isArray(bucketRec.findings)
+          ? bucketRec.findings.map((item) => asRecord(item)).filter(Boolean)
+          : [],
+        improvements: Array.isArray(bucketRec.improvements)
+          ? bucketRec.improvements.map((item) => asRecord(item)).filter(Boolean)
+          : [],
+      } as unknown as BucketResult;
+    })
+    .filter((bucket) => Boolean(bucket.bucket_name));
 }
 
 function asString(value: unknown) {
@@ -77,7 +155,8 @@ export async function POST(
     const raw = (await req.json().catch(() => null)) as { report?: unknown } | null;
     const requestReport = asRecord(raw?.report);
     const storedReport = asRecord(unwrapReportPayload(storedData.report));
-    const sourceReport = requestReport ?? storedReport;
+    const loadedStoredReport = storedReport ? null : await loadStoredReport(id);
+    const sourceReport = requestReport ?? storedReport ?? loadedStoredReport?.report ?? null;
 
     if (!sourceReport) {
       return Response.json({ error: "Missing report payload" }, { status: 400 });
@@ -87,7 +166,7 @@ export async function POST(
     const intake = asRecord(sanitizedReport.intake);
     const evidence = asRecord(sanitizedReport.evidence);
     const bucketResults = Array.isArray(sanitizedReport.bucket_results)
-      ? (sanitizedReport.bucket_results as BucketResult[])
+      ? normalizeStoredBucketResults(sanitizedReport.bucket_results)
       : null;
 
     if (!intake) {

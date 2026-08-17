@@ -11,6 +11,11 @@ import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../share
 
 const DEFAULT_OPENROUTER_MODEL = "openrouter/owl-alpha";
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
 function modelSupportsStructuredOutput(model: string) {
   const normalized = normalizeModelName(model).toLowerCase();
   if (!normalized) return false;
@@ -171,10 +176,9 @@ function normalizeBucketName(bucket: string) {
 }
 
 function getHealth(score: number) {
-  if (score >= 85) return { label: "Exceptional", risk: "Optimised", priority: "P4" };
-  if (score >= 75) return { label: "Good", risk: "Low Risk", priority: "P3" };
-  if (score >= 50) return { label: "Average", risk: "Moderate", priority: "P2" };
-  return { label: "Needs Immediate Improvement", risk: "Critical", priority: "P1" };
+  if (score >= 80) return { label: "Good", risk: "Low Risk", priority: "P3" };
+  if (score <= 50) return { label: "Critical", risk: "Critical", priority: "P1" };
+  return { label: "Average", risk: "Moderate", priority: "P2" };
 }
 
 function productTypeLabel(type: Intake["product_type"]) {
@@ -218,6 +222,7 @@ function bucketSpecificGuidance(bucket: string) {
     ],
     "Screen Reader Support": [
       "Prefer evidence from semantic HTML, ARIA labels, form labels, alt text, and announcement clarity.",
+      "If dedicated screen-reader evidence is missing, still give a best-effort score from the visible structure instead of blocking the bucket.",
     ],
     "Navigation & Findability": [
       "Prefer evidence from navigation labels, tabs, repeated section names, page titles, and wayfinding cues.",
@@ -233,7 +238,10 @@ function bucketSpecificGuidance(bucket: string) {
     "Motion & Microinteractions": ["Prefer evidence from transitions, hover feedback, motion restraint, and interaction flourishes."],
     "Brand Expression": ["Use visual personality, tone of voice, and distinct identity cues from capture."],
     "Icons & Imagery": ["Prefer evidence from icon clarity, illustration quality, and image support."],
-    "Performance": ["Use structural evidence for runtime and efficiency judgments and reserve mark 3 for metrics that are not directly measurable from capture."],
+    "Performance": [
+      "Use structural evidence for runtime and efficiency judgments and reserve mark 3 for metrics that are not directly measurable from capture.",
+      "If dedicated mobile timing evidence is missing, still give a best-effort score from the captured UI instead of blocking the bucket.",
+    ],
   };
   return (map[bucket] || []).join(" ");
 }
@@ -243,7 +251,7 @@ function trimText(value: string | null | undefined, max = 280) {
     .replace(/\s+/g, " ")
     .trim();
   if (!text) return "";
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  return text.length > max ? text.slice(0, max) : text;
 }
 
 function extractOpenRouterTextContent(value: unknown): string | null {
@@ -302,6 +310,10 @@ function takeTop(values: string[] | undefined, max = 4) {
     .slice(0, max);
 }
 
+function safeLength(values: unknown) {
+  return Array.isArray(values) ? values.length : 0;
+}
+
 function chunkArray<T>(items: T[], size: number) {
   const chunkSize = Math.max(1, size);
   const chunks: T[][] = [];
@@ -341,12 +353,12 @@ function summarizeEvidenceForBucket(evidence: EvidenceBundle | null, bucket: str
       const parts = [
         `Page ${index + 1}${page.label ? ` (${page.label})` : ""}: ${page.url}`,
         page.title ? `Title: ${page.title}` : "",
-        page.h1.length ? `H1: ${takeTop(page.h1, 3).join(" | ")}` : "",
-        page.h2.length ? `H2: ${takeTop(page.h2, 3).join(" | ")}` : "",
+        safeLength(page.h1) ? `H1: ${takeTop(page.h1, 3).join(" | ")}` : "",
+        safeLength(page.h2) ? `H2: ${takeTop(page.h2, 3).join(" | ")}` : "",
       ];
 
       if (bucket === "Navigation & Findability") {
-        if (page.topNavLinks.length) {
+        if (safeLength(page.topNavLinks)) {
           parts.push(
             `Nav labels: ${page.topNavLinks
               .slice(0, 5)
@@ -409,7 +421,7 @@ function bucketPrompt(intake: Intake, bucket: string, questions: BucketQuestion[
     })
     .join("\n\n---\n\n");
 
-  return `You are a principal UX auditor producing a client-ready evaluation.\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nCompact product context:\n${JSON.stringify(intakeSummary, null, 2)}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nBucket-specific guidance:\n${bucketSpecificGuidance(bucket)}\n\nScoring rubric:\n- 5 = best-in-class and clearly supported by evidence.\n- 4 = strong with minor gaps.\n- 3 = mixed but still scoreable from the captured evidence.\n- 2 = clear friction.\n- 1 = severe blocker.\n\nHard rules:\n- Use only captured evidence.\n- Cite visible details from the capture for every answer.\n- Do not invent screens, features, or problems.\n- If the evidence is missing for a question, do not guess and do not force a low score.\n- For insufficient evidence, return mark as null and explain what was missing.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON in this shape:\n{\n  \"bucket\": \"${bucket}\",\n  \"pillar\": \"${PILLAR_MAP[bucket] || "Impact"}\",\n  \"score_rationale\": {\n    \"summary\": \"1-2 sentences\",\n    \"what_is_working\": [\"...\"],\n    \"what_is_risky\": [\"...\"],\n    \"why_now\": \"...\"\n  },\n  \"questions\": [\n    {\n      \"id\": \"N01\",\n      \"question\": \"...\",\n      \"mark\": 3,\n      \"evidence\": \"...\",\n      \"observation\": \"...\",\n      \"recommendation\": \"...\",\n      \"effort\": \"S|M|L\",\n      \"impact\": \"Low|Med|High\",\n      \"confidence\": 0.0\n    }\n  ]\n}\n\nQuestions:\n${selectedBucketQuestions}\n`;
+  return `You are a principal UX auditor producing a client-ready evaluation.\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nCompact product context:\n${JSON.stringify(intakeSummary, null, 2)}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nBucket-specific guidance:\n${bucketSpecificGuidance(bucket)}\n\nScoring rubric:\n- 5 = best-in-class and clearly supported by evidence.\n- 4 = strong with minor gaps.\n- 3 = mixed but still scoreable from the captured evidence.\n- 2 = clear friction.\n- 1 = severe blocker.\n\nHard rules:\n- Use only captured evidence.\n- Cite visible details from the capture for every answer.\n- Do not invent screens, features, or problems.\n- If the evidence is missing for a question, do not guess and do not force a low score.\n- For insufficient evidence, return mark as null and explain what was missing.\n- \"what_is_working\" must describe genuine strengths, stable patterns, or helpful UX behavior; do not restate problems or recommendations there.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON in this shape:\n{\n  \"bucket\": \"${bucket}\",\n  \"pillar\": \"${PILLAR_MAP[bucket] || "Impact"}\",\n  \"score_rationale\": {\n    \"summary\": \"1-2 sentences\",\n    \"what_is_working\": [\"...\"],\n    \"what_is_risky\": [\"...\"],\n    \"why_now\": \"...\"\n  },\n  \"questions\": [\n    {\n      \"id\": \"N01\",\n      \"question\": \"...\",\n      \"mark\": 3,\n      \"evidence\": \"...\",\n      \"observation\": \"...\",\n      \"recommendation\": \"...\",\n      \"effort\": \"S|M|L\",\n      \"impact\": \"Low|Med|High\",\n      \"confidence\": 0.0\n    }\n  ]\n}\n\nQuestions:\n${selectedBucketQuestions}\n`;
 }
 
 function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
@@ -421,8 +433,8 @@ function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
         `Page ${index + 1}${page.label ? ` (${trimText(page.label, 40)})` : ""}`,
         `URL: ${trimText(page.url, 120)}`,
         page.title ? `Title: ${trimText(page.title, 90)}` : "",
-        page.h1.length ? `Headings: ${takeTop(page.h1, 2).join(" | ")}` : "",
-        page.topNavLinks.length
+        safeLength(page.h1) ? `Headings: ${takeTop(page.h1, 2).join(" | ")}` : "",
+        safeLength(page.topNavLinks)
           ? `Nav labels: ${page.topNavLinks
               .slice(0, 4)
               .map((item) => trimText(item.text, 40))
@@ -676,7 +688,11 @@ async function completeMissingQuestions(args: {
     try {
       const raw = await openRouterChat(missingPrompt, { modelOverride: args.modelOverride });
       const parsed = parseBucketJson(raw);
-      for (const question of parsed.questions) {
+      const parsedQuestionInputs = Array.isArray(parsed.questions) ? parsed.questions : [];
+      const parsedQuestionRecords = parsedQuestionInputs
+        .map((item) => asRecord(item))
+        .filter((item): item is Record<string, unknown> => Boolean(item));
+      for (const question of parsedQuestionRecords) {
         const id = typeof question.id === "string" ? question.id : "";
         if (id) parsedById.set(id, question);
       }
@@ -712,9 +728,9 @@ function safeJsonParse(raw: string): unknown | null {
   return null;
 }
 
-async function repairToJson(raw: string, schemaHint: string) {
+async function repairToJson(raw: string, schemaHint: string, modelOverride?: string) {
   const prompt = `Fix the following into valid JSON only.\n\nRules:\n- Output ONLY JSON.\n- Do not add commentary.\n- Preserve as much content as possible.\n\nTarget schema:\n${schemaHint}\n\nInput:\n${raw}\n`;
-  const fixed = await openRouterChat(prompt);
+  const fixed = await openRouterChat(prompt, { modelOverride });
   return safeJsonParse(fixed);
 }
 
@@ -964,6 +980,48 @@ function bucketLeadInsight(bucket: BucketResult) {
   };
 }
 
+function bucketStrengthStatement(bucket: BucketResult) {
+  const bucketName = String(bucket.bucket_name || "This area").trim();
+  const score = Number.isFinite(Number(bucket.score)) ? Number(bucket.score) : null;
+  const health = String(bucket.health || "").trim().toLowerCase();
+  const finding =
+    Array.isArray(bucket.findings) && bucket.findings[0] && typeof bucket.findings[0] === "object"
+      ? (bucket.findings[0] as Record<string, unknown>)
+      : null;
+  const improvement =
+    Array.isArray(bucket.improvements) && bucket.improvements[0] && typeof bucket.improvements[0] === "object"
+      ? (bucket.improvements[0] as Record<string, unknown>)
+      : null;
+
+  const explicitStrength =
+    [
+      finding?.strength,
+      finding?.what_is_working,
+      finding?.positive_observation,
+      improvement?.strength,
+      improvement?.benefit,
+    ]
+      .map((value) => String(value || "").trim())
+      .find((value) => value && !isPlaceholderText(value)) || "";
+  if (explicitStrength) {
+    return explicitStrength;
+  }
+
+  if (score !== null) {
+    if (score >= 80) {
+      return `shows a strong foundation with ${health || "solid"} UX signals`;
+    }
+    if (score >= 65) {
+      return `is working reasonably well and gives users a functional experience`;
+    }
+    if (score >= 50) {
+      return `has a usable baseline that supports the core journey`;
+    }
+  }
+
+  return health ? `has stable patterns that support ${health} performance` : "shows a usable baseline for the core journey";
+}
+
 function competitorInsightSeed(name: string, compareFocus: string) {
   const identity = `${name} ${compareFocus}`.toLowerCase();
   if (identity.includes("manyavar")) {
@@ -1147,17 +1205,26 @@ function deriveExecutiveSummaryFromBuckets(args: {
   const weakest = [...scoredBuckets].sort((a, b) => Number(a.score || 0) - Number(b.score || 0))[0];
   const strongestFinding =
     strongest && Array.isArray(strongest.findings) && strongest.findings.length
-      ? (strongest.findings[0] as Record<string, unknown>)
+      ? (asRecord(strongest.findings[0]) ?? null)
       : undefined;
   const weakestFinding =
     weakest && Array.isArray(weakest.findings) && weakest.findings.length
-      ? (weakest.findings[0] as Record<string, unknown>)
+      ? (asRecord(weakest.findings[0]) ?? null)
       : undefined;
-  const topProblems = args.allFindings
+  const normalizedFindings = args.allFindings
+    .map((item) => asRecord(item))
+    .filter((item): item is Record<string, unknown> => Boolean(item));
+  const normalizedQuickWins = args.quickWins
+    .map((item) => asRecord(item))
+    .filter((item): item is Record<string, unknown> => Boolean(item));
+  const topProblems = normalizedFindings
     .slice(0, 5)
-    .map((item) => String(item.observation || item.question || item.evidence || "").trim())
+    .map((item) => {
+      const rec = asRecord(item) ?? {};
+      return String(rec.observation || rec.question || rec.evidence || "").trim();
+    })
     .filter((item) => Boolean(item) && !isPlaceholderText(item));
-  const quickWinTexts = args.quickWins
+  const quickWinTexts = normalizedQuickWins
     .slice(0, 5)
     .map((item) => String(item.recommendation || item.observation || item.question || "").trim())
     .filter((item) => Boolean(item) && !isPlaceholderText(item));
@@ -1165,22 +1232,28 @@ function deriveExecutiveSummaryFromBuckets(args: {
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
     .slice(0, 4)
     .map((bucket) => {
-      const { insight, action } = bucketLeadInsight(bucket);
-      return `${bucket.bucket_name}: ${
-        String(action || insight || bucket.health || "").trim()
-      }`;
+      const bucketName = String(bucket.bucket_name || "Bucket").trim();
+      return `${bucketName}: ${bucketStrengthStatement(bucket)}`;
     })
     .filter((item) => Boolean(item) && !isPlaceholderText(item));
   const uniqueTopProblems = uniqueSemanticList(topProblems, 5);
   const uniqueQuickWins = uniqueSemanticList(quickWinTexts, 5);
   const uniqueWhatsWorking = uniqueSemanticList(whatsWorking, 4);
+  const fallbackWhatsWorking = uniqueSemanticList(
+    [...scoredBuckets]
+      .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+      .slice(0, 4)
+      .map((bucket) => `${String(bucket.bucket_name || "Bucket").trim()}: ${bucketStrengthStatement(bucket)}`),
+    4,
+  );
+  const strengthsList = uniqueWhatsWorking.length ? uniqueWhatsWorking : fallbackWhatsWorking;
   const firstPriorityItems = quickWinTexts.slice(0, 3).length
     ? uniqueQuickWins.slice(0, 3)
     : uniqueTopProblems.slice(0, 3);
   const strongestArea =
     strongest && strongestFinding
       ? `${strongest.bucket_name} — ${String(
-          strongestFinding.observation || strongestFinding.question || strongest.health || "",
+          strongestFinding?.observation || strongestFinding?.question || strongest.health || "",
         ).trim()}`
       : strongest
         ? `${strongest.bucket_name}`
@@ -1188,7 +1261,7 @@ function deriveExecutiveSummaryFromBuckets(args: {
   const mainIssue =
     weakest && weakestFinding
       ? `${weakest.bucket_name} — ${String(
-          weakestFinding.observation || weakestFinding.question || weakest.risk || "",
+          weakestFinding?.observation || weakestFinding?.question || weakest.risk || "",
         ).trim()}`
       : weakest
         ? `${weakest.bucket_name}`
@@ -1208,8 +1281,8 @@ function deriveExecutiveSummaryFromBuckets(args: {
     first_priority: firstPriorityItems,
     quick_wins: uniqueQuickWins,
     top_3_quick_wins: uniqueQuickWins.slice(0, 3),
-    whats_working: uniqueWhatsWorking,
-    what_works: uniqueWhatsWorking.join(" "),
+    whats_working: strengthsList,
+    what_works: strengthsList.join(" "),
     first_priority_recommendation: firstPriorityItems[0] || "",
   };
 }
@@ -1324,7 +1397,7 @@ async function writeNarrative(args: {
     const parsed = safeJsonParse(raw);
     if (parsed && typeof parsed === "object") return parsed as NarrativeReport;
 
-    const repaired = await repairToJson(raw, schemaHint);
+    const repaired = await repairToJson(raw, schemaHint, args.modelOverride);
     if (repaired && typeof repaired === "object") return repaired as NarrativeReport;
     return null;
   } catch (err) {
@@ -1335,18 +1408,18 @@ async function writeNarrative(args: {
       message.toLowerCase().includes("maximum context")
     ) {
       const compactPrompt = `You are a senior UX lead writing a client-ready audit report.\nReturn ONLY valid JSON matching this schema:\n${schemaHint}\n\nIntake:\n${JSON.stringify(compactIntake, null, 2)}\n\nEvidence:\n${trimText(compactEvidence, 1400)}\n\nScored buckets:\n${JSON.stringify(compactBuckets, null, 2)}\n\nOverall score: ${args.overall_score}\n`;
-      const raw = await openRouterChat(compactPrompt);
+      const raw = await openRouterChat(compactPrompt, { modelOverride: args.modelOverride });
       const parsed = safeJsonParse(raw);
       if (parsed && typeof parsed === "object") return parsed as NarrativeReport;
-      const repaired = await repairToJson(raw, schemaHint);
+      const repaired = await repairToJson(raw, schemaHint, args.modelOverride);
       if (repaired && typeof repaired === "object") return repaired as NarrativeReport;
       return null;
     }
     if (message.includes("429") || message.toLowerCase().includes("rate-limit")) {
-      const raw = await openRouterChat(prompt);
+      const raw = await openRouterChat(prompt, { modelOverride: args.modelOverride });
       const parsed = safeJsonParse(raw);
       if (parsed && typeof parsed === "object") return parsed as NarrativeReport;
-      const repaired = await repairToJson(raw, schemaHint);
+      const repaired = await repairToJson(raw, schemaHint, args.modelOverride);
       if (repaired && typeof repaired === "object") return repaired as NarrativeReport;
       return null;
     }
@@ -1535,7 +1608,7 @@ function hasRichEvidence(evidence: EvidenceBundle | null) {
   if (!evidence?.pages?.length) return false;
   return evidence.pages.some(
     (page) =>
-      page.topNavLinks.length >= 3 ||
+      safeLength(page.topNavLinks) >= 3 ||
       (page.buttons?.length || 0) >= 2 ||
       (page.formLabels?.length || 0) >= 2 ||
       (page.tabs?.length || 0) >= 2 ||
@@ -1596,7 +1669,10 @@ function buildInsufficientQuestions(
 }
 
 export function getSelectedBuckets(intake: Intake) {
-  const selectedBuckets = intake.selected_buckets.filter(Boolean);
+  const selectedBuckets = intake.selected_buckets
+    .filter(Boolean)
+    .map((bucket) => normalizeBucketName(bucket))
+    .filter((bucket, index, buckets) => buckets.indexOf(bucket) === index);
   return selectedBuckets.filter((b) => QUESTION_BANK[b]?.length);
 }
 
@@ -1908,16 +1984,23 @@ function inferEvidenceCoverage(evidence: EvidenceBundle | null) {
     zoom_test: screenshots.some((shot) => normalizedShotType(shot) === "zoom_test"),
     semantic_capture: pages.some(
       (page) =>
-        page.h1.length > 0 ||
-        page.h2.length > 0 ||
-        page.topNavLinks.length > 0 ||
+        safeLength(page.h1) > 0 ||
+        safeLength(page.h2) > 0 ||
+        safeLength(page.topNavLinks) > 0 ||
         Boolean(page.primaryCtas?.length) ||
         Boolean(page.buttons?.length),
     ),
     marketing_page:
       pages.filter((page) =>
         /pricing|features|about|contact|demo|subscribe|get started|trust|testimonial|case study/i.test(
-          [page.title, page.metaDescription || "", ...page.h1, ...page.h2, ...page.h3, page.textSnippet].join(" "),
+          [
+            page.title,
+            page.metaDescription || "",
+            ...(Array.isArray(page.h1) ? page.h1 : []),
+            ...(Array.isArray(page.h2) ? page.h2 : []),
+            ...(Array.isArray(page.h3) ? page.h3 : []),
+            page.textSnippet,
+          ].join(" "),
         ),
       ).length >= 2 ||
       screenshots.filter((shot) =>
@@ -2052,7 +2135,6 @@ function missingEvidenceForQuestion(
       } else if (!flags.homepage && !flags.product_page && !flags.listing_page) {
         missing.add("product_page");
       }
-      missing.add("semantic_capture");
       return Array.from(missing);
     }
 
@@ -2064,7 +2146,6 @@ function missingEvidenceForQuestion(
       if (productType === "ecommerce" && !flags.homepage && !flags.product_page && !flags.listing_page) {
         missing.add("product_page");
       }
-      missing.add("mobile_test");
       return Array.from(missing);
     }
   }
@@ -2096,7 +2177,6 @@ function missingEvidenceForQuestion(
       required.add("marketing_page");
       if (bucket === "Keyboard Navigation") required.add("keyboard_test");
       if (bucket === "Typography & Readability") required.add("zoom_test");
-      if (bucket === "Screen Reader Support") required.add("semantic_capture");
     } else if (bucket === "Consistency & UI Patterns") {
       required.add("marketing_page");
       required.add("expanded_navigation");
@@ -2128,7 +2208,6 @@ function missingEvidenceForQuestion(
       required.add("product_page");
       if (bucket === "Keyboard Navigation") required.add("keyboard_test");
       if (bucket === "Typography & Readability") required.add("zoom_test");
-      if (bucket === "Screen Reader Support") required.add("semantic_capture");
     } else if (bucket === "Consistency & UI Patterns") {
       required.add("listing_page");
       required.add("expanded_navigation");
@@ -2161,12 +2240,11 @@ function missingEvidenceForQuestion(
       required.add("internal_product_screen");
       if (bucket === "Keyboard Navigation") required.add("keyboard_test");
       if (bucket === "Typography & Readability") required.add("zoom_test");
-      if (bucket === "Screen Reader Support") required.add("semantic_capture");
     } else if (bucket === "Consistency & UI Patterns") {
       required.add("internal_product_screen");
       required.add("expanded_navigation");
     } else if (bucket === "Performance") {
-      required.add("mobile_test");
+      required.add("internal_product_screen");
     }
   }
 
@@ -2211,6 +2289,29 @@ export async function prepareEvidence(intake: Intake) {
 
   if (!evidence) return null;
 
+  const normalizedPages = Array.isArray(evidence.pages)
+    ? evidence.pages.map((page) => ({
+        ...page,
+        label: typeof page.label === "string" ? page.label : "",
+        url: typeof page.url === "string" ? page.url : "",
+        title: typeof page.title === "string" ? page.title : "",
+        metaDescription: typeof page.metaDescription === "string" ? page.metaDescription : "",
+        h1: Array.isArray(page.h1) ? page.h1 : [],
+        h2: Array.isArray(page.h2) ? page.h2 : [],
+        h3: Array.isArray(page.h3) ? page.h3 : [],
+        topNavLinks: Array.isArray(page.topNavLinks) ? page.topNavLinks : [],
+        primaryCtas: Array.isArray(page.primaryCtas) ? page.primaryCtas : [],
+        buttons: Array.isArray(page.buttons) ? page.buttons : [],
+        formLabels: Array.isArray(page.formLabels) ? page.formLabels : [],
+        placeholders: Array.isArray(page.placeholders) ? page.placeholders : [],
+        tabs: Array.isArray(page.tabs) ? page.tabs : [],
+        alerts: Array.isArray(page.alerts) ? page.alerts : [],
+        tableHeaders: Array.isArray(page.tableHeaders) ? page.tableHeaders : [],
+        emptyStateHints: Array.isArray(page.emptyStateHints) ? page.emptyStateHints : [],
+        textSnippet: typeof page.textSnippet === "string" ? page.textSnippet : "",
+      }))
+    : [];
+
   const coverage = validateExplorationCoverage(
     {
       productUrl: intake.product_url,
@@ -2246,6 +2347,7 @@ export async function prepareEvidence(intake: Intake) {
     ...evidence,
     coverage,
     screenshotDataUrl: null,
+    pages: normalizedPages,
     screenshots: Array.isArray(evidence.screenshots)
       ? evidence.screenshots.map((shot) => ({
           label: shot.label,
@@ -2355,7 +2457,7 @@ export async function auditOneBucket(args: {
     } catch {
       const schemaHint =
         '{ "bucket":"...", "pillar":"...", "score_rationale": {"summary":"...","what_is_working":["..."],"what_is_risky":["..."],"why_now":"..."}, "questions":[{"id":"N01","question":"...","mark":3,"evidence":"...","observation":"...","recommendation":"...","effort":"S|M|L","impact":"Low|Med|High","confidence":0.0}] }';
-      const repaired = await repairToJson(raw, schemaHint);
+      const repaired = await repairToJson(raw, schemaHint, args.modelOverride);
       if (repaired && typeof repaired === "object") {
         try {
           const repairedParsed = parseBucketJson(JSON.stringify(repaired));
@@ -2441,40 +2543,44 @@ export async function auditOneBucket(args: {
     }
   }
 
+  const parsedQuestionInputs = Array.isArray(parsed.questions) ? parsed.questions : [];
   const questions: Array<BucketResult["questions"][number] & {
     recommendation?: string;
     effort?: string;
     impact?: string;
     confidence?: number;
-  }> = parsed.questions.map((q) => ({
-    id: String(q.id ?? "Q"),
-    question: String(q.question ?? ""),
-    mark:
-      q.answer_status === "insufficient_evidence" ||
-      q.answer_status === "scoring_unavailable"
-        ? null
-        : parseOptionalMark(q.mark),
-    selected_option:
-      q.answer_status === "insufficient_evidence" ||
-      q.answer_status === "scoring_unavailable"
-        ? null
-        : parseOptionalMark(q.selected_option ?? q.mark),
-    evidence: String(q.evidence ?? ""),
-    observation: String(q.observation ?? ""),
-    answer_status:
-      q.answer_status === "insufficient_evidence"
-        ? ("insufficient_evidence" as const)
-        : q.answer_status === "scoring_unavailable"
-          ? ("scoring_unavailable" as const)
-          : ("answered" as const),
-    missing_evidence: Array.isArray(q.missing_evidence)
-      ? q.missing_evidence.map((item) => String(item))
-      : ([] as string[]),
-    recommendation: String(q.recommendation ?? ""),
-    effort: String(q.effort ?? ""),
-    impact: String(q.impact ?? ""),
-    confidence: Number(q.confidence) || 0,
-  }));
+  }> = parsedQuestionInputs
+    .map((q) => asRecord(q))
+    .filter((q): q is Record<string, unknown> => Boolean(q))
+    .map((q) => ({
+      id: String(q.id ?? "Q"),
+      question: String(q.question ?? ""),
+      mark:
+        q.answer_status === "insufficient_evidence" ||
+        q.answer_status === "scoring_unavailable"
+          ? null
+          : parseOptionalMark(q.mark),
+      selected_option:
+        q.answer_status === "insufficient_evidence" ||
+        q.answer_status === "scoring_unavailable"
+          ? null
+          : parseOptionalMark(q.selected_option ?? q.mark),
+      evidence: String(q.evidence ?? ""),
+      observation: String(q.observation ?? ""),
+      answer_status:
+        q.answer_status === "insufficient_evidence"
+          ? ("insufficient_evidence" as const)
+          : q.answer_status === "scoring_unavailable"
+            ? ("scoring_unavailable" as const)
+            : ("answered" as const),
+      missing_evidence: Array.isArray(q.missing_evidence)
+        ? q.missing_evidence.map((item) => String(item))
+        : ([] as string[]),
+      recommendation: String(q.recommendation ?? ""),
+      effort: String(q.effort ?? ""),
+      impact: String(q.impact ?? ""),
+      confidence: Number(q.confidence) || 0,
+    }));
 
   if (
     questions.length > 0 &&
@@ -2485,7 +2591,11 @@ export async function auditOneBucket(args: {
     const retryRaw = await openRouterChat(retryPrompt, { modelOverride: args.modelOverride });
     try {
       const retryParsed = parseBucketJson(retryRaw);
-        const retryQuestions = retryParsed.questions.map((q) => ({
+      const retryQuestionInputs = Array.isArray(retryParsed.questions) ? retryParsed.questions : [];
+      const retryQuestions = retryQuestionInputs
+        .map((q) => asRecord(q))
+        .filter((q): q is Record<string, unknown> => Boolean(q))
+        .map((q) => ({
           id: String(q.id ?? "Q"),
           question: String(q.question ?? ""),
           mark:
@@ -2505,7 +2615,7 @@ export async function auditOneBucket(args: {
               ? ("insufficient_evidence" as const)
               : q.answer_status === "scoring_unavailable"
                 ? ("scoring_unavailable" as const)
-              : ("answered" as const),
+                : ("answered" as const),
           missing_evidence: Array.isArray(q.missing_evidence)
             ? q.missing_evidence.map((item) => String(item))
             : ([] as string[]),
@@ -2513,7 +2623,12 @@ export async function auditOneBucket(args: {
           effort: String(q.effort ?? ""),
           impact: String(q.impact ?? ""),
           confidence: Number(q.confidence) || 0,
-        }));
+        })) as Array<BucketResult["questions"][number] & {
+          recommendation?: string;
+          effort?: string;
+          impact?: string;
+          confidence?: number;
+        }>;
       if (retryQuestions.some((question) => question.mark !== 3)) {
         questions.splice(0, questions.length, ...retryQuestions);
       }
@@ -2652,6 +2767,7 @@ export async function finalizeAudit(args: {
   bucket_results: BucketResult[];
   modelOverride?: string;
 }) {
+  try {
   const onlyResults = args.bucket_results;
   const scoredBuckets = onlyResults.filter((bucket) => bucket.bucket_status === "scored");
   const coverageStatus = args.evidence?.coverage?.status || null;
@@ -3018,6 +3134,94 @@ export async function finalizeAudit(args: {
         ? narrative.overall_assessment.trim()
         : "") || report.closing_note,
   };
+
+  return report;
+  } catch (error) {
+    const message = getErrorMessage(error) || "Finalize failed";
+    const onlyResults = args.bucket_results ?? [];
+    const safeBucketResults = onlyResults.map((bucket) => ({
+      bucket_name: bucket.bucket_name,
+      pillar: bucket.pillar,
+      total_marks: bucket.total_marks ?? null,
+      max_marks: bucket.max_marks ?? null,
+      score: bucket.score ?? null,
+      bucket_status: bucket.bucket_status ?? "scoring_unavailable",
+      health: bucket.health ?? "Not scored",
+      risk: bucket.risk ?? "Scoring unavailable",
+      priority: bucket.priority ?? "P0",
+      questions: Array.isArray(bucket.questions)
+        ? bucket.questions
+            .map((question) => asRecord(question) ?? null)
+            .filter((question): question is Record<string, unknown> => Boolean(question))
+        : [],
+      findings: Array.isArray(bucket.findings)
+        ? bucket.findings.map((item) => asRecord(item) ?? null).filter(Boolean) as Array<Record<string, unknown>>
+        : [],
+      improvements: Array.isArray(bucket.improvements)
+        ? bucket.improvements.map((item) => asRecord(item) ?? null).filter(Boolean) as Array<Record<string, unknown>>
+        : [],
+    })) as BucketResult[];
+    const scorecard = safeBucketResults.map((bucket) => ({
+      section: bucket.bucket_name,
+      score: bucket.score,
+      health: bucket.health,
+      risk: bucket.risk,
+      priority: bucket.priority,
+      pillar: bucket.pillar,
+    }));
+    const quickWins = safeBucketResults.flatMap((bucket) => bucket.improvements || []);
+    const allFindings = safeBucketResults.flatMap((bucket) => bucket.findings || []);
+    const fallbackExecutiveSummary = deriveExecutiveSummaryFromBuckets({
+      bucketResults: safeBucketResults,
+      allFindings,
+      quickWins,
+      scoreEligible: false,
+      overallScore: null,
+      productName: args.intake.product_name,
+    });
+    return {
+      overall_score: null,
+      overall_health: "Scoring unavailable",
+      overall_risk: message,
+      scorecard,
+      p1_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P1").map((bucket) => bucket.bucket_name),
+      p2_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P2").map((bucket) => bucket.bucket_name),
+      p3_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P3").map((bucket) => bucket.bucket_name),
+      p4_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P4").map((bucket) => bucket.bucket_name),
+      findings_detailed: allFindings,
+      all_findings: allFindings,
+      all_improvements: quickWins,
+      quick_wins_table: buildQuickWinsTableFromImprovements(quickWins),
+      quick_wins: quickWins
+        .map((item) => {
+          const rec = asRecord(item) ?? {};
+          return String(rec.recommendation || rec.observation || rec.question || "").trim();
+        })
+        .filter(Boolean),
+      bucket_results: safeBucketResults,
+      audit_mode: "Provisional UX Audit",
+      coverage_status: args.evidence?.coverage?.status || "unknown",
+      ux_score_eligible: false,
+      questions_scoreable: safeBucketResults.reduce(
+        (sum, bucket) => sum + bucket.questions.filter((question) => question.answer_status === "answered").length,
+        0,
+      ),
+      questions_total: safeBucketResults.reduce((sum, bucket) => sum + bucket.questions.length, 0),
+      capture_coverage: "Low",
+      intake: args.intake,
+      evidence: args.evidence,
+      roadmap: buildRoadmapFromQuickWins(buildQuickWinsTableFromImprovements(quickWins)),
+      closing_note:
+        "The report hit a finalization issue while assembling the narrative. The underlying bucket results were preserved, and the report can be refreshed once the missing data is normalized.",
+      competitor_analysis: {
+        competitors_count: 0,
+        competitors: [],
+        matrix: { columns: [], rows: [] },
+      },
+      executive_summary: fallbackExecutiveSummary,
+      section_narrative: deriveSectionNarrativeFromBuckets(safeBucketResults),
+    };
+  }
 }
 
 export async function runAudit(rawBody: unknown) {
@@ -3041,8 +3245,19 @@ export async function runAudit(rawBody: unknown) {
   const bucketResults = await Promise.all(
     buckets.map((bucket) =>
       limit(async () => {
-        const bucketResult = await auditOneBucket({ intake, bucket, evidence, modelOverride });
-        return { bucketResult, rawPreview: "ok" };
+        try {
+          const bucketResult = await auditOneBucket({ intake, bucket, evidence, modelOverride });
+          return { bucketResult, rawPreview: "ok" };
+        } catch (error) {
+          return {
+            bucketResult: makeFailedBucketResult({
+              intake,
+              bucket,
+              reason: getErrorMessage(error) || "Unexpected bucket scoring failure",
+            }),
+            rawPreview: "failed",
+          };
+        }
       }),
     ),
   );

@@ -1,125 +1,121 @@
+import type { ReactNode } from "react";
 import { asString, type AnyRecord } from "@/lib/report-model";
-import { BulletList, SectionTitle } from "./shared";
+import type { ReportPage } from "./shared";
+import { normalizeList, placeholderText } from "./shared";
+import { SummaryBulletColumns } from "./NarrativeSummarySection";
+
+type CompetitorAnalysisSectionProps = {
+  competitor: AnyRecord | null;
+  index: number;
+  total: number;
+};
+
+function SectionBlock({
+  title,
+  items,
+}: {
+  title: ReactNode;
+  items: readonly string[];
+}) {
+  return (
+    <section className="rounded-xl bg-[color:var(--report-grey-bg)] p-4">
+      <div className="text-[16px] font-semibold leading-tight text-[color:var(--report-grey-font)]">
+        {title}
+      </div>
+      <div className="mt-3">
+        <SummaryBulletColumns items={items} />
+      </div>
+    </section>
+  );
+}
 
 export function CompetitorAnalysisSection({
-  competitors,
-}: { competitors: AnyRecord[] }) {
-  if (!competitors.length) {
+  competitor,
+  index,
+  total,
+}: CompetitorAnalysisSectionProps) {
+  if (!competitor) {
     return (
-      <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5 text-sm text-[color:var(--muted)]">
-        Competitor analysis was not generated because no competitor inputs or comparison evidence were captured.
+      <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5 text-sm text-[color:var(--report-grey-font)]">
+        Competitor analysis is not available for this report.
       </div>
     );
   }
 
+  const brandName = asString(competitor.name) || `Competitor ${index + 1}`;
+  const brandUrl = asString(competitor.url) || "URL not captured";
+  const signals =
+    competitor && typeof competitor.signals === "object" && competitor.signals
+      ? (competitor.signals as Record<string, unknown>)
+      : {};
+  const positioning =
+    asString(competitor.positioning) ||
+    asString(signals.positioning) ||
+    "Positioning not explicitly captured, but the competitor presents a clear market presence.";
+  const strengths = normalizeList(competitor.strengths, 8).filter((item) => !placeholderText(item));
+  const gaps = normalizeList(competitor.gaps, 8).filter((item) => !placeholderText(item));
+  const stealThis = normalizeList(competitor.steal_this, 8).filter((item) => !placeholderText(item));
+
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-        <div className="mt-4 overflow-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
-              <tr>
-                <th className="py-2 pr-4">Competitor</th>
-                <th className="py-2 pr-4">Positioning</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[color:var(--card-border)]/60">
-              {competitors.map((competitor, index) => {
-                const signals =
-                  competitor && typeof competitor.signals === "object" && competitor.signals
-                    ? (competitor.signals as Record<string, unknown>)
-                    : {};
-                const positioning =
-                  asString(competitor.positioning) ||
-                  asString(signals.positioning) ||
-                  "Positioning not explicitly captured, but the competitor presents a clear market presence.";
-                return (
-                  <tr key={`${asString(competitor.name)}-${index}`}>
-                    <td className="py-3 pr-4 font-medium">
-                      <div>{asString(competitor.name) || `Competitor ${index + 1}`}</div>
-                      <div className="mt-1 text-xs text-[color:var(--muted)]">
-                        {asString(competitor.url) || "URL not captured"}
-                      </div>
-                    </td>
-                    <td className="py-3 pr-4 text-[color:var(--muted)]">
-                      {positioning}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+    <div className="space-y-4">
+      <div className="text-[24px] font-bold leading-tight text-[color:var(--report-black)]">
+        Competitor Analysis - {brandName}{" "}
+        <span className="text-[16px] font-normal text-[color:var(--report-grey-font)]">({brandUrl})</span>
+      </div>
+      <div className="border-t border-[color:var(--card-border)]/60" />
+      <div className="text-[14px] leading-[1.5] text-[color:var(--report-black)]">{positioning}</div>
+
+      <div className="rounded-2xl bg-[color:var(--report-grey-bg)] p-4">
+        <div className="relative overflow-hidden rounded-xl border border-[color:var(--card-border)] bg-[color:var(--report-white)]">
+          <div className="h-[290px] w-full">
+            {asString(competitor.screenshot) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={asString(competitor.screenshot)}
+                alt={`${brandName} screenshot`}
+                className="h-full w-full object-cover object-top"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--report-grey-font)]">
+                Screenshot unavailable
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {competitors.map((competitor, index) => (
-          <div
-            key={`${asString(competitor.name)}-card-${index}`}
-            className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"
-          >
-            {(() => {
-              const brandName = asString(competitor.name) || `Competitor ${index + 1}`;
-              return (
-                <>
-                  <div className="relative mb-4 h-40 w-full overflow-hidden rounded-xl border border-[color:var(--card-border)] bg-white/5">
-                    <div className="absolute left-3 top-3 z-10 rounded-full border border-[color:var(--card-border)] bg-white/90 px-3 py-1 text-xs font-semibold text-[color:var(--ink)] shadow-sm">
-                      {brandName}
-                    </div>
-                    {asString(competitor.screenshot) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={asString(competitor.screenshot)}
-                        alt={`${brandName} screenshot`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--muted)]">
-                        Screenshot unavailable
-                      </div>
-                    )}
-                  </div>
+      <SectionBlock title="Strengths" items={strengths} />
+      <SectionBlock title="Gaps" items={gaps} />
+      <SectionBlock title="Steal this" items={stealThis} />
 
-            <div className="mt-3 text-sm text-[color:var(--muted)]">
-              <span className="font-medium text-[color:var(--ink)]">Positioning:</span>{" "}
-              {asString(competitor.positioning) ||
-                "Positioning not explicitly captured, but the competitor presents a clear market presence."}
-            </div>
-
-            <div className="mt-2 text-sm text-[color:var(--muted)]">
-              <span className="font-medium text-[color:var(--ink)]">Primary CTA:</span>{" "}
-              {asString(competitor.primary_cta) || "Contact, enquire, or learn more CTA"}
-            </div>
-
-            <div className="mt-4">
-              <SectionTitle>Strengths</SectionTitle>
-              <BulletList
-                items={Array.isArray(competitor.strengths) ? competitor.strengths : []}
-                emptyLabel="No strengths captured."
-              />
-            </div>
-
-            <div className="mt-4">
-              <SectionTitle>Gaps</SectionTitle>
-              <BulletList
-                items={Array.isArray(competitor.gaps) ? competitor.gaps : []}
-                emptyLabel="No gaps captured."
-              />
-            </div>
-
-            <div className="mt-4">
-              <SectionTitle>Steal this</SectionTitle>
-              <BulletList
-                items={Array.isArray(competitor.steal_this) ? competitor.steal_this : []}
-                emptyLabel="No takeaways captured."
-              />
-            </div>
-                </>
-              );
-            })()}
-          </div>
-        ))}
+      <div className="text-xs text-[color:var(--report-grey-font)]">
+        Competitor {index + 1} of {total}
       </div>
     </div>
   );
+}
+
+export function buildCompetitorAnalysisPages({
+  competitors,
+}: {
+  competitors: AnyRecord[];
+}): ReportPage[] {
+  if (!competitors.length) {
+    return [
+      {
+        key: "competitor_analysis",
+        title: "Competitor Analysis",
+        body: <CompetitorAnalysisSection competitor={null} index={0} total={0} />,
+        variant: "standard",
+      },
+    ];
+  }
+
+  return competitors.map((competitor, index) => ({
+    key: `competitor_analysis_${index + 1}`,
+    title: `Competitor Analysis - ${asString(competitor.name) || `Competitor ${index + 1}`}`,
+    body: <CompetitorAnalysisSection competitor={competitor} index={index} total={competitors.length} />,
+    variant: "standard",
+    showTitle: false,
+  }));
 }
