@@ -1,13 +1,16 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const entryFile = resolve("dist/server/index.js");
 mkdirSync(dirname(entryFile), { recursive: true });
+const requiredServerFiles = JSON.parse(
+  readFileSync(resolve("dist/.next/required-server-files.json"), "utf8"),
+);
 
 writeFileSync(
   entryFile,
   [
-    'import { existsSync, readFileSync } from "node:fs";',
+    'import { existsSync } from "node:fs";',
     'import { pathToFileURL } from "node:url";',
     'import path from "node:path";',
     "",
@@ -15,10 +18,7 @@ writeFileSync(
     'const distDir = existsSync(path.join(baseDir, ".next/required-server-files.json"))',
     '  ? baseDir',
     '  : path.join(baseDir, "dist");',
-    'const requiredServerFiles = JSON.parse(',
-    '  readFileSync(path.join(distDir, ".next/required-server-files.json"), "utf8"),',
-    ');',
-    'const nextConfig = requiredServerFiles.config;',
+    `const nextConfig = ${JSON.stringify(requiredServerFiles.config)};`,
     "",
     'process.env.NODE_ENV = "production";',
     'process.chdir(distDir);',
