@@ -6,7 +6,5 @@ mkdirSync(dirname(entryFile), { recursive: true });
 
 writeFileSync(
   entryFile,
-  'import { createRequire } from "node:module";\n' +
-    'const require = createRequire(process.cwd() + "/dist/server/index.js");\n' +
-    'require(process.cwd() + "/dist/server.js");\n',
+  'require("../server.js");\n',
 );
