@@ -8,7 +8,7 @@ const serverSource = readFileSync(resolve("dist/server.js"), "utf8");
 const entrySource = serverSource
   .replace(
     "const path = require('path')",
-    'import path from "node:path";\nimport { fileURLToPath } from "node:url";\nconst __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)));',
+    'import path from "node:path";\nconst __dirname = "dist";',
   )
   .replace("require('next')", 'await import("next")')
   .replace(
