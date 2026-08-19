@@ -981,16 +981,17 @@ function bucketLeadInsight(bucket: BucketResult) {
 }
 
 function bucketStrengthStatement(bucket: BucketResult) {
-  const bucketName = String(bucket.bucket_name || "This area").trim();
-  const score = Number.isFinite(Number(bucket.score)) ? Number(bucket.score) : null;
-  const health = String(bucket.health || "").trim().toLowerCase();
+  const safeBucket = bucket ?? ({} as BucketResult);
+  const bucketName = String(safeBucket.bucket_name || "This area").trim();
+  const score = Number.isFinite(Number(safeBucket.score)) ? Number(safeBucket.score) : null;
+  const health = String(safeBucket.health || "").trim().toLowerCase();
   const finding =
-    Array.isArray(bucket.findings) && bucket.findings[0] && typeof bucket.findings[0] === "object"
-      ? (bucket.findings[0] as Record<string, unknown>)
+    Array.isArray(safeBucket.findings) && safeBucket.findings[0] && typeof safeBucket.findings[0] === "object"
+      ? (safeBucket.findings[0] as Record<string, unknown>)
       : null;
   const improvement =
-    Array.isArray(bucket.improvements) && bucket.improvements[0] && typeof bucket.improvements[0] === "object"
-      ? (bucket.improvements[0] as Record<string, unknown>)
+    Array.isArray(safeBucket.improvements) && safeBucket.improvements[0] && typeof safeBucket.improvements[0] === "object"
+      ? (safeBucket.improvements[0] as Record<string, unknown>)
       : null;
 
   const explicitStrength =
@@ -1162,10 +1163,11 @@ function deriveSectionNarrativeFromBuckets(bucketResults: BucketResult[]) {
   const formatPillar = (pillar: string) =>
     byPillar(pillar)
       .flatMap((bucket) => {
-        const bucketName = String(bucket.bucket_name || "Bucket").trim();
+        const safeBucket = bucket ?? ({} as BucketResult);
+        const bucketName = String(safeBucket.bucket_name || "Bucket").trim();
         const { insight, action } = bucketLeadInsight(bucket);
-        const score = Number.isFinite(Number(bucket.score)) ? Number(bucket.score) : null;
-        const health = String(bucket.health || "").trim().toLowerCase();
+        const score = Number.isFinite(Number(safeBucket.score)) ? Number(safeBucket.score) : null;
+        const health = String(safeBucket.health || "").trim().toLowerCase();
 
         return uniqueSemanticList(
           [
@@ -3139,28 +3141,30 @@ export async function finalizeAudit(args: {
   } catch (error) {
     const message = getErrorMessage(error) || "Finalize failed";
     const onlyResults = args.bucket_results ?? [];
-    const safeBucketResults = onlyResults.map((bucket) => ({
-      bucket_name: bucket.bucket_name,
-      pillar: bucket.pillar,
-      total_marks: bucket.total_marks ?? null,
-      max_marks: bucket.max_marks ?? null,
-      score: bucket.score ?? null,
-      bucket_status: bucket.bucket_status ?? "scoring_unavailable",
-      health: bucket.health ?? "Not scored",
-      risk: bucket.risk ?? "Scoring unavailable",
-      priority: bucket.priority ?? "P0",
-      questions: Array.isArray(bucket.questions)
-        ? bucket.questions
+    const safeBucketResults = onlyResults.map((bucket) => {
+      const safeBucket = bucket ?? ({} as BucketResult);
+      return {
+      bucket_name: safeBucket.bucket_name,
+      pillar: safeBucket.pillar,
+      total_marks: safeBucket.total_marks ?? null,
+      max_marks: safeBucket.max_marks ?? null,
+      score: safeBucket.score ?? null,
+      bucket_status: safeBucket.bucket_status ?? "scoring_unavailable",
+      health: safeBucket.health ?? "Not scored",
+      risk: safeBucket.risk ?? "Scoring unavailable",
+      priority: safeBucket.priority ?? "P0",
+      questions: Array.isArray(safeBucket.questions)
+        ? safeBucket.questions
             .map((question) => asRecord(question) ?? null)
             .filter((question): question is Record<string, unknown> => Boolean(question))
         : [],
-      findings: Array.isArray(bucket.findings)
-        ? bucket.findings.map((item) => asRecord(item) ?? null).filter(Boolean) as Array<Record<string, unknown>>
+      findings: Array.isArray(safeBucket.findings)
+        ? safeBucket.findings.map((item) => asRecord(item) ?? null).filter(Boolean) as Array<Record<string, unknown>>
         : [],
-      improvements: Array.isArray(bucket.improvements)
-        ? bucket.improvements.map((item) => asRecord(item) ?? null).filter(Boolean) as Array<Record<string, unknown>>
+      improvements: Array.isArray(safeBucket.improvements)
+        ? safeBucket.improvements.map((item) => asRecord(item) ?? null).filter(Boolean) as Array<Record<string, unknown>>
         : [],
-    })) as BucketResult[];
+    }}) as BucketResult[];
     const scorecard = safeBucketResults.map((bucket) => ({
       section: bucket.bucket_name,
       score: bucket.score,

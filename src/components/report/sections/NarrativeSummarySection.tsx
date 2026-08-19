@@ -91,8 +91,8 @@ function isWorkingStrengthText(text: unknown) {
 
 function synthesizeBucketStrengthFallback(bucket: Record<string, unknown>) {
   const bucketName = bucketLabel(bucket);
-  const score = asNumber(bucket.score);
-  const health = normalizeKey(asString(bucket.health));
+  const score = asNumber(bucket?.score);
+  const health = normalizeKey(asString(bucket?.health));
 
   if (score !== null) {
     if (score >= 80 || /\b(excellent|good|optimized|optimised)\b/.test(health)) {
