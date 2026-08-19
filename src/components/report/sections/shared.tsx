@@ -175,8 +175,8 @@ export function BucketAnswersCard({
   ) => void;
 }) {
   const bucketName =
-    asString(bucket.bucket_name) || asString(bucket.section) || asString(bucket.bucket) || "Bucket";
-  const questions = Array.isArray(bucket.questions)
+    asString(bucket?.bucket_name) || asString(bucket?.section) || asString(bucket?.bucket) || "Bucket";
+  const questions = bucket && Array.isArray(bucket.questions)
     ? bucket.questions
         .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>) : null))
         .filter(Boolean) as Array<Record<string, unknown>>
@@ -194,9 +194,9 @@ export function BucketAnswersCard({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {asString(bucket.pillar) ? <Pill>{asString(bucket.pillar)}</Pill> : null}
-          {asString(bucket.priority) ? <Pill>{asString(bucket.priority)}</Pill> : null}
-          <Pill>{asString(bucket.score) ? `${asString(bucket.score)}/100` : "Not scored"}</Pill>
+          {asString(bucket?.pillar) ? <Pill>{asString(bucket?.pillar)}</Pill> : null}
+          {asString(bucket?.priority) ? <Pill>{asString(bucket?.priority)}</Pill> : null}
+          <Pill>{asString(bucket?.score) ? `${asString(bucket?.score)}/100` : "Not scored"}</Pill>
         </div>
       </div>
 
@@ -204,12 +204,13 @@ export function BucketAnswersCard({
         <div className="mt-4 space-y-4">
           {questions.map((question, index) => {
             const questionId = asString(question.id);
-            const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || asString(bucket.bucket) || "Bucket";
+            const bucketName =
+              asString(bucket?.bucket_name) || asString(bucket?.section) || asString(bucket?.bucket) || "Bucket";
             const answerStatus = asString(question.answer_status);
             const selectedOption = asString(question.selected_option);
             const selectedMark = asString(question.mark || question.selected_option);
             const options = lookupQuestionOptions(bucketName, questionId);
-          const selectedOptionText =
+            const selectedOptionText =
               selectedOptionTextForQuestion(bucketName, question) ||
               fallbackQuestionConclusion(question, answerStatus);
             const isInsufficient = answerStatus === "insufficient_evidence";
