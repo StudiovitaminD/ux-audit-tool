@@ -10,7 +10,7 @@ const entrySource = serverSource
     "const path = require('path')",
     'import path from "node:path";\nconst __dirname = "dist";',
   )
-  .replace("require('next')", 'await import("next")')
+  .replace("require('next')", "")
   .replace(
     "const { startServer } = require('next/dist/server/lib/start-server')",
     'const { startServer } = await import("next/dist/server/lib/start-server")',
