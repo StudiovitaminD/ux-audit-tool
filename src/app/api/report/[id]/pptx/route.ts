@@ -428,9 +428,6 @@ async function buildPptxResponse(req: Request, id: string) {
       const severity = asString(finding.severity).toLowerCase();
       return severity === "critical" || severity === "high";
     });
-    const bucketAnswerSections = vm.bucketResults.filter(
-      (bucket) => Array.isArray(bucket.questions) && bucket.questions.length,
-    );
     const executiveSummary = asRecord(vm.executiveSummary) ?? {};
 
     addSectionSlide(pptx, id, "Overview", subtitle, (slide) => {
@@ -650,98 +647,6 @@ async function buildPptxResponse(req: Request, id: string) {
           text: stealThis.map((item) => `• ${item}`).join("\n"),
           line: SOFT_LINE,
         });
-      });
-    });
-
-    bucketAnswerSections.forEach((bucket) => {
-      const bucketRec = asRecord(bucket) ?? {};
-      const questions = asArray(bucketRec.questions);
-      chunk(questions, 3).forEach((questionChunk, questionPageIndex) => {
-        addSectionSlide(
-          pptx,
-          id,
-          "AI Bucket Answers",
-          `${asString(bucketRec.bucket_name) || asString(bucketRec.section) || "Bucket"} • ${questionPageIndex + 1}`,
-          (slide) => {
-            const scoreLine = [
-              asString(bucketRec.pillar),
-              asString(bucketRec.priority),
-              asString(bucketRec.score) ? `${asString(bucketRec.score)}/100` : "",
-            ].filter(Boolean).join(" • ");
-            addCard(slide, pptx, {
-              x: 0.65,
-              y: 1.15,
-              w: 11.75,
-              h: 0.62,
-              title: asString(bucketRec.bucket_name) || asString(bucketRec.section) || "Bucket",
-              text: scoreLine,
-              line: SOFT_LINE,
-            });
-            questionChunk.forEach((question, questionIndex) => {
-              const q = asRecord(question) ?? {};
-              const bucketName =
-                asString(bucketRec.bucket_name) || asString(bucketRec.section) || asString(bucketRec.bucket);
-              const questionId = asString(q.id);
-              const answerStatus = asString(q.answer_status);
-              const isInsufficient = answerStatus === "insufficient_evidence";
-              const isScoringUnavailable = answerStatus === "scoring_unavailable";
-              const isNotScored = isInsufficient || isScoringUnavailable;
-              const selectedOption = asString(q.selected_option) || asString(q.mark);
-              const selectedMark = asString(q.mark || q.selected_option);
-              const answerText =
-                lookupQuestionOptions(bucketName, questionId).find(
-                  (option) =>
-                    String(option.mark) === selectedOption || String(option.mark) === selectedMark,
-                )?.text || "";
-              const y = 1.95 + questionIndex * 1.58;
-              addCard(slide, pptx, {
-                x: 0.65,
-                y,
-                w: 11.75,
-                h: 1.42,
-                title: `${questionPageIndex * 3 + questionIndex + 1}. ${truncate(q.question, 145)}`,
-                text: [
-                  isInsufficient
-                    ? "Status: Insufficient evidence\nScore: Not scored\nSelected option: None"
-                    : isScoringUnavailable
-                      ? "Status: Scoring unavailable\nScore: Not scored\nSelected option: None"
-                    : answerText
-                      ? `Selected answer: ${truncate(answerText, 185)}`
-                      : "",
-                  !isNotScored && asString(q.evidence)
-                    ? `Evidence: ${truncate(q.evidence, 170)}`
-                    : "",
-                  `Observation: ${truncate(q.observation, 170)}`,
-                ].filter(Boolean).join("\n"),
-                line: SOFT_LINE,
-              });
-              addPill(slide, pptx, {
-                x: 0.92,
-                y: y + 0.42,
-                w: 6.6,
-                text: isInsufficient
-                  ? "Status: Insufficient evidence"
-                  : isScoringUnavailable
-                    ? "Status: Scoring unavailable"
-                  : answerText
-                  ? `Selected answer: ${answerText}`
-                  : `Answer: ${asString(q.selected_option) || asString(q.mark) || "—"}`,
-                fill: "FFF7ED",
-                line: "FED7AA",
-                color: "9A3412",
-                align: "left",
-              });
-              addPill(slide, pptx, {
-                x: 7.72,
-                y: y + 0.42,
-                w: 1.05,
-                text: `Score: ${isInsufficient ? "—" : asString(q.mark) || "—"}`,
-                fill: "F6F8FA",
-                line: SOFT_LINE,
-              });
-            });
-          },
-        );
       });
     });
 

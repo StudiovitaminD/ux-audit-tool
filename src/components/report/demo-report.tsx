@@ -1007,21 +1007,13 @@ export function DemoReport() {
   }, [page]);
 
   return (
-    <div className="flex min-h-screen flex-col p-6" data-report-live-root>
+    <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
       <div className="no-print flex flex-wrap items-start justify-between gap-4" data-report-toolbar>
         <div>
           <div className="text-lg font-semibold">Sample report: {DEMO.product_name}</div>
           <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
             Client‑deliverable preview (multi-page).
           </div>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-            href="/audit"
-          >
-            Open audit form
-          </Link>
         </div>
       </div>
 
@@ -1091,7 +1083,7 @@ export function DemoReport() {
                   ) : null}
                   {current.body}
                 </div>
-                  <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-black)]">
+                  <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-white)]">
                     <div>Page {page + 1}</div>
                     <div>UX Audit Report</div>
                   </div>
@@ -1102,7 +1094,7 @@ export function DemoReport() {
         </div>
       )}
 
-      <div className="no-print sticky bottom-4 z-20 mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
+      <div className="no-print fixed inset-x-6 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-[color:var(--ink-muted)]">
             {demoStopped ? "Demo paused" : `Page ${page + 1} / ${pages.length}`}

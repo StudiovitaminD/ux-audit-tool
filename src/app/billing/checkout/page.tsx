@@ -223,7 +223,7 @@ export default function BillingCheckoutPage() {
   }, [order, router]);
 
   return (
-    <section className="mx-auto flex min-h-[60vh] w-full max-w-3xl items-center px-4 py-16">
+    <section className="m-16 flex min-h-[60vh] w-full max-w-3xl items-center p-0 py-16">
       <div className="w-full rounded-[32px] border border-[color:var(--cream-dark)] bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.06)]">
         <div className="text-xs font-semibold uppercase tracking-[0.28em] text-[color:var(--ink-muted)]">
           Payment

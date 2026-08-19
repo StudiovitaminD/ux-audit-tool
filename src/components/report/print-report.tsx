@@ -9,12 +9,12 @@ export function PrintReport({ report }: { report: unknown }) {
   const pages = buildReportPages({
     vm,
     hydratedCompetitors: competitors,
-    includeAiBucketAnswers: true,
+    includeAiBucketAnswers: false,
   });
 
   return (
     <div
-      className="print-report-root min-h-screen bg-[color:var(--background)] px-4 py-10 sm:px-6 lg:px-8"
+      className="print-report-root m-16 min-h-screen bg-[color:var(--background)] p-0"
       data-report-print-ready="true"
     >
       <div className="report-a4-stage mx-auto space-y-6">
@@ -54,7 +54,7 @@ export function PrintReport({ report }: { report: unknown }) {
                   ) : null}
                   {page.body}
                 </div>
-                <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-black)]">
+                <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-white)]">
                   <div>Page {index + 1}</div>
                   <div>UX Audit Report</div>
                 </div>

@@ -155,10 +155,10 @@
 }
 
 .btnPrimary {
-  background: var(--ink);
+  background: var(--accent);
   color: var(--cream);
   padding: 9px 20px;
-  border-radius: 40px;
+  border-radius: 9999px;
   font-size: 16px;
   font-weight: 600;
   font-family: var(--font-sans);
@@ -172,7 +172,7 @@
 }
 
 .btnPrimary:hover {
-  background: var(--accent);
+  background: color-mix(in srgb, var(--accent) 88%, black);
   transform: translateY(-1px);
 }
 

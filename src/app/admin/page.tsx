@@ -25,7 +25,7 @@ export default async function AdminPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+    <div className="m-16 pb-16 pt-8">
       <AdminDashboardClient session={{ email: session.email, name: session.name }} />
     </div>
   );

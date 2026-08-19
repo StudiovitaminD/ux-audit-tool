@@ -337,13 +337,8 @@ export function ReportView() {
   >([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
-  const [bulkDeleteSuccess, setBulkDeleteSuccess] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
-  const [selectedReportIds, setSelectedReportIds] = useState<string[]>([]);
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const report = useMemo(() => loadLastReport<unknown>(), []);
   const processInFlightRef = useRef(false);
   const lastProcessKickMsRef = useRef(0);
@@ -488,89 +483,12 @@ export function ReportView() {
         throw new Error(data?.error || `Failed to delete report (${res.status})`);
       }
       setReportHistory((current) => current.filter((item) => item.id !== id));
-      setSelectedReportIds((current) => current.filter((selectedId) => selectedId !== id));
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : "Failed to delete report");
     } finally {
       setDeletingReportId(null);
     }
   }
-
-  const selectedCount = selectedReportIds.length;
-  const allSelected = reportHistory.length > 0 && selectedCount === reportHistory.length;
-
-  function toggleReportSelection(id: string) {
-    setSelectedReportIds((current) =>
-      current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id],
-    );
-  }
-
-  function toggleSelectAll() {
-    if (allSelected) {
-      setSelectedReportIds([]);
-      return;
-    }
-    setSelectedReportIds(reportHistory.map((item) => item.id));
-  }
-
-  function clearSelection() {
-    setSelectedReportIds([]);
-    setBulkDeleteError(null);
-    setBulkDeleteSuccess(null);
-  }
-
-  async function performBulkDelete() {
-    if (!selectedReportIds.length) return;
-    setBulkDeleteError(null);
-    setBulkDeleteSuccess(null);
-    setBulkDeleting(true);
-
-    try {
-      const res = await fetch("/api/reports/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedReportIds }),
-      });
-      const data = (await res.json().catch(() => null)) as
-        | {
-            deletedCount?: number;
-            deletedIds?: string[];
-            failedIds?: string[];
-            errors?: string[];
-            error?: string;
-          }
-        | null;
-
-      if (!res.ok) {
-        throw new Error(data?.error || `Bulk delete failed (${res.status})`);
-      }
-
-      const deletedIds = Array.isArray(data?.deletedIds) ? data.deletedIds : [];
-      const failedIds = Array.isArray(data?.failedIds) ? data.failedIds : [];
-      const deletedCount = typeof data?.deletedCount === "number" ? data.deletedCount : deletedIds.length;
-
-      setReportHistory((current) => current.filter((item) => !deletedIds.includes(item.id)));
-      setSelectedReportIds((current) => current.filter((id) => failedIds.includes(id)));
-
-      if (failedIds.length) {
-        const failureMessage = data?.errors?.length
-          ? data.errors.join("; ")
-          : `${failedIds.length} report${failedIds.length === 1 ? "" : "s"} could not be deleted.`;
-        setBulkDeleteError(`Deleted ${deletedCount} report${deletedCount === 1 ? "" : "s"}. ${failureMessage}`);
-      } else {
-        setBulkDeleteSuccess(`Deleted ${deletedCount} report${deletedCount === 1 ? "" : "s"}.`);
-      }
-    } catch (error) {
-      setBulkDeleteError(error instanceof Error ? error.message : "Failed to delete selected reports.");
-    } finally {
-      setBulkDeleting(false);
-      setShowBulkDeleteConfirm(false);
-    }
-  }
-
-  useEffect(() => {
-    setSelectedReportIds((current) => current.filter((id) => reportHistory.some((item) => item.id === id)));
-  }, [reportHistory]);
 
   useEffect(() => {
     if (rid || demo) return;
@@ -794,15 +712,15 @@ export function ReportView() {
 
   if (!rid) {
     return (
-      <div className="mx-auto max-w-6xl px-4">
+      <div className="m-0 w-full max-w-none px-6 pb-6 pt-10">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-3xl font-semibold">Previous reports</div>
+            <div className="text-3xl font-semibold">Reports</div>
             <div className="mt-2 text-sm text-[color:var(--ink-muted)]">
               Open any completed audit, edit answers inside the report, or send it for re-audit with the form prefilled.
             </div>
           </div>
-          <Link className="btnPrimary" href="/report?demo=1">
+          <Link className="text-sm font-medium underline underline-offset-4 hover:no-underline" href="/report?demo=1">
             View sample report
           </Link>
         </div>
@@ -811,7 +729,7 @@ export function ReportView() {
           <div className="rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-6">
             <div className="flex items-center gap-3 text-sm text-[color:var(--ink-muted)]">
               <LoadingSpinner />
-              Loading previous reports…
+              Loading reports…
             </div>
           </div>
         ) : historyError ? (
@@ -832,159 +750,85 @@ export function ReportView() {
           </div>
         ) : (
           <div className="space-y-4">
-            {bulkDeleteSuccess ? (
-              <div className="rounded-[var(--radius)] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-                {bulkDeleteSuccess}
-              </div>
-            ) : null}
-            {bulkDeleteError ? (
-              <div className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                {bulkDeleteError}
-              </div>
-            ) : null}
             {deleteError ? (
               <div className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                 {deleteError}
               </div>
             ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-4">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-[color:var(--cream-dark)] text-black/80"
-                />
-                Select all
-              </label>
-              <div className="text-sm text-[color:var(--ink-muted)]">
-                {selectedCount} selected
-              </div>
-            </div>
-            {selectedCount > 0 ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-4">
-                <div className="text-sm text-[color:var(--ink-muted)]">
-                  {selectedCount} report{selectedCount === 1 ? "" : "s"} selected
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={clearSelection}
-                    className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-                  >
-                    Clear selection
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowBulkDeleteConfirm(true)}
-                    disabled={bulkDeleting}
-                    className="btnPrimary"
-                  >
-                    Delete selected
-                  </button>
-                </div>
-              </div>
-            ) : null}
             <div className="grid gap-4">
-              {reportHistory.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-5"
-                >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <label className="inline-flex items-center gap-2 text-[color:var(--ink-muted)]">
-                      <input
-                        type="checkbox"
-                        checked={selectedReportIds.includes(item.id)}
-                        onChange={() => toggleReportSelection(item.id)}
-                        className="h-4 w-4 rounded border-[color:var(--cream-dark)] text-black/80"
-                      />
-                      <span className="sr-only">Select report {item.productName}</span>
-                    </label>
-                    <div className="min-w-0">
-                      <div className="text-lg font-semibold">{item.productName}</div>
-                      <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
-                        {item.productUrl || "URL not captured"}
+              {reportHistory.map((item) => {
+                const statusLabel = item.status
+                  ? `${item.status.charAt(0).toUpperCase()}${item.status.slice(1)}`
+                  : "Status unknown";
+
+                return (
+                  <div
+                    key={item.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest("[data-no-card-nav]")) return;
+                      router.push(`/report?rid=${encodeURIComponent(item.id)}`);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest("[data-no-card-nav]")) return;
+                      event.preventDefault();
+                      router.push(`/report?rid=${encodeURIComponent(item.id)}`);
+                    }}
+                    className="cursor-pointer rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-5 transition hover:bg-black/[0.015] focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="text-lg font-semibold">{item.productName}</div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--ink-muted)]">
+                          <span>{item.productType || "Type unknown"}</span>
+                          <span aria-hidden="true">|</span>
+                          <span>{item.primaryPlatform || "Platform unknown"}</span>
+                          {item.createdAt ? (
+                            <>
+                              <span aria-hidden="true">|</span>
+                              <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                            </>
+                          ) : null}
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          {item.overallScore !== null ? (
+                            <div className="rounded-[14px] border border-[color:var(--cream-dark)] bg-white px-4 py-2 text-sm font-medium">
+                              {item.overallScore}/100
+                            </div>
+                          ) : null}
+                          <div className="rounded-[14px] border border-[color:var(--cream-dark)] bg-white px-4 py-2 text-sm font-medium">
+                            {statusLabel}
+                          </div>
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--ink-muted)]">
-                        <span>{item.productType || "Type unknown"}</span>
-                        <span>•</span>
-                        <span>{item.primaryPlatform || "Platform unknown"}</span>
-                        <span>•</span>
-                        <span>{item.status}</span>
-                        {item.createdAt ? (
-                          <>
-                            <span>•</span>
-                            <span>{new Date(item.createdAt).toLocaleString()}</span>
-                          </>
-                        ) : null}
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                          data-no-card-nav
+                          className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+                          href={`/audit?sourceReport=${encodeURIComponent(item.id)}`}
+                        >
+                          Re-audit
+                        </Link>
+                        <button
+                          type="button"
+                          data-no-card-nav
+                          onClick={() => deleteReport(item.id)}
+                          disabled={deletingReportId === item.id}
+                          className="rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deletingReportId === item.id ? "Deleting…" : "Delete"}
+                        </button>
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    {item.overallScore !== null ? (
-                      <div className="rounded-full border border-[color:var(--cream-dark)] px-3 py-1 text-sm font-medium">
-                        {item.overallScore}/100
-                      </div>
-                    ) : null}
-                    <Link
-                      className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-                      href={`/audit?sourceReport=${encodeURIComponent(item.id)}`}
-                    >
-                      Re-audit
-                    </Link>
-                    <Link className="btnPrimary" href={`/report?rid=${encodeURIComponent(item.id)}`}>
-                      Open report
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => deleteReport(item.id)}
-                      disabled={deletingReportId === item.id}
-                      className="rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {deletingReportId === item.id ? "Deleting…" : "Delete"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-            {showBulkDeleteConfirm ? (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="bulk-delete-title"
-                  className="w-full max-w-xl rounded-[var(--radius)] bg-white p-6 shadow-2xl"
-                >
-                  <h2 id="bulk-delete-title" className="text-xl font-semibold">
-                    Delete selected reports?
-                  </h2>
-                  <p className="mt-3 text-sm text-[color:var(--ink-muted)]">
-                    This is permanent and will remove all selected reports. This action cannot be undone.
-                  </p>
-                  <div className="mt-6 flex flex-wrap justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowBulkDeleteConfirm(false)}
-                      className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={performBulkDelete}
-                      disabled={bulkDeleting}
-                      className="btnPrimary"
-                    >
-                      {bulkDeleting ? "Deleting…" : "Delete"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -1176,7 +1020,7 @@ export function ReportView() {
         ? debugDetails.totalBuckets
         : null;
     return (
-      <div className="p-6">
+      <div className="px-6 pb-6 pt-10">
         <div className="text-lg font-semibold">Creating your report…</div>
         <div className="mt-3 flex items-center gap-3 text-sm text-[color:var(--muted)]">
           <LoadingSpinner />

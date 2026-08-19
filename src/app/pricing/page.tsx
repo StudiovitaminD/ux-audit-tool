@@ -142,7 +142,7 @@ export default function PricingPage() {
     : `Minimum ${MIN_CUSTOM_REPORTS} reports`;
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-4 py-12 sm:py-16">
+    <section className="m-16 w-full max-w-7xl p-0 py-12">
       <div className="rounded-[36px] border border-[color:var(--cream-dark)] bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.06)] sm:p-10">
         {notice ? (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

@@ -5,6 +5,7 @@ import { asString, buildReportViewModel, type AnyRecord } from "@/lib/report-mod
 import { buildReportPages } from "@/components/report/report-pages";
 import { recalculateEditedReport, updateReportAnswer } from "@/lib/report-editing";
 import { ReportAccessPanel } from "@/components/account/access-panels";
+import { AIBucketAnswersSection } from "@/components/report/sections/AIBucketAnswersSection";
 
 export function LiveReport({
   report,
@@ -32,8 +33,8 @@ export function LiveReport({
   const [baseReport, setBaseReport] = useState(() => recalculateEditedReport(report));
   const [editableReport, setEditableReport] = useState(() => recalculateEditedReport(report));
   const [saving, setSaving] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [aiAnswersOpen, setAiAnswersOpen] = useState(false);
   const vm = useMemo(() => buildReportViewModel(editableReport), [editableReport]);
   const [page, setPage] = useState(0);
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
@@ -113,7 +114,7 @@ export function LiveReport({
         vm,
         hydratedCompetitors,
         lockedSections,
-        includeAiBucketAnswers: true,
+        includeAiBucketAnswers: false,
         onAnswerChange: (bucketName, questionId, selectedOption, userReason, userEvidence) =>
           setEditableReport((current) =>
             updateReportAnswer(
@@ -132,6 +133,10 @@ export function LiveReport({
 
   const current = pages[page] ?? pages[0];
   const currentPageLocked = Boolean(current?.locked);
+
+  useEffect(() => {
+    setPage((currentPage) => Math.max(0, Math.min(currentPage, Math.max(0, pages.length - 1))));
+  }, [pages.length]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -183,40 +188,6 @@ export function LiveReport({
     setSaveMessage("Answers reset");
   }
 
-  async function refreshAiContent() {
-    if (!reportId) return;
-
-    setRefreshing(true);
-    setSaveMessage(null);
-
-    try {
-      if (isDirty) {
-        const saved = await saveChanges(true);
-        if (!saved) return;
-      }
-
-      const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ report: editableReport }),
-      });
-      const data = (await res.json().catch(() => null)) as {
-        error?: string;
-        report?: unknown;
-      } | null;
-      if (!res.ok) throw new Error(data?.error || `Refresh failed (${res.status})`);
-
-      const nextReport = ((data?.report ?? editableReport) as AnyRecord);
-      setBaseReport(nextReport);
-      setEditableReport(nextReport);
-      setSaveMessage("AI content refreshed");
-    } catch (error) {
-      setSaveMessage(error instanceof Error ? error.message : "Failed to refresh AI content");
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
   async function saveBeforeExport(run?: ((reportOverride?: unknown) => void | Promise<void>) | undefined) {
     if (!run) return;
     if (reportId && isDirty) {
@@ -241,7 +212,7 @@ export function LiveReport({
   }, [pages.length]);
 
   return (
-    <div className="flex min-h-screen flex-col p-6" data-report-live-root>
+    <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
       <ReportAccessPanel
         reportAccessLevel={reportAccessLevel}
         lockedSections={lockedSections}
@@ -311,7 +282,7 @@ export function LiveReport({
                   ) : null}
                   {current.body}
                 </div>
-                <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-black)]">
+                <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-white)]">
                   <div>Page {page + 1}</div>
                   <div>UX Audit Report</div>
                 </div>
@@ -331,7 +302,7 @@ export function LiveReport({
         </div>
 
         <div
-          className="no-print sticky bottom-4 z-20 mt-5 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur"
+          className="no-print fixed inset-x-6 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur"
           data-report-pagination
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -340,40 +311,32 @@ export function LiveReport({
             </div>
             <div className="flex flex-wrap items-center gap-2" data-report-pagination-controls>
               {reportId ? (
-                <button
-                  type="button"
-                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-                  onClick={() => void saveChanges()}
-                  disabled={!isDirty || saving || refreshing}
-                  style={
-                    !isDirty || saving || refreshing
-                      ? { opacity: 0.5, pointerEvents: "none" }
-                      : undefined
-                  }
-                >
-                  {saving ? "Saving…" : "Save Changes"}
-                </button>
+              <button
+                type="button"
+                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                onClick={() => void saveChanges()}
+                disabled={!isDirty || saving}
+                style={!isDirty || saving ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+              >
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
               ) : null}
               <button
                 type="button"
                 className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
                 onClick={resetAnswers}
-                disabled={saving || refreshing || !isDirty}
-                style={saving || refreshing || !isDirty ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+                disabled={saving || !isDirty}
+                style={saving || !isDirty ? { opacity: 0.5, pointerEvents: "none" } : undefined}
               >
                 Reset Answers
               </button>
-              {reportId ? (
-                <button
-                  type="button"
-                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-                  onClick={() => void refreshAiContent()}
-                  disabled={saving || refreshing}
-                  style={saving || refreshing ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-                >
-                  {refreshing ? "Refreshing AI…" : "Refresh AI content"}
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                onClick={() => setAiAnswersOpen((open) => !open)}
+              >
+                {aiAnswersOpen ? "Close AI Answers" : "AI Answers"}
+              </button>
               {onDownloadPdf ? (
                 <button
                   type="button"
@@ -385,14 +348,14 @@ export function LiveReport({
                 </button>
               ) : null}
               {onDownloadPptx ? (
-                <button
-                  type="button"
-                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-                  onClick={() => void saveBeforeExport(onDownloadPptx)}
-                  disabled={downloadingPptx || isPreviewReport || saving}
-                >
-                  {isPreviewReport ? "Upgrade for PPTX" : downloadingPptx ? "Exporting PPTX…" : "Export PPTX"}
-                </button>
+              <button
+                type="button"
+                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                onClick={() => void saveBeforeExport(onDownloadPptx)}
+                disabled={downloadingPptx || isPreviewReport || saving}
+              >
+                {isPreviewReport ? "Upgrade for PPTX" : downloadingPptx ? "Exporting PPTX…" : "Export PPTX"}
+              </button>
               ) : null}
               <button
                 type="button"
@@ -422,6 +385,50 @@ export function LiveReport({
           </div>
         </div>
       </div>
+
+      {aiAnswersOpen ? (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+          role="presentation"
+          onClick={() => setAiAnswersOpen(false)}
+        >
+          <div className="absolute inset-x-6 bottom-28 top-24 flex flex-col overflow-hidden rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] shadow-2xl shadow-black/20">
+            <div className="flex items-start justify-between gap-4 border-b border-black/5 px-6 py-5">
+              <div>
+                <div className="text-lg font-semibold text-[color:var(--ink)]">AI Bucket Answers</div>
+                <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
+                  Edit the question-level answers here, then save to update the report.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                onClick={() => setAiAnswersOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+              <AIBucketAnswersSection
+                bucketAnswerSections={Array.isArray(vm.bucketResults) ? vm.bucketResults : []}
+                onAnswerChange={(bucketName, questionId, selectedOption, userReason, userEvidence) =>
+                  setEditableReport((current) =>
+                    updateReportAnswer(
+                      current,
+                      bucketName,
+                      questionId,
+                      selectedOption,
+                      userReason,
+                      userEvidence,
+                    ),
+                  )
+                }
+                onResetAnswers={resetAnswers}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {downloadError ? (
         <div className="mt-5 rounded-[var(--radius)] border border-red-300 bg-red-50 p-4 text-sm text-red-700">

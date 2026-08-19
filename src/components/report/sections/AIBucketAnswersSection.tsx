@@ -34,8 +34,8 @@ export function AIBucketAnswersSection({
       >
         <div className="text-sm font-semibold">How the AI answered each audit bucket</div>
         <div className="mt-2 text-sm text-[color:var(--ink-muted)]">
-          This live-only view shows the question-by-question answers, evidence, and observations
-          generated during the audit.
+          This editor shows the question-by-question answers, evidence, and observations generated
+          during the audit.
         </div>
         {onAnswerChange ? (
           <div className="mt-2 text-sm text-[color:var(--ink-muted)]">

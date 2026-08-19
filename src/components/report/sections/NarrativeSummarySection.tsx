@@ -292,11 +292,25 @@ type SummaryBucketEntry = {
   estimatedHeight: number;
 };
 
+type SummarySectionKey = "topProblems" | "whatsWorking";
+
+type SummaryPageBlock = {
+  spec: SummaryBucketSpec;
+  bucket: Record<string, unknown> | null;
+  bucketData?: SummaryBucketData;
+  renderMode: "combined" | SummarySectionKey;
+  topProblems: readonly string[];
+  whatsWorking: readonly string[];
+  estimatedHeight: number;
+  continued?: boolean;
+};
+
 const SUMMARY_PAGE_CARD_GAP = 20;
-const SUMMARY_PAGE_CONTENT_LIMIT = 930;
-const SUMMARY_BULLET_LINE_HEIGHT = 22;
-const SUMMARY_BULLET_ITEM_GAP = 16;
-const SUMMARY_CHARS_PER_LINE = 42;
+const SUMMARY_PAGE_CONTENT_LIMIT = 760;
+const SUMMARY_BULLET_LINE_HEIGHT = 26;
+const SUMMARY_BULLET_ITEM_GAP = 20;
+const SUMMARY_CHARS_PER_LINE = 30;
+const SUMMARY_CARD_FIXED_OVERHEAD = 84;
 
 function estimateBulletItemHeight(text: string) {
   const normalized = text.replace(/^\s*•\s*/, "").trim();
@@ -317,22 +331,125 @@ function estimateBulletSectionHeight(items: readonly string[]) {
   const columns = splitIntoColumns(items, 2);
   const columnHeights = columns.map((column) => estimateBulletColumnHeight(column));
   const contentHeight = columnHeights.length ? Math.max(...columnHeights) : 0;
-  return 18 + 12 + contentHeight;
+  return 24 + 14 + contentHeight;
+}
+
+function estimateSummaryBlockHeight(block: {
+  renderMode: "combined" | SummarySectionKey;
+  topProblems: readonly string[];
+  whatsWorking: readonly string[];
+}) {
+  if (block.renderMode === "combined") {
+    const sectionHeights = [
+      estimateBulletSectionHeight(block.topProblems),
+      estimateBulletSectionHeight(block.whatsWorking),
+    ].filter((value) => value > 0);
+
+    if (!sectionHeights.length) return 0;
+
+    const gapBetweenSections = sectionHeights.length > 1 ? 36 : 0;
+    return SUMMARY_CARD_FIXED_OVERHEAD + sectionHeights.reduce((sum, value) => sum + value, 0) + gapBetweenSections;
+  }
+
+  const items = block.renderMode === "topProblems" ? block.topProblems : block.whatsWorking;
+  const sectionHeight = estimateBulletSectionHeight(items);
+  if (!sectionHeight) return 0;
+  return SUMMARY_CARD_FIXED_OVERHEAD + sectionHeight;
 }
 
 function estimateBucketCardHeight(resolved: {
   topProblems: readonly string[];
   whatsWorking: readonly string[];
 }) {
-  const sectionHeights = [
-    estimateBulletSectionHeight(resolved.topProblems),
-    estimateBulletSectionHeight(resolved.whatsWorking),
-  ].filter((value) => value > 0);
+  return estimateSummaryBlockHeight({
+    renderMode: "combined",
+    topProblems: resolved.topProblems,
+    whatsWorking: resolved.whatsWorking,
+  });
+}
 
-  if (!sectionHeights.length) return 0;
+function splitItemsToFitSection(items: readonly string[]) {
+  const chunks: string[][] = [];
+  let current: string[] = [];
 
-  const gapBetweenSections = sectionHeights.length > 1 ? 32 : 0;
-  return 32 + 20 + 16 + sectionHeights.reduce((sum, value) => sum + value, 0) + gapBetweenSections;
+  for (const item of items) {
+    const next = current.concat(item);
+    const candidateHeight = SUMMARY_CARD_FIXED_OVERHEAD + estimateBulletSectionHeight(next);
+
+    if (current.length && candidateHeight > SUMMARY_PAGE_CONTENT_LIMIT) {
+      chunks.push(current);
+      current = [item];
+      continue;
+    }
+
+    current = next;
+  }
+
+  if (current.length) chunks.push(current);
+  return chunks;
+}
+
+function buildSummaryBlocks(entries: readonly SummaryBucketEntry[]) {
+  const blocks: SummaryPageBlock[] = [];
+
+  for (const entry of entries) {
+    const combinedHeight = entry.estimatedHeight;
+    if (combinedHeight > 0 && combinedHeight <= SUMMARY_PAGE_CONTENT_LIMIT) {
+      blocks.push({
+        spec: entry.spec,
+        bucket: entry.bucket,
+        bucketData: entry.bucketData,
+        renderMode: "combined",
+        topProblems: entry.topProblems,
+        whatsWorking: entry.whatsWorking,
+        estimatedHeight: combinedHeight,
+      });
+      continue;
+    }
+
+    const topChunks = entry.topProblems.length ? splitItemsToFitSection(entry.topProblems) : [];
+    const workingChunks = entry.whatsWorking.length ? splitItemsToFitSection(entry.whatsWorking) : [];
+
+    if (!topChunks.length && !workingChunks.length) continue;
+
+    for (let chunkIndex = 0; chunkIndex < topChunks.length; chunkIndex += 1) {
+      const chunk = topChunks[chunkIndex];
+      blocks.push({
+        spec: entry.spec,
+        bucket: entry.bucket,
+        bucketData: entry.bucketData,
+        renderMode: "topProblems",
+        topProblems: chunk,
+        whatsWorking: [],
+        estimatedHeight: estimateSummaryBlockHeight({
+          renderMode: "topProblems",
+          topProblems: chunk,
+          whatsWorking: [],
+        }),
+        continued: chunkIndex > 0,
+      });
+    }
+
+    for (let chunkIndex = 0; chunkIndex < workingChunks.length; chunkIndex += 1) {
+      const chunk = workingChunks[chunkIndex];
+      blocks.push({
+        spec: entry.spec,
+        bucket: entry.bucket,
+        bucketData: entry.bucketData,
+        renderMode: "whatsWorking",
+        topProblems: [],
+        whatsWorking: chunk,
+        estimatedHeight: estimateSummaryBlockHeight({
+          renderMode: "whatsWorking",
+          topProblems: [],
+          whatsWorking: chunk,
+        }),
+        continued: chunkIndex > 0,
+      });
+    }
+  }
+
+  return blocks;
 }
 
 function resolveSummaryBucketEntries({
@@ -399,6 +516,30 @@ function paginateSummaryBucketEntries(entries: readonly SummaryBucketEntry[]) {
   return pages;
 }
 
+function paginateSummaryBlocks(blocks: readonly SummaryPageBlock[]) {
+  const pages: SummaryPageBlock[][] = [];
+  let currentPage: SummaryPageBlock[] = [];
+  let currentHeight = 0;
+
+  for (const block of blocks) {
+    const gap = currentPage.length ? SUMMARY_PAGE_CARD_GAP : 0;
+    const nextHeight = currentHeight + gap + block.estimatedHeight;
+
+    if (currentPage.length && nextHeight > SUMMARY_PAGE_CONTENT_LIMIT) {
+      pages.push(currentPage);
+      currentPage = [block];
+      currentHeight = block.estimatedHeight;
+      continue;
+    }
+
+    currentPage.push(block);
+    currentHeight = nextHeight;
+  }
+
+  if (currentPage.length) pages.push(currentPage);
+  return pages;
+}
+
 export function SummaryBulletColumns({ items }: { items: readonly string[] }) {
   const columns = splitIntoColumns(items, 2);
   if (!columns.length) {
@@ -427,22 +568,31 @@ function SummaryBucketCard({
   spec,
   bucket,
   bucketData,
+  renderMode = "combined",
+  continued = false,
 }: {
   spec: SummaryBucketSpec;
   bucket: Record<string, unknown> | null;
   bucketData?: SummaryBucketData;
+  renderMode?: "combined" | SummarySectionKey;
+  continued?: boolean;
 }) {
   const currentBucketLabel = displayBucketName(spec.name);
   const resolved = renderBucketContent(bucket, bucketData);
-  const showTopProblems = resolved.topProblems.length > 0;
-  const showWhatsWorking = resolved.whatsWorking.length > 0;
+  const showTopProblems = renderMode === "combined" || renderMode === "topProblems";
+  const showWhatsWorking = renderMode === "combined" || renderMode === "whatsWorking";
 
   if (!showTopProblems && !showWhatsWorking) return null;
 
   return (
     <div className="print-avoid-break rounded-[12px] border border-transparent bg-[color:var(--report-grey-bg)] p-4 sm:p-5">
-      <div className="text-[16px] font-semibold leading-tight text-[color:var(--report-black)]">
-        {currentBucketLabel}
+      <div className="flex flex-wrap items-center gap-2 text-[16px] font-semibold leading-tight text-[color:var(--report-black)]">
+        <span>{currentBucketLabel}</span>
+        {continued ? (
+          <span className="text-[12px] font-medium text-[color:var(--report-grey-font)]">
+            continued
+          </span>
+        ) : null}
       </div>
       <div className="mt-4 border-t border-[color:var(--card-border)]/60" />
       <div className="mt-4 space-y-8">
@@ -471,12 +621,35 @@ function SummaryBucketCard({
   );
 }
 
-export function NarrativeSummarySection({ vm, pillar, bucketData, bucketNames: selectedBucketNames }: NarrativeSummarySectionProps) {
+export function NarrativeSummarySection({
+  vm,
+  pillar,
+  bucketData,
+  bucketNames: selectedBucketNames,
+  blocks,
+}: NarrativeSummarySectionProps & { blocks?: SummaryPageBlock[] }) {
   const pillarBucketsOrder = (
     pillar
       ? ([[pillar, SUMMARY_PILLARS[pillar]]] as Array<[SummaryPillar, readonly SummaryBucketSpec[]]>)
       : (Object.entries(SUMMARY_PILLARS) as Array<[SummaryPillar, readonly SummaryBucketSpec[]]>)
   ) as Array<[SummaryPillar, readonly SummaryBucketSpec[]]>;
+
+  if (blocks?.length) {
+    return (
+      <div className="space-y-5">
+        {blocks.map((block, index) => (
+          <SummaryBucketCard
+            key={`${block.spec.name}-${block.renderMode}-${index}`}
+            spec={block.spec}
+            bucket={block.bucket}
+            bucketData={block.bucketData}
+            renderMode={block.renderMode}
+            continued={block.continued}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -520,7 +693,8 @@ export function buildNarrativeSummaryPages({
   bucketData?: Partial<Record<string, SummaryBucketData>>;
 }): ReportPage[] {
   const entries = resolveSummaryBucketEntries({ vm, pillar, bucketData });
-  const chunks = paginateSummaryBucketEntries(entries);
+  const blocks = buildSummaryBlocks(entries);
+  const chunks = paginateSummaryBlocks(blocks);
   if (!chunks.length) {
     return [
       {
@@ -540,7 +714,7 @@ export function buildNarrativeSummaryPages({
         vm={vm}
         pillar={pillar}
         bucketData={bucketData}
-        bucketNames={chunk.map((entry) => entry.spec.name)}
+        blocks={chunk}
       />
     ),
     variant: "standard",

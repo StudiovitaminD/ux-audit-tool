@@ -23,9 +23,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head />
       <body className={`${robotoCondensed.variable} antialiased`}>
-        <a className="skipLink" href="#main">
-          Skip to content
-        </a>
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -99,9 +99,6 @@ function buildDocxXml(report: unknown, reportId: string) {
   const findings = vm.findingsDetailed.slice(0, 10);
   const quickWins = vm.quickWinsTable.slice(0, 10);
   const competitors = vm.competitorAnalysis.competitors.slice(0, 6);
-  const bucketAnswerSections = vm.bucketResults.filter(
-    (bucket) => Array.isArray(bucket.questions) && bucket.questions.length,
-  );
 
   const parts: string[] = [];
   parts.push(paragraph(vm.productName || "UX Audit Report", "Title"));
@@ -167,44 +164,6 @@ function buildDocxXml(report: unknown, reportId: string) {
     );
   } else {
     parts.push(paragraph("No competitors captured."));
-  }
-  parts.push(spacer());
-
-  parts.push(paragraph("AI Bucket Answers", "Heading1"));
-  if (bucketAnswerSections.length) {
-    bucketAnswerSections.forEach((bucket) => {
-      parts.push(
-        paragraph(
-          `${asString(bucket.bucket_name || bucket.section || bucket.bucket) || "Bucket"} — ${asString(bucket.score) || "—"}/100`,
-          "Heading2",
-        ),
-      );
-      const questions = Array.isArray(bucket.questions) ? bucket.questions : [];
-      questions.forEach((question, index) => {
-        const rec = (question && typeof question === "object" ? question : {}) as Record<string, unknown>;
-        const answerStatus = asString(rec.answer_status);
-        const insufficient = answerStatus === "insufficient_evidence";
-        const scoringUnavailable = answerStatus === "scoring_unavailable";
-        parts.push(
-          paragraph(
-            insufficient
-              ? `${index + 1}. ${asString(rec.question) || "Question"} (Status: Insufficient evidence, Score: Not scored, Selected option: None)`
-              : scoringUnavailable
-                ? `${index + 1}. ${asString(rec.question) || "Question"} (Status: Scoring unavailable, Score: Not scored, Selected option: None)`
-              : `${index + 1}. ${asString(rec.question) || "Question"}${asString(rec.selected_option) ? ` (Answer: ${asString(rec.selected_option)})` : ""}`,
-          ),
-        );
-        if (!insufficient && !scoringUnavailable && asString(rec.evidence)) {
-          parts.push(paragraph(`Evidence: ${asString(rec.evidence)}`));
-        }
-        if (asString(rec.observation)) {
-          parts.push(paragraph(`Observation: ${asString(rec.observation)}`));
-        }
-      });
-      parts.push(spacer());
-    });
-  } else {
-    parts.push(paragraph("No question-level AI answers were captured."));
   }
   parts.push(spacer());
 

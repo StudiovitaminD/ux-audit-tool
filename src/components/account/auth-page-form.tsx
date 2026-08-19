@@ -128,21 +128,12 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
   const isSignUp = mode === "sign-up";
 
   return (
-    <section className="mx-auto w-full max-w-5xl px-4 py-12 sm:py-16">
-      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+    <section className="flex h-full w-full items-center justify-center px-6">
+      <div className="w-full max-w-[550px]">
         <div className="rounded-[32px] border border-[color:var(--cream-dark)] bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.06)] sm:p-10">
-          <div className="text-xs font-semibold uppercase tracking-[0.28em] text-[color:var(--ink-muted)]">
-            {isSignUp ? "Create your account" : "Welcome back"}
-          </div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] text-[color:var(--ink)] sm:text-4xl">
+          <h2 className="text-center">
             {isSignUp ? "Sign up to save and unlock reports" : "Sign in to continue your audit"}
-          </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-[color:var(--ink-muted)] sm:text-base">
-            {isSignUp
-              ? "Create a server-backed account to keep your reports, track free usage, and unlock paid access when your email is added to the allowlist."
-              : "Use your work email to restore your account session, reopen saved reports, and continue from where you left off."}
-          </p>
-
+          </h2>
           {isSignUp && selectedReportLimit ? (
             <div className="mt-5 rounded-2xl border border-black/8 bg-[color:var(--cream)]/40 px-4 py-3 text-sm leading-6 text-[color:var(--ink)]">
               Selected plan: <span className="font-semibold">{selectedReportLimit} reports</span>
@@ -150,12 +141,12 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
             </div>
           ) : null}
 
-          <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             {isSignUp ? (
               <label className="block">
-                <div className="mb-2 text-sm font-medium text-[color:var(--ink)]">Your name</div>
+                <h3 className="mb-2">Your name</h3>
                 <input
-                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5"
+                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-[14px] outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5"
                   placeholder="Jane Smith"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
@@ -165,10 +156,10 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
             ) : null}
 
             <label className="block">
-              <div className="mb-2 text-sm font-medium text-[color:var(--ink)]">Work email</div>
+              <h3 className="mb-2">Work email</h3>
               <input
                 type="email"
-                className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5"
+                className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-[14px] outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5"
                 placeholder="jane@company.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -177,12 +168,12 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
             </label>
 
             <label className="block">
-              <div className="mb-2 text-sm font-medium text-[color:var(--ink)]">
+              <h3 className="mb-2">
                 {isSignUp ? "New password" : "Password"}
-              </div>
+              </h3>
               <input
                 type="password"
-                className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5"
+                className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-[14px] outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5"
                 placeholder={isSignUp ? "Create a new password" : "Enter your password"}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -219,32 +210,6 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
             >
               {isSignUp ? "Sign in" : "Sign up"}
             </Link>
-          </div>
-        </div>
-
-        <div className="rounded-[32px] border border-[color:var(--cream-dark)] bg-[linear-gradient(180deg,#fff_0%,#faf5ea_100%)] p-8 sm:p-10">
-          <div className="text-xs font-semibold uppercase tracking-[0.28em] text-[color:var(--ink-muted)]">
-            What you get
-          </div>
-          <div className="mt-6 space-y-4">
-            {[
-              "Free users can create up to 3 website or ecommerce reports.",
-              "Paid users unlock the full report instead of the preview-locked version.",
-              "Admin users can access SaaS audits while that flow is still private.",
-              "Your session is stored on the server so reports stay tied to your account email.",
-            ].map((item) => (
-              <div
-                key={item}
-                className="rounded-2xl border border-black/8 bg-white/80 px-4 py-4 text-sm leading-6 text-[color:var(--ink)]"
-              >
-                {item}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 rounded-2xl border border-black/8 bg-white/80 p-5 text-sm leading-6 text-[color:var(--ink-muted)]">
-            Emails listed in <code>PAID_EMAILS</code> or <code>ADMIN_EMAILS</code> are upgraded
-            automatically after sign-in.
           </div>
         </div>
       </div>
