@@ -1,19 +1,58 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const entryFile = resolve("dist/server/index.js");
 mkdirSync(dirname(entryFile), { recursive: true });
 
-const serverSource = readFileSync(resolve("dist/server.js"), "utf8");
-const entrySource = serverSource
-  .replace(
-    "const path = require('path')",
-    'import path from "node:path";\nconst __dirname = "dist";',
-  )
-  .replace("require('next')", "")
-  .replace(
-    "const { startServer } = require('next/dist/server/lib/start-server')",
-    'const { startServer } = await import("next/dist/server/lib/start-server")',
-  );
-
-writeFileSync(entryFile, entrySource);
+writeFileSync(
+  entryFile,
+  [
+    'import { existsSync, readFileSync } from "node:fs";',
+    'import { pathToFileURL } from "node:url";',
+    'import path from "node:path";',
+    "",
+    'const baseDir = process.cwd();',
+    'const distDir = existsSync(path.join(baseDir, ".next/required-server-files.json"))',
+    '  ? baseDir',
+    '  : path.join(baseDir, "dist");',
+    'const requiredServerFiles = JSON.parse(',
+    '  readFileSync(path.join(distDir, ".next/required-server-files.json"), "utf8"),',
+    ');',
+    'const nextConfig = requiredServerFiles.config;',
+    "",
+    'process.env.NODE_ENV = "production";',
+    'process.chdir(distDir);',
+    "",
+    'const currentPort = parseInt(process.env.PORT, 10) || 3000;',
+    'const hostname = process.env.HOSTNAME || "0.0.0.0";',
+    'let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);',
+    "",
+    "if (",
+    "  Number.isNaN(keepAliveTimeout) ||",
+    "  !Number.isFinite(keepAliveTimeout) ||",
+    "  keepAliveTimeout < 0",
+    ") {",
+    "  keepAliveTimeout = undefined;",
+    "}",
+    "",
+    'const startServerModule = await import(',
+    '  pathToFileURL(',
+    '    path.join(distDir, "node_modules/next/dist/server/lib/start-server.js"),',
+    '  ).href,',
+    ");",
+    "",
+    "startServerModule.startServer({",
+    "  dir: distDir,",
+    "  isDev: false,",
+    "  config: nextConfig,",
+    "  hostname,",
+    "  port: currentPort,",
+    "  allowRetry: false,",
+    "  keepAliveTimeout,",
+    "}).catch((error) => {",
+    "  console.error(error);",
+    "  process.exit(1);",
+    "});",
+    "",
+  ].join("\n"),
+);
