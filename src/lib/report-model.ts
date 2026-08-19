@@ -674,7 +674,7 @@ function bucketNarrativeSummary(bucket: AnyRecord) {
   const finding = asRecord(asArray(bucket.findings)[0]) ?? {};
   const improvement = asRecord(asArray(bucket.improvements)[0]) ?? {};
   const risk = asString(bucket.risk);
-  const score = asNumber(bucket.score);
+  const score = asNumber(bucket?.score);
   const insight = questionSummaryText(bucketName, finding).problem || questionSummaryText(bucketName, finding).action || "";
   const nextStep = questionSummaryText(bucketName, improvement).action || questionSummaryText(bucketName, improvement).problem || "";
 
@@ -1587,7 +1587,7 @@ function deriveQuestionScoringStats(report: AnyRecord) {
   const derivedScoredBuckets = bucketResults.filter((bucket) => {
     const status = asString(bucket.bucket_status);
     if (status === "scored") return true;
-    return asNumber(bucket.score) !== null;
+    return asNumber(bucket?.score) !== null;
   }).length;
   const hasScoringFailure = bucketResults.some(
     (bucket) => asString(bucket.bucket_status) === "scoring_unavailable",
@@ -2225,8 +2225,8 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
         ? "Insufficient evidence"
         : asString(bucket.bucket_status) === "scoring_unavailable"
           ? "Scoring unavailable"
-          : asNumber(bucket.score) !== null
-            ? `${asNumber(bucket.score)}/100`
+          : asNumber(bucket?.score) !== null
+            ? `${asNumber(bucket?.score)}/100`
             : "Not scored",
     health:
       asString(bucket.bucket_status) === "insufficient_evidence" ||
@@ -2254,7 +2254,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
   ].includes(effectiveCoverageStatus);
   const scoredBucketCount = derivedScoring.bucketResults.filter((bucket) => {
     const status = asString(bucket.bucket_status);
-    return status === "scored" || (asNumber(bucket.score) !== null && status !== "insufficient_evidence");
+    return status === "scored" || (asNumber(bucket?.score) !== null && status !== "insufficient_evidence");
   }).length;
   const hasPartialScoring = scoredBucketCount > 0;
   const isLimitedCoverage = hasCoverageShortfall && !hasPartialScoring;
@@ -2606,10 +2606,10 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
       asNumber(report.overall_score) !== null
         ? asNumber(report.overall_score)
         : hasPartialScoring
-          ? Math.round(
+            ? Math.round(
               derivedScoring.bucketResults
-                .filter((bucket) => asNumber(bucket.score) !== null)
-                .reduce((sum, bucket, _, arr) => sum + (asNumber(bucket.score) ?? 0) / Math.max(1, arr.length), 0),
+                .filter((bucket) => asNumber(bucket?.score) !== null)
+                .reduce((sum, bucket, _, arr) => sum + (asNumber(bucket?.score) ?? 0) / Math.max(1, arr.length), 0),
             )
           : null,
     overallHealth: isLimitedCoverage
