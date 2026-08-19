@@ -51,7 +51,7 @@ export function Navbar() {
     setSession(next);
     writeAppSession(next);
     void signOutAppSession().catch(() => undefined);
-    router.replace("/report");
+    router.replace("/sign-in");
     router.refresh();
   }
 
@@ -60,11 +60,19 @@ export function Navbar() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 w-full bg-[#f6f1e8] px-16 pt-5 text-[#191919]">
       <div className="mx-auto flex max-w-none items-center justify-between gap-6 rounded-full border border-[#101010]/10 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
+<<<<<<< HEAD
         <Link href="/" className="flex items-center gap-2 text-[17px] font-bold tracking-[-0.03em] text-[#191919]">
           <img
             src="/Asset%206@2x%201.png"
             alt="UX"
             className="h-9 w-9 object-contain"
+=======
+        <Link href="/" className="flex items-center gap-2 text-sm font-bold tracking-[-0.03em] text-[#191919]">
+          <img
+            src="/tool%20logo.svg"
+            alt="UX Audit Tool"
+            className="h-8 w-8 shrink-0 object-contain"
+>>>>>>> bf0192f (fix pdf report rendering)
             draggable={false}
           />
           <span>Design AID Audit</span>
@@ -89,7 +97,7 @@ export function Navbar() {
           ) : null}
           {isGuest ? (
             <Link
-              href="/sign-in?returnTo=/audit"
+              href="/sign-in?returnTo=/report"
               className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
             >
               Sign in

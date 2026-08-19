@@ -10,7 +10,13 @@ if (!existsSync(requiredServerFilesPath)) {
 }
 
 mkdirSync(dirname(entryFile), { recursive: true });
+<<<<<<< HEAD
 const requiredServerFiles = JSON.parse(readFileSync(requiredServerFilesPath, "utf8"));
+=======
+const requiredServerFiles = JSON.parse(
+  readFileSync(requiredServerFilesPath, "utf8"),
+);
+>>>>>>> bf0192f (fix pdf report rendering)
 
 writeFileSync(
   entryFile,

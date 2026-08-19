@@ -166,7 +166,8 @@ export function OverviewSection({ vm }: SharedSectionProps) {
     );
   });
   const overallScore = clampPercent(vm.overallScore ?? null);
-  const businessMetrics = calculateBusinessImpactMetrics(vm.pillarScores);
+  const pillarScores = vm.pillarScores ?? { Accessibility: null, Impact: null, Delight: null };
+  const businessMetrics = calculateBusinessImpactMetrics(pillarScores);
   const pillarOrder = ["Accessibility", "Impact", "Delight"];
   const scoreCardOrder = ["Accessibility", "Impact", "Delight"];
   const scoreRowLookup = new Map<string, AnyRecord>();
@@ -251,7 +252,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
           <div className="flex w-full min-w-0 flex-col items-start space-y-4 self-stretch">
             <div className="flex w-full min-w-0 items-start gap-3 self-stretch">
               {scoreCardOrder.map((name) => {
-                const p = vm.pillarScores[name];
+                const p = pillarScores[name] ?? { score: null };
                 const tone = scoreToneClasses(p.score);
                 return (
                   <div

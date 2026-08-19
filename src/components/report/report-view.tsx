@@ -3,6 +3,13 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  SESSION_CHANGE_EVENT,
+  SESSION_STORAGE_KEY,
+  fetchAppSession,
+  readAppSession,
+  type AppSession,
+} from "@/lib/app-session";
 import { readStoredIntake } from "@/lib/intake-storage";
 import { getAppSessionRequestHeaders } from "@/lib/app-session";
 import { loadLastReport } from "@/lib/report-store";
@@ -306,6 +313,8 @@ export function ReportView() {
   const searchParams = useSearchParams();
   const rid = searchParams.get("rid");
   const demo = searchParams.get("demo");
+  const [accountSession, setAccountSession] = useState<AppSession>(() => readAppSession());
+  const [accountReady, setAccountReady] = useState(false);
   const [remoteReport, setRemoteReport] = useState<{ reportId: string; report: unknown } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [jobError, setJobError] = useState<string | null>(null);
@@ -344,6 +353,40 @@ export function ReportView() {
   const processInFlightRef = useRef(false);
   const lastProcessKickMsRef = useRef(0);
   const sessionHeaders = useMemo(() => getAppSessionRequestHeaders(), []);
+
+  useEffect(() => {
+    const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    setAccountSession(readAppSession());
+    void fetchAppSession({ expectedStorageValue: storageSnapshot })
+      .then((next) => {
+        if (window.localStorage.getItem(SESSION_STORAGE_KEY) === storageSnapshot) {
+          setAccountSession(next);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        setAccountReady(true);
+      });
+
+    const syncSession = () => {
+      setAccountSession(readAppSession());
+      setAccountReady(true);
+    };
+
+    window.addEventListener("storage", syncSession);
+    window.addEventListener(SESSION_CHANGE_EVENT, syncSession);
+    return () => {
+      window.removeEventListener("storage", syncSession);
+      window.removeEventListener(SESSION_CHANGE_EVENT, syncSession);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!accountReady || demo === "1") return;
+    if (accountSession.email === "guest@local.test") {
+      router.replace("/sign-in?returnTo=/report");
+    }
+  }, [accountReady, accountSession.email, demo, router]);
 
   useEffect(() => {
     if (!rid) return;
@@ -501,7 +544,7 @@ export function ReportView() {
   }
 
   useEffect(() => {
-    if (rid || demo) return;
+    if (rid || demo || !accountReady || accountSession.email === "guest@local.test") return;
     let cancelled = false;
     setLoadingHistory(true);
     setHistoryError(null);
@@ -526,7 +569,7 @@ export function ReportView() {
     return () => {
       cancelled = true;
     };
-  }, [rid, demo]);
+  }, [rid, demo, accountReady, accountSession.email]);
 
   useEffect(() => {
     if (!rid) return;
@@ -719,6 +762,28 @@ export function ReportView() {
 
   if (demo === "1") {
     return <DemoReport />;
+  }
+
+  if (!accountReady) {
+    return (
+      <div className="m-0 flex min-h-screen w-full items-center justify-center bg-[color:var(--background)] p-6">
+        <div className="flex items-center gap-3 text-sm text-[color:var(--ink-muted)]">
+          <LoadingSpinner />
+          Checking sign in…
+        </div>
+      </div>
+    );
+  }
+
+  if (accountSession.email === "guest@local.test" && !demo) {
+    return (
+      <div className="m-0 flex min-h-screen w-full items-center justify-center bg-[color:var(--background)] p-6">
+        <div className="flex items-center gap-3 text-sm text-[color:var(--ink-muted)]">
+          <LoadingSpinner />
+          Redirecting to sign in…
+        </div>
+      </div>
+    );
   }
 
   if (!rid) {

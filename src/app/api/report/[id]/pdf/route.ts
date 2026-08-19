@@ -1,9 +1,17 @@
 import chromium from "@sparticuz/chromium";
 import { Document as PdfDocument, Image, Page as PdfPage, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { chromium as pwChromium, type Page } from "playwright-core";
+<<<<<<< HEAD
 import { createElement } from "react";
 import { asArray, asNumber, asRecord, asString, stringifyValue } from "@/lib/report-model";
+=======
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { createElement } from "react";
+import { asString, buildReportViewModel } from "@/lib/report-model";
+>>>>>>> bf0192f (fix pdf report rendering)
 import { loadStoredReport } from "@/lib/report-record";
+import { PrintReport } from "@/components/report/print-report";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -30,6 +38,40 @@ function fileNameFrom(value: string) {
   return value.replace(/[^\w\- ]+/g, "").trim().slice(0, 64) || "ux-audit-report";
 }
 
+<<<<<<< HEAD
+=======
+function baseUrlFrom(req: Request) {
+  const url = new URL(req.url);
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const host = forwardedHost || req.headers.get("host") || url.host;
+  const protocol = forwardedProto || url.protocol.replace(/:$/, "");
+  return `${protocol}://${host}`;
+}
+
+async function getLayoutStylesheetHref(baseUrl: string) {
+  const candidates = [
+    join(process.cwd(), ".next", "app-build-manifest.json"),
+    join(process.cwd(), "workspace", "app", ".next", "app-build-manifest.json"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const manifest = JSON.parse(await readFile(candidate, "utf8")) as {
+        pages?: Record<string, string[]>;
+      };
+      const layoutFiles = manifest.pages?.["/layout"] || [];
+      const cssFile = layoutFiles.find((file) => file.startsWith("static/css/"));
+      if (cssFile) return `${baseUrl}/_next/${cssFile}`;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return null;
+}
+
+>>>>>>> bf0192f (fix pdf report rendering)
 async function prepareBrowserPage(page: Page) {
   await page.route("**/*", (route) => {
     const resourceType = route.request().resourceType();
@@ -40,7 +82,11 @@ async function prepareBrowserPage(page: Page) {
   });
 }
 
+<<<<<<< HEAD
 async function captureReportPage(locator: ReturnType<Page["locator"]>, label: string): Promise<CapturedPageImage> {
+=======
+async function captureLocator(locator: ReturnType<Page["locator"]>, label: string) {
+>>>>>>> bf0192f (fix pdf report rendering)
   await locator.scrollIntoViewIfNeeded().catch(() => {});
   await locator.waitFor({ state: "visible", timeout: 15_000 });
   await locator.page().waitForTimeout(250).catch(() => {});
@@ -62,6 +108,7 @@ async function captureReportPage(locator: ReturnType<Page["locator"]>, label: st
   };
 }
 
+<<<<<<< HEAD
 function escapeHtml(value: unknown) {
   return asString(value)
     .replace(/&/g, "&amp;")
@@ -515,6 +562,8 @@ function buildPdfDocument(title: string, pages: CapturedPageImage[]) {
   );
 }
 
+=======
+>>>>>>> bf0192f (fix pdf report rendering)
 export async function GET(
   req: Request,
   { params }: { params: { id: string } },
@@ -528,8 +577,14 @@ export async function GET(
     const loaded = await loadStoredReport(id);
     if (!loaded) return Response.json({ error: "Not found" }, { status: 404 });
 
+<<<<<<< HEAD
     const reportRecord = asRecord(loaded.report) ?? {};
     const filename = `${fileNameFrom(asString(reportRecord.product_name) || asString(reportRecord.productName) || "ux-audit-report")}.pdf`;
+=======
+    const vm = buildReportViewModel(loaded.report);
+    const filename = `${fileNameFrom(asString(vm.productName) || "ux-audit-report")}.pdf`;
+    const { renderToStaticMarkup } = await import("react-dom/server");
+>>>>>>> bf0192f (fix pdf report rendering)
 
     const executablePath = await chromium.executablePath();
     browser = await pwChromium.launch({
@@ -542,6 +597,7 @@ export async function GET(
       viewport: { width: 1440, height: 1800 },
       deviceScaleFactor: 2,
     });
+<<<<<<< HEAD
     await prepareBrowserPage(livePage);
 
     const html = buildSafePrintHtml(reportRecord);
@@ -566,6 +622,63 @@ export async function GET(
     const pdfBuffer = await renderToBuffer(buildPdfDocument(filename, capturedPages));
 
     return new Response(new Uint8Array(pdfBuffer), {
+=======
+
+    const stylesheetHref = await getLayoutStylesheetHref(baseUrlFrom(req));
+    const reportMarkup = renderToStaticMarkup(createElement(PrintReport, { report: loaded.report }));
+    const html = `<!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          ${stylesheetHref ? `<link rel="stylesheet" href="${stylesheetHref}" />` : ""}
+          <style>
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+            html { scroll-behavior: auto !important; }
+            body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; }
+            header, nav, footer, .nav, .navbar, .navigation, .siteFooter, .skipLink,
+            [role="navigation"], [data-report-toolbar], [data-report-pagination],
+            [data-report-pagination-controls], .no-print {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              width: 0 !important;
+              height: 0 !important;
+              min-height: 0 !important;
+              max-height: 0 !important;
+              overflow: hidden !important;
+              pointer-events: none !important;
+              position: static !important;
+            }
+            [data-report-live-root] { padding: 24px !important; }
+            [data-report-live-canvas] { margin-top: 0 !important; }
+            [data-report-live-page], [data-report-live-page] * {
+              overflow: visible !important;
+              max-height: none !important;
+              content-visibility: visible !important;
+              contain: none !important;
+              animation: none !important;
+              transition: none !important;
+            }
+          </style>
+        </head>
+        <body>${reportMarkup}</body>
+      </html>`;
+
+    await livePage.setContent(html, { waitUntil: "load", timeout: 120_000 });
+    await livePage.emulateMedia({ media: "print" }).catch(() => undefined);
+    await livePage.waitForTimeout(1500).catch(() => undefined);
+
+    const buffer = await livePage.pdf({
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: { top: "0", right: "0", bottom: "0", left: "0" },
+    });
+
+    await livePage.close().catch(() => {});
+
+    return new Response(new Uint8Array(buffer), {
+>>>>>>> bf0192f (fix pdf report rendering)
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,

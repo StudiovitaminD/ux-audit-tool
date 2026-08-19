@@ -7,7 +7,11 @@ import { IntroPageSection } from "./sections/IntroPageSection";
 import { OverviewSection } from "./sections/OverviewSection";
 import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
+<<<<<<< HEAD
 import { buildCriticalFindingPages } from "./sections/FindingsSection";
+=======
+import { buildCriticalFindingsPages } from "./sections/FindingsSection";
+>>>>>>> bf0192f (fix pdf report rendering)
 import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
 import type { ReportPage } from "./sections/shared";
 
@@ -718,62 +722,6 @@ function formatDate(iso: string) {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
 }
 
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] px-2.5 py-1 text-xs text-[color:var(--ink-muted)]">
-      {children}
-    </span>
-  );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="text-sm font-semibold tracking-tight">{children}</div>;
-}
-
-function Subtle({ children }: { children: React.ReactNode }) {
-  return <div className="text-sm text-[color:var(--ink-muted)]">{children}</div>;
-}
-
-function FindingCard({ f }: { f: FindingDetailed }) {
-  return (
-    <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm font-semibold">
-          {f.rank}. {f.bucket}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Pill>{f.severity}</Pill>
-          <Pill>Effort: {f.effort}</Pill>
-          <Pill>{f.priority_tier}</Pill>
-        </div>
-      </div>
-
-      <div className="mt-3 grid gap-3">
-        <div>
-          <SectionTitle>What we found</SectionTitle>
-          <Subtle>{f.what_we_found}</Subtle>
-        </div>
-        <div>
-          <SectionTitle>Why it matters</SectionTitle>
-          <Subtle>{f.why_it_matters}</Subtle>
-        </div>
-        <div>
-          <SectionTitle>Recommendation</SectionTitle>
-          <Subtle>{f.recommendation}</Subtle>
-        </div>
-        <div>
-          <SectionTitle>Acceptance criteria</SectionTitle>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted)]">
-            {f.acceptance_criteria.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function DemoReport() {
   const [hydratedCompetitors, setHydratedCompetitors] = useState<DemoCompetitor[]>(
     DEMO.competitor_analysis as DemoCompetitor[],
@@ -871,12 +819,8 @@ export function DemoReport() {
   const pages = useMemo<ReportPage[]>(() => {
     const scorecard = DEMO.scorecard;
     const pillars = DEMO.pillar_scores;
-    const findings = DEMO.findings_detailed;
-    const quickWins = DEMO.quick_wins_table;
-    const roadmap = DEMO.roadmap;
     const competitors = hydratedCompetitors;
-    const topFindings = findings.slice(0, 5);
-    const overallScore = Math.max(0, Math.min(100, DEMO.overall_score));
+  const overallScore = Math.max(0, Math.min(100, DEMO.overall_score));
     const pillarOrder = ["Accessibility", "Impact", "Delight"] as const;
   const scoreCardOrder = ["Accessibility", "Impact", "Delight"] as const;
   const groupedScoreRows = pillarOrder.map((pillar) => ({
@@ -924,7 +868,11 @@ export function DemoReport() {
       ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Impact", bucketData: summaryBucketData.Impact }),
       ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Delight", bucketData: summaryBucketData.Delight }),
       ...buildCompetitorAnalysisPages({ competitors }),
+<<<<<<< HEAD
       ...buildCriticalFindingPages({ findings: topFindings }),
+=======
+      ...buildCriticalFindingsPages({ findings: DEMO.findings_detailed as never }),
+>>>>>>> bf0192f (fix pdf report rendering)
       ...buildQuickWinsRoadmapPages({ vm: coverVm as never }),
     ];
   }, [coverVm, hydratedCompetitors]);

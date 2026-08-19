@@ -14,7 +14,7 @@ function safeText(v: unknown) {
 
 function truncate(text: string, max = 1800) {
   const t = text.replace(/\s+/g, " ").trim();
-  return t.length > max ? `${t.slice(0, max)}…` : t;
+  return t.length > max ? t.slice(0, max) : t;
 }
 
 function toAbsUrl(base: string, href: string) {
@@ -221,4 +221,3 @@ export async function collectEvidence(env: WorkerEnv, reportId: string, intake: 
     return { pages, warnings } satisfies EvidenceBundle;
   });
 }
-

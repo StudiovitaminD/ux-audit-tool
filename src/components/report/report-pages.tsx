@@ -3,7 +3,11 @@ import { OverviewSection } from "./sections/OverviewSection";
 import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
 import { AIBucketAnswersSection } from "./sections/AIBucketAnswersSection";
+<<<<<<< HEAD
 import { buildCriticalFindingPages } from "./sections/FindingsSection";
+=======
+import { buildCriticalFindingsPages } from "./sections/FindingsSection";
+>>>>>>> bf0192f (fix pdf report rendering)
 import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
 import { IntroPageSection } from "./sections/IntroPageSection";
 import type { ReportPage } from "./sections/shared";
@@ -98,7 +102,11 @@ export function buildReportPages({
   }
 
   pages.push(
+<<<<<<< HEAD
     ...buildCriticalFindingPages({ findings: displayedFindings }).map((page) => ({
+=======
+    ...buildCriticalFindingsPages({ findings: displayedFindings }).map((page) => ({
+>>>>>>> bf0192f (fix pdf report rendering)
       ...page,
       locked: isLocked("critical_findings"),
     })),

@@ -121,21 +121,21 @@ function bucketRationaleItems(
   key: "what_is_risky" | "what_is_working",
 ) {
   const rationale = asRecord(bucket.score_rationale) ?? {};
-  const directItems = normalizeList(rationale[key], 8).filter(
-    (item) => !placeholderText(item) && (key === "what_is_risky" || isWorkingStrengthText(item)),
+  const directItems = normalizeList(rationale[key], 8).map(cleanNarrativeText).filter(
+    (item) => !placeholderText(item) && !looksEllipsizedText(item) && (key === "what_is_risky" || isWorkingStrengthText(item)),
   );
   if (directItems.length) return directItems;
 
-  const summaryItems = normalizeList(rationale.summary, 4).filter(
-    (item) => !placeholderText(item) && (key === "what_is_risky" || isWorkingStrengthText(item)),
+  const summaryItems = normalizeList(rationale.summary, 4).map(cleanNarrativeText).filter(
+    (item) => !placeholderText(item) && !looksEllipsizedText(item) && (key === "what_is_risky" || isWorkingStrengthText(item)),
   );
   if (summaryItems.length) return summaryItems;
 
   if (key === "what_is_working") {
     const questionItems = asArray(bucket.questions)
       .map((item) => asRecord(item) ?? {})
-      .map((item) => synthesizeWorkingQuestionTakeaway(bucketLabel(bucket), item))
-      .filter((item) => item && !placeholderText(item) && isWorkingStrengthText(item));
+      .map((item) => cleanNarrativeText(synthesizeWorkingQuestionTakeaway(bucketLabel(bucket), item)))
+      .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item) && isWorkingStrengthText(item));
     if (questionItems.length) return normalizeList(questionItems, 4);
 
     return [];
@@ -143,20 +143,20 @@ function bucketRationaleItems(
 
   const findings = asArray(bucket.findings)
     .map((item) => asRecord(item) ?? {})
-    .map((item) => asString(item.observation || item.what_we_found || item.question || item.evidence))
-    .filter((item) => item && !placeholderText(item));
+    .map((item) => cleanNarrativeText(item.observation || item.what_we_found || item.question || item.evidence))
+    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item));
   if (findings.length) return normalizeList(findings, 4);
 
   const improvements = asArray(bucket.improvements)
     .map((item) => asRecord(item) ?? {})
-    .map((item) => asString(item.observation || item.question || item.evidence))
-    .filter((item) => item && !placeholderText(item));
+    .map((item) => cleanNarrativeText(item.observation || item.question || item.evidence))
+    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item));
   if (improvements.length) return normalizeList(improvements, 4);
 
   const questionItems = asArray(bucket.questions)
     .map((item) => asRecord(item) ?? {})
-    .map((item) => synthesizeQuestionTakeaway(bucketLabel(bucket), item, "risk"))
-    .filter((item) => item && !placeholderText(item));
+    .map((item) => cleanNarrativeText(synthesizeQuestionTakeaway(bucketLabel(bucket), item, "risk")))
+    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item));
   if (questionItems.length) return normalizeList(questionItems, 4);
 
   return normalizeList(bucket.summary || bucket.note || bucket.rationale || bucket.health || "", 4);
@@ -173,6 +173,14 @@ function bucketLabel(bucket: Record<string, unknown>) {
 
 function normalizeKey(value: unknown) {
   return asString(value).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function looksEllipsizedText(value: unknown) {
+  return /\.\.\.|…/.test(asString(value));
+}
+
+function cleanNarrativeText(value: unknown) {
+  return asString(value).replace(/\s*(?:\.{3,}|…)\s*$/, "").trim();
 }
 
 function matchesBucket(bucket: Record<string, unknown>, spec: SummaryBucketSpec) {
@@ -209,17 +217,20 @@ function synthesizeQuestionTakeaway(
   mode: "risk" | "working",
 ) {
   const questionId = asString(question.id);
-  const selected = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  const selected = cleanNarrativeText(asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, ""));
   if (selected && !placeholderText(selected)) return selected;
 
   const selectedMark = Number(asString(question.selected_option || question.mark));
   const option = lookupQuestionOptions(bucketNameValue, questionId).find((item) => Number(item.mark) === selectedMark);
-  if (option?.text) return option.text.trim();
+  if (option?.text) {
+    const optionText = cleanNarrativeText(option.text);
+    if (optionText && !looksEllipsizedText(optionText)) return optionText;
+  }
 
   if (mode === "working") return "";
 
-  const observation = asString(question.observation);
-  if (observation && !placeholderText(observation)) return observation;
+  const observation = cleanNarrativeText(question.observation);
+  if (observation && !placeholderText(observation) && !looksEllipsizedText(observation)) return observation;
 
   const questionText = asString(question.question).replace(/\?$/, "").trim();
   if (!questionText) return "";
@@ -233,17 +244,17 @@ function synthesizeWorkingQuestionTakeaway(bucketNameValue: string, question: Re
   const selectedMark = Number(asString(question.selected_option || question.mark));
   if (Number.isFinite(selectedMark) && selectedMark < 4) return "";
 
-  const observation = asString(question.observation).replace(/^\s*\d+\.\s*/, "").trim();
+  const observation = cleanNarrativeText(asString(question.observation).replace(/^\s*\d+\.\s*/, ""));
   if (observation && !placeholderText(observation) && !looksLikeRecommendation(observation) && !looksLikeWeakStatus(observation)) {
     return observation;
   }
 
-  const evidence = asString(question.evidence).replace(/^\s*\d+\.\s*/, "").trim();
+  const evidence = cleanNarrativeText(asString(question.evidence).replace(/^\s*\d+\.\s*/, ""));
   if (evidence && !placeholderText(evidence) && !looksLikeRecommendation(evidence) && !looksLikeWeakStatus(evidence)) {
     return evidence;
   }
 
-  const selected = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  const selected = cleanNarrativeText(asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, ""));
   if (selected && !placeholderText(selected) && !looksLikeRecommendation(selected) && !looksLikeWeakStatus(selected)) {
     return selected;
   }
@@ -251,7 +262,7 @@ function synthesizeWorkingQuestionTakeaway(bucketNameValue: string, question: Re
   const selectedOption = lookupQuestionOptions(bucketNameValue, asString(question.id)).find(
     (item) => Number(item.mark) === selectedMark,
   );
-  const optionText = asString(selectedOption?.text).trim();
+  const optionText = cleanNarrativeText(selectedOption?.text);
   if (optionText && !looksLikeRecommendation(optionText) && !looksLikeWeakStatus(optionText)) {
     return optionText;
   }
@@ -264,9 +275,9 @@ function renderBucketContent(
   bucketData?: SummaryBucketData,
 ) {
   const hasRenderableProblems = (items?: readonly string[]) =>
-    Array.isArray(items) && items.some((item) => Boolean(item && !placeholderText(item)));
+    Array.isArray(items) && items.some((item) => Boolean(cleanNarrativeText(item) && !placeholderText(cleanNarrativeText(item)) && !looksEllipsizedText(item)));
   const hasRenderableStrengths = (items?: readonly string[]) =>
-    Array.isArray(items) && items.some((item) => Boolean(item && isWorkingStrengthText(item)));
+    Array.isArray(items) && items.some((item) => Boolean(cleanNarrativeText(item) && isWorkingStrengthText(cleanNarrativeText(item)) && !looksEllipsizedText(item)));
   const topProblems =
     hasRenderableProblems(bucketData?.topProblems)
       ? (bucketData?.topProblems as readonly string[])
@@ -306,12 +317,19 @@ type SummaryPageBlock = {
 };
 
 const SUMMARY_PAGE_CARD_GAP = 20;
+<<<<<<< HEAD
 // Keep this slightly conservative so the final card on a summary page moves
 // to the next page before the footer can clip its last lines.
 const SUMMARY_PAGE_CONTENT_LIMIT = 900;
 const SUMMARY_BULLET_LINE_HEIGHT = 19;
 const SUMMARY_BULLET_ITEM_GAP = 12;
 const SUMMARY_CHARS_PER_LINE = 56;
+=======
+const SUMMARY_PAGE_CONTENT_LIMIT = 1065;
+const SUMMARY_BULLET_LINE_HEIGHT = 22;
+const SUMMARY_BULLET_ITEM_GAP = 12;
+const SUMMARY_CHARS_PER_LINE = 44;
+>>>>>>> bf0192f (fix pdf report rendering)
 const SUMMARY_CARD_FIXED_OVERHEAD = 76;
 
 function estimateBulletItemHeight(text: string) {
@@ -395,8 +413,7 @@ function buildSummaryBlocks(entries: readonly SummaryBucketEntry[]) {
   const blocks: SummaryPageBlock[] = [];
 
   for (const entry of entries) {
-    const combinedHeight = entry.estimatedHeight;
-    if (combinedHeight > 0 && combinedHeight <= SUMMARY_PAGE_CONTENT_LIMIT) {
+    if (entry.estimatedHeight <= SUMMARY_PAGE_CONTENT_LIMIT) {
       blocks.push({
         spec: entry.spec,
         bucket: entry.bucket,
@@ -404,49 +421,49 @@ function buildSummaryBlocks(entries: readonly SummaryBucketEntry[]) {
         renderMode: "combined",
         topProblems: entry.topProblems,
         whatsWorking: entry.whatsWorking,
-        estimatedHeight: combinedHeight,
+        estimatedHeight: entry.estimatedHeight,
       });
       continue;
     }
 
-    const topChunks = entry.topProblems.length ? splitItemsToFitSection(entry.topProblems) : [];
-    const workingChunks = entry.whatsWorking.length ? splitItemsToFitSection(entry.whatsWorking) : [];
+    const topProblemChunks = splitItemsToFitSection(entry.topProblems);
+    const whatsWorkingChunks = splitItemsToFitSection(entry.whatsWorking);
 
-    if (!topChunks.length && !workingChunks.length) continue;
-
-    for (let chunkIndex = 0; chunkIndex < topChunks.length; chunkIndex += 1) {
-      const chunk = topChunks[chunkIndex];
-      blocks.push({
-        spec: entry.spec,
-        bucket: entry.bucket,
-        bucketData: entry.bucketData,
-        renderMode: "topProblems",
-        topProblems: chunk,
-        whatsWorking: [],
-        estimatedHeight: estimateSummaryBlockHeight({
+    if (topProblemChunks.length) {
+      topProblemChunks.forEach((chunk, index) => {
+        blocks.push({
+          spec: entry.spec,
+          bucket: entry.bucket,
+          bucketData: entry.bucketData,
           renderMode: "topProblems",
           topProblems: chunk,
           whatsWorking: [],
-        }),
-        continued: chunkIndex > 0,
+          estimatedHeight: estimateSummaryBlockHeight({
+            renderMode: "topProblems",
+            topProblems: chunk,
+            whatsWorking: [],
+          }),
+          continued: index > 0,
+        });
       });
     }
 
-    for (let chunkIndex = 0; chunkIndex < workingChunks.length; chunkIndex += 1) {
-      const chunk = workingChunks[chunkIndex];
-      blocks.push({
-        spec: entry.spec,
-        bucket: entry.bucket,
-        bucketData: entry.bucketData,
-        renderMode: "whatsWorking",
-        topProblems: [],
-        whatsWorking: chunk,
-        estimatedHeight: estimateSummaryBlockHeight({
+    if (whatsWorkingChunks.length) {
+      whatsWorkingChunks.forEach((chunk, index) => {
+        blocks.push({
+          spec: entry.spec,
+          bucket: entry.bucket,
+          bucketData: entry.bucketData,
           renderMode: "whatsWorking",
           topProblems: [],
           whatsWorking: chunk,
-        }),
-        continued: chunkIndex > 0,
+          estimatedHeight: estimateSummaryBlockHeight({
+            renderMode: "whatsWorking",
+            topProblems: [],
+            whatsWorking: chunk,
+          }),
+          continued: index > 0,
+        });
       });
     }
   }
@@ -545,7 +562,7 @@ function paginateSummaryBlocks(blocks: readonly SummaryPageBlock[]) {
 export function SummaryBulletColumns({ items }: { items: readonly string[] }) {
   const columns = splitIntoColumns(items, 2);
   if (!columns.length) {
-    return <div className="text-sm text-[color:var(--muted)]">Bucket-level data not available yet.</div>;
+    return null;
   }
 
   return (
@@ -581,10 +598,15 @@ function SummaryBucketCard({
 }) {
   const currentBucketLabel = displayBucketName(spec.name);
   const resolved = renderBucketContent(bucket, bucketData);
+<<<<<<< HEAD
   const showTopProblems =
     (renderMode === "combined" || renderMode === "topProblems") && resolved.topProblems.length > 0;
   const showWhatsWorking =
     (renderMode === "combined" || renderMode === "whatsWorking") && resolved.whatsWorking.length > 0;
+=======
+  const showTopProblems = (renderMode === "combined" || renderMode === "topProblems") && resolved.topProblems.length > 0;
+  const showWhatsWorking = (renderMode === "combined" || renderMode === "whatsWorking") && resolved.whatsWorking.length > 0;
+>>>>>>> bf0192f (fix pdf report rendering)
 
   if (!showTopProblems && !showWhatsWorking) return null;
 
