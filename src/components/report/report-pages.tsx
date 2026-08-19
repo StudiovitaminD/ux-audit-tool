@@ -38,7 +38,7 @@ export function buildReportPages({
   });
   const displayedFindings = findings.length ? findings : vm.findingsDetailed.slice(0, 8);
   const bucketAnswerSections = vm.bucketResults.filter(
-    (bucket) => Array.isArray(bucket.questions) && bucket.questions.length,
+    (bucket) => Boolean(bucket) && Array.isArray(bucket.questions) && bucket.questions.length,
   );
   const competitors = hydratedCompetitors;
 

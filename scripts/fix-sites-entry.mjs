@@ -1,10 +1,23 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const entryFile = resolve("dist/server/index.js");
 mkdirSync(dirname(entryFile), { recursive: true });
+const distManifest = resolve("dist/.next/required-server-files.json");
+const nextManifest = resolve(".next/required-server-files.json");
+const manifestPath = existsSync(distManifest) ? distManifest : nextManifest;
+
+if (!existsSync(manifestPath)) {
+  throw new Error("Unable to find required-server-files.json after build");
+}
+
+if (manifestPath !== distManifest) {
+  mkdirSync(dirname(distManifest), { recursive: true });
+  copyFileSync(manifestPath, distManifest);
+}
+
 const requiredServerFiles = JSON.parse(
-  readFileSync(resolve("dist/.next/required-server-files.json"), "utf8"),
+  readFileSync(manifestPath, "utf8"),
 );
 
 writeFileSync(

@@ -6,6 +6,7 @@ import {
   loadStoredReport,
   unwrapReportPayload,
 } from "@/lib/report-record";
+import { recalculateEditedReport } from "@/lib/report-editing";
 import { finalizeAudit, type BucketResult, type Intake } from "@/lib/audit-engine";
 import type { EvidenceBundle } from "@/lib/evidence-collector";
 
@@ -163,10 +164,11 @@ export async function POST(
     }
 
     const sanitizedReport = stripInlineAssets(sourceReport) as Record<string, unknown>;
-    const intake = asRecord(sanitizedReport.intake);
-    const evidence = asRecord(sanitizedReport.evidence);
-    const bucketResults = Array.isArray(sanitizedReport.bucket_results)
-      ? normalizeStoredBucketResults(sanitizedReport.bucket_results)
+    const recalculatedReport = recalculateEditedReport(sanitizedReport);
+    const intake = asRecord(recalculatedReport.intake);
+    const evidence = asRecord(recalculatedReport.evidence);
+    const bucketResults = Array.isArray(recalculatedReport.bucket_results)
+      ? normalizeStoredBucketResults(recalculatedReport.bucket_results)
       : null;
 
     if (!intake) {
@@ -185,6 +187,7 @@ export async function POST(
 
     const mergedReport = {
       ...sanitizedReport,
+      ...recalculatedReport,
       ...refreshed,
     };
 

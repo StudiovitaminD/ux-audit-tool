@@ -36,6 +36,13 @@ const PILLAR_MAP: Record<string, string> = {
   "Icons & Imagery": "Delight",
 };
 
+const CONTENT_IMPACT_QUESTION_IDS = new Set(
+  (QUESTION_BANK["Content (Impact)"] ?? []).map((question) => asString(question.id)),
+);
+const CONTENT_DELIGHT_QUESTION_IDS = new Set(
+  (QUESTION_BANK["Content (Delight)"] ?? []).map((question) => asString(question.id)),
+);
+
 function getHealth(score: number) {
   if (score >= 80) return { label: "Good", risk: "Low Risk", priority: "P3" };
   if (score <= 50) return { label: "Critical", risk: "Critical", priority: "P1" };
@@ -69,6 +76,69 @@ function buildFinding(question: AnyRecord, bucketName: string, severity: "Critic
     severity,
     bucket: bucketName,
   };
+}
+
+function isLegacyGenericContentBucket(bucket: AnyRecord) {
+  const bucketName = asString(bucket.bucket_name) || asString(bucket.section) || asString(bucket.bucket);
+  const normalized = bucketName.toLowerCase();
+  return normalized === "content" || normalized === "content & ux writing";
+}
+
+function splitLegacyContentBucket(bucket: AnyRecord) {
+  if (!isLegacyGenericContentBucket(bucket)) return [bucket];
+
+  const questions = asArray(bucket.questions)
+    .map((item) => asRecord(item) ?? {})
+    .filter((item) => Boolean(asString(item.id)));
+  const impactQuestions: AnyRecord[] = [];
+  const delightQuestions: AnyRecord[] = [];
+  const unassignedQuestions: AnyRecord[] = [];
+
+  for (const question of questions) {
+    const questionId = asString(question.id);
+    if (CONTENT_IMPACT_QUESTION_IDS.has(questionId)) {
+      impactQuestions.push(question);
+    } else if (CONTENT_DELIGHT_QUESTION_IDS.has(questionId)) {
+      delightQuestions.push(question);
+    } else {
+      unassignedQuestions.push(question);
+    }
+  }
+
+  const baseBucket = {
+    ...bucket,
+    bucket_name: "",
+    section: "",
+    bucket: "",
+  };
+
+  const splitBuckets: AnyRecord[] = [];
+  if (impactQuestions.length || (!delightQuestions.length && unassignedQuestions.length)) {
+    splitBuckets.push({
+      ...baseBucket,
+      bucket_name: "Content (Impact)",
+      section: "Content (Impact)",
+      pillar: "Impact",
+      questions: [...impactQuestions, ...(!delightQuestions.length ? unassignedQuestions : [])],
+    });
+  }
+  if (delightQuestions.length || (impactQuestions.length === 0 && unassignedQuestions.length)) {
+    splitBuckets.push({
+      ...baseBucket,
+      bucket_name: "Content (Delight)",
+      section: "Content (Delight)",
+      pillar: "Delight",
+      questions: [...delightQuestions, ...(impactQuestions.length ? unassignedQuestions : [])],
+    });
+  }
+
+  if (splitBuckets.length === 1 && unassignedQuestions.length) {
+    splitBuckets[0].questions = [...(splitBuckets[0].questions as AnyRecord[]), ...unassignedQuestions];
+  } else if (splitBuckets.length === 2 && unassignedQuestions.length) {
+    splitBuckets[0].questions = [...(splitBuckets[0].questions as AnyRecord[]), ...unassignedQuestions];
+  }
+
+  return splitBuckets.length ? splitBuckets : [bucket];
 }
 
 function isLimitedCoverageMode(report: AnyRecord) {
@@ -326,7 +396,9 @@ function deriveSectionNarrative(bucketResults: AnyRecord[]) {
 
 export function recalculateEditedReport(reportInput: unknown): AnyRecord {
   const report = { ...(asRecord(reportInput) ?? {}) };
-  const rawBuckets = asArray(report.bucket_results).map((item) => asRecord(item) ?? {});
+  const rawBuckets = asArray(report.bucket_results)
+    .map((item) => asRecord(item) ?? {})
+    .flatMap((bucket) => splitLegacyContentBucket(bucket));
 
   const bucketResults = rawBuckets.map((bucket) => {
     const bucketName =

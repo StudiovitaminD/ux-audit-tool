@@ -125,7 +125,7 @@ function bucketNameFromRow(row: AnyRecord) {
 }
 
 function isScoredRow(row: AnyRecord) {
-  return scoreFromRow(row) !== null && asString(row.score).toLowerCase() !== "not scored";
+  return scoreFromRow(row) !== null && asString(row?.score).toLowerCase() !== "not scored";
 }
 
 function dedupeScoreRows(rows: AnyRecord[]) {
@@ -144,7 +144,7 @@ function dedupeScoreRows(rows: AnyRecord[]) {
 }
 
 function scoreFromRow(row: AnyRecord) {
-  const match = asString(row.score).match(/(\d+(?:\.\d+)?)/);
+  const match = asString(row?.score).match(/(\d+(?:\.\d+)?)/);
   return match ? Number(match[1]) : null;
 }
 
@@ -157,8 +157,8 @@ export function OverviewSection({ vm }: SharedSectionProps) {
     if (byPriority !== 0) return byPriority;
 
     const byScore =
-      Number(asString(left.score).replace(/[^\d.]/g, "")) -
-      Number(asString(right.score).replace(/[^\d.]/g, ""));
+      Number(asString(left?.score).replace(/[^\d.]/g, "")) -
+      Number(asString(right?.score).replace(/[^\d.]/g, ""));
     if (!Number.isNaN(byScore) && byScore !== 0) return byScore;
 
     return asString(left.section || left.bucket_name || left.bucket || left.name).localeCompare(
@@ -392,9 +392,9 @@ export function OverviewSection({ vm }: SharedSectionProps) {
 
                 return rows.map(({ bucketName: displayName, row }, index) => {
                   const bucketName = displayBucketName(displayName) || "Bucket";
-                  const rawScore = row ? asString(row.score) : "";
+                  const rawScore = row ? asString(row?.score) : "";
                   const score = rawScore.toLowerCase() === "insufficient evidence" ? "No score" : rawScore || "No score";
-                  const experience = row ? experienceLabelFromScore(scoreFromText(row.score)) : "—";
+                  const experience = row ? experienceLabelFromScore(scoreFromText(row?.score)) : "—";
                   const priority = row ? formatPriority(row.priority) : "—";
                   const healthColors =
                     experience === "Good"

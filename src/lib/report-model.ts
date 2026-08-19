@@ -177,7 +177,7 @@ export const BUSINESS_IMPACT_MATRIX = [
 function scoreFromPillarValue(value: BusinessImpactPillarScores[BusinessImpactPillar]) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const rec = asRecord(value);
-  const score = rec ? asNumber(rec.score) : null;
+  const score = rec ? asNumber(rec?.score) : null;
   return score;
 }
 
@@ -342,8 +342,8 @@ function isNotScoredBucketRow(item: AnyRecord) {
   const bucketStatus = asString(item.bucket_status).toLowerCase();
   const health = asString(item.health).toLowerCase();
   const risk = asString(item.risk_level || item.risk).toLowerCase();
-  const scoreText = asString(item.score).toLowerCase();
-  const scoreNumber = asNumber(item.score);
+  const scoreText = asString(item?.score).toLowerCase();
+  const scoreNumber = asNumber(item?.score);
 
   return (
     bucketStatus === "insufficient_evidence" ||
@@ -361,17 +361,17 @@ function topScorecardHighlights(report: AnyRecord, limit: number, mode: "strengt
   const items = asArray(report.scorecard)
     .map((item) => asRecord(item) ?? {})
     .filter((item) => isRealBucket(item))
-    .filter((item) => asString(item.score).toLowerCase() !== "not scored" && asNumber(item.score) !== null);
+    .filter((item) => asString(item?.score).toLowerCase() !== "not scored" && asNumber(item?.score) !== null);
 
   const sorted = items.sort((left, right) => {
-    const leftScore = asNumber(left.score) ?? 0;
-    const rightScore = asNumber(right.score) ?? 0;
+    const leftScore = asNumber(left?.score) ?? 0;
+    const rightScore = asNumber(right?.score) ?? 0;
     return mode === "strength" ? rightScore - leftScore : leftScore - rightScore;
   });
 
   return sorted.slice(0, limit).map((item) => {
     const section = asString(item.section) || asString(item.bucket_name) || "Section";
-    const score = asString(item.score) || `${asNumber(item.score) ?? "—"}/100`;
+    const score = asString(item?.score) || `${asNumber(item?.score) ?? "—"}/100`;
     const health = asString(item.health);
     const risk = asString(item.risk_level) || asString(item.risk);
     return [section, score, health || risk].filter(Boolean).join(" — ");
@@ -487,8 +487,8 @@ function deriveWhatsWorkingFromBuckets(report: AnyRecord) {
   const buckets = asArray(report.bucket_results)
     .map((item) => asRecord(item) ?? {})
     .sort((left, right) => {
-      const leftScore = asNumber(left.score);
-      const rightScore = asNumber(right.score);
+      const leftScore = asNumber(left?.score);
+      const rightScore = asNumber(right?.score);
       if (leftScore === null && rightScore !== null) return 1;
       if (leftScore !== null && rightScore === null) return -1;
       return (rightScore ?? 0) - (leftScore ?? 0);
@@ -685,8 +685,8 @@ function deriveNarrativeBullets(report: AnyRecord, pillarName: string, limit = 4
     .filter((item) => asString(item.pillar).toLowerCase() === pillarName.toLowerCase())
     .filter((item) => isRealBucket(item))
     .sort((left, right) => {
-      const leftScored = asNumber(left.score);
-      const rightScored = asNumber(right.score);
+      const leftScored = asNumber(left?.score);
+      const rightScored = asNumber(right?.score);
       return (leftScored ?? 999) - (rightScored ?? 999);
     });
 
@@ -1477,17 +1477,34 @@ function isRealBucket(item: unknown) {
 }
 
 function normalizeBucketForScoring(item: AnyRecord) {
-  const questions = asArray(item.questions).map((question) => asRecord(question) ?? {});
+  const questions = asArray(item.questions).map((question) => {
+    const rec = asRecord(question) ?? {};
+    const answerStatus = asString(rec.answer_status);
+    const mark = asNumber(rec.mark);
+    const selectedOption = asNumber(rec.selected_option);
+    const hasAnswer = mark !== null || selectedOption !== null;
+    return {
+      ...rec,
+      answer_status: answerStatus || (hasAnswer ? "answered" : "insufficient_evidence"),
+      mark: mark !== null ? mark : selectedOption,
+      selected_option: selectedOption,
+    };
+  });
   const totalQuestions = questions.length;
   const scoreableQuestions = questions.filter((question) => {
-    return asString(question.answer_status) === "answered" && asNumber(question.mark) !== null;
+    const questionMark = asNumber(question.mark);
+    const selectedOption = asNumber(question.selected_option);
+    return (
+      asString(question.answer_status) === "answered" &&
+      (questionMark !== null || selectedOption !== null)
+    );
   }).length;
   const derivedMarks = questions
-    .map((question) => asNumber(question.mark))
+    .map((question) => asNumber(question.mark) ?? asNumber(question.selected_option))
     .filter((mark): mark is number => mark !== null);
   const bucketStatus = asString(item.bucket_status);
   const isScoringUnavailable = bucketStatus === "scoring_unavailable";
-  const existingScore = asNumber(item.score);
+  const existingScore = asNumber(item?.score);
   const derivedScore =
     derivedMarks.length > 0
       ? Math.round(
@@ -1540,8 +1557,8 @@ function normalizeBucketForScoring(item: AnyRecord) {
 }
 
 function normalizeScorecardRow(row: AnyRecord) {
-  const scoreNumber = asNumber(row.score);
-  const scoreText = asString(row.score).trim().toLowerCase();
+  const scoreNumber = asNumber(row?.score);
+  const scoreText = asString(row?.score).trim().toLowerCase();
   const bucketStatus = asString(row.bucket_status).toLowerCase();
   const isUnscored =
     bucketStatus === "insufficient_evidence" ||
@@ -2206,6 +2223,10 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
   const storedScorecard = asArray(report.scorecard)
     .filter(isRealBucket)
     .map((item) => asRecord(item) ?? {});
+  const hasLegacyGenericContentScorecardRow = storedScorecard.some((item) => {
+    const section = asString(item.section) || asString(item.bucket_name) || asString(item.bucket);
+    return section.trim().toLowerCase() === "content";
+  });
   const derivedScorecard = derivedScoring.bucketResults.map((bucket) => ({
     section:
       asString(bucket.section) ||
@@ -2270,6 +2291,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
     (isLimitedCoverage ||
       isScoringUnavailable ||
       !scoreEligible ||
+      hasLegacyGenericContentScorecardRow ||
       storedScorecard.some((item) => {
         const section =
           asString(item.section) || asString(item.bucket_name) || asString(item.bucket);
@@ -2280,7 +2302,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
         });
         if (!matchingBucket) return false;
         const storedLooksNotScored = isNotScoredBucketRow(item);
-        const matchingScore = asNumber(matchingBucket.score);
+        const matchingScore = asNumber(matchingBucket?.score);
         const derivedLooksNotScored =
           asString(matchingBucket.bucket_status) === "insufficient_evidence" ||
           asString(matchingBucket.bucket_status) === "scoring_unavailable" ||
@@ -2288,6 +2310,25 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
           matchingScore <= 0;
         return storedLooksNotScored !== derivedLooksNotScored;
       }));
+  const resolvedScorecardSource =
+    shouldUseDerivedScorecard || !storedScorecard.length ? derivedScorecard : storedScorecard;
+  const resolvedScorecard = hasLegacyGenericContentScorecardRow
+    ? resolvedScorecardSource.flatMap((row) => {
+        const bucketRow = asRecord(row) ?? {};
+        const section =
+          asString(bucketRow.section) || asString(bucketRow.bucket_name) || asString(bucketRow.bucket) || "";
+        if (section.trim().toLowerCase() !== "content") return [row];
+        const impactRow = derivedScorecard.find((candidate) => {
+          const candidateSection = asString(candidate.section);
+          return candidateSection.trim().toLowerCase() === "content (impact)";
+        });
+        const delightRow = derivedScorecard.find((candidate) => {
+          const candidateSection = asString(candidate.section);
+          return candidateSection.trim().toLowerCase() === "content (delight)";
+        });
+        return [impactRow, delightRow].filter(Boolean) as AnyRecord[];
+      })
+    : resolvedScorecardSource;
   const pillarSummary = asRecord(rawExecutiveSummary.pillar_summary) ?? {};
   const delightSummary = asRecord(pillarSummary.Delight) ?? {};
   const impactSummary = asRecord(pillarSummary.Impact) ?? {};
@@ -2638,9 +2679,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
               ];
             }),
           ),
-    scorecard: (
-      shouldUseDerivedScorecard || !storedScorecard.length ? derivedScorecard : storedScorecard
-    ).map((row) => normalizeScorecardRow(asRecord(row) ?? {})),
+    scorecard: resolvedScorecard.map((row) => normalizeScorecardRow(asRecord(row) ?? {})),
     bucketResults: derivedScoring.bucketResults,
     executiveSummary,
     sectionNarrative: {

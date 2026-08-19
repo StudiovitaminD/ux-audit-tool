@@ -861,9 +861,16 @@ export function ReportView() {
         const contentType = res.headers.get("content-type") || "";
         if (contentType.includes("application/json")) {
           const json = (await res.json().catch(() => null)) as
-            | { error?: string }
+            | { error?: string; phase?: string; stack?: string }
             | null;
-          throw new Error(json?.error || `Download failed (${res.status})`);
+          const details = [
+            json?.error || `Download failed (${res.status})`,
+            json?.phase ? `Phase: ${json.phase}` : "",
+            json?.stack ? `Stack: ${json.stack.split("\n")[0]}` : "",
+          ]
+            .filter(Boolean)
+            .join(" | ");
+          throw new Error(details);
         }
         const text = await res.text().catch(() => "");
         throw new Error(text || `Download failed (${res.status})`);
