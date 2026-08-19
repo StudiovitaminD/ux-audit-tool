@@ -23,7 +23,7 @@
   ],
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/fix-sites-entry.mjs",
     "start": "next start",
     "lint": "next lint"
   },
