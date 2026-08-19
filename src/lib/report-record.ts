@@ -109,6 +109,13 @@ function preferMostCompleteArray(reportValue: unknown, docValue: unknown) {
   return reportArray;
 }
 
+function preferReportArray(reportValue: unknown, docValue: unknown) {
+  const reportArray = Array.isArray(reportValue) ? reportValue : null;
+  const docArray = Array.isArray(docValue) ? docValue : null;
+  if (reportArray?.length) return reportArray;
+  return docArray ?? reportValue ?? docValue;
+}
+
 export async function mergeReportWithDoc(
   data: Record<string, unknown>,
   reportValue: unknown,
@@ -130,10 +137,10 @@ export async function mergeReportWithDoc(
     ux_score_eligible: preferReportOrDoc(report.ux_score_eligible, data.ux_score_eligible),
     questions_scoreable: preferReportOrDoc(report.questions_scoreable, data.questions_scoreable),
     questions_total: preferReportOrDoc(report.questions_total, data.questions_total),
-    bucket_results: preferMostCompleteArray(report.bucket_results, data.bucketResults),
-    scorecard: preferMostCompleteArray(report.scorecard, data.scorecard),
-    findings_detailed: preferMostCompleteArray(report.findings_detailed, data.findings_detailed),
-    quick_wins_table: preferMostCompleteArray(report.quick_wins_table, data.quick_wins_table),
+    bucket_results: preferReportArray(report.bucket_results, data.bucketResults),
+    scorecard: preferReportArray(report.scorecard, data.scorecard),
+    findings_detailed: preferReportArray(report.findings_detailed, data.findings_detailed),
+    quick_wins_table: preferReportArray(report.quick_wins_table, data.quick_wins_table),
     roadmap: preferReportOrDoc(report.roadmap, data.roadmap),
     closing_note: preferReportOrDoc(report.closing_note, data.closing_note),
     competitor_analysis: preferReportOrDoc(report.competitor_analysis, data.competitor_analysis),
