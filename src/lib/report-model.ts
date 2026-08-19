@@ -90,16 +90,15 @@ export function asString(value: unknown, fallback = "") {
 export function displayBucketName(value: unknown) {
   const text = asString(value);
   if (!text) return "";
-  const normalized = text.replace(/\s+\((Impact|Delight)\)$/, "");
   const legacyMap: Record<string, string> = {
     "Feedback & System States": "Visual Feedback",
     "Accessibility & Inclusivity": "Color & Contrast",
     "Input, Errors & Validation": "Keyboard Navigation",
     "Visual Hierarchy & Layout": "Visual Consistency",
-    "Content & UX Writing": "Content",
+    "Content & UX Writing": "Content (Impact)",
     "code optimisation": "Performance",
   };
-  return legacyMap[normalized] || normalized;
+  return legacyMap[text] || text;
 }
 
 export function bucketPillarFromName(value: unknown, fallback = "Impact") {
@@ -128,8 +127,12 @@ export function bucketPillarFromName(value: unknown, fallback = "Impact") {
     return "Delight";
   }
 
-  if (normalized === "content") {
+  if (normalized === "content" || normalized === "content (impact)") {
     return effectiveFallback === "Delight" ? "Delight" : "Impact";
+  }
+
+  if (normalized === "content (delight)") {
+    return "Delight";
   }
 
   return effectiveFallback === "Accessibility" || effectiveFallback === "Impact" || effectiveFallback === "Delight"
