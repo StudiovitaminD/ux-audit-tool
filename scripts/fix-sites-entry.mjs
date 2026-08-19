@@ -6,5 +6,5 @@ mkdirSync(dirname(entryFile), { recursive: true });
 
 writeFileSync(
   entryFile,
-  'require("../server.js");\n',
+  'import "../server.js";\n',
 );
