@@ -31,9 +31,9 @@ function normalizeReportLimit(value: string | null) {
 }
 
 function normalizeReturnTo(value: string | null) {
-  if (!value || !value.trim()) return "/audit";
-  if (!value.startsWith("/")) return "/audit";
-  if (value.startsWith("//")) return "/audit";
+  if (!value || !value.trim()) return "/report";
+  if (!value.startsWith("/")) return "/report";
+  if (value.startsWith("//")) return "/report";
   return value;
 }
 

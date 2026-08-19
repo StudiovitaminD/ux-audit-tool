@@ -186,7 +186,7 @@ export function calculateBusinessImpactMetrics(
     let missing = false;
 
     (Object.entries(metric.weights) as Array<[BusinessImpactPillar, number]>).forEach(([pillar, weight]) => {
-      const score = scoreFromPillarValue(pillarScores[pillar]);
+      const score = scoreFromPillarValue(pillarScores?.[pillar]);
       if (score === null) {
         missing = true;
         return;
@@ -290,6 +290,22 @@ function sanitizeNarrativeValue(value: unknown): string {
   const list = sanitizeStringList(value);
   if (list.length) return list.join("\n");
   return sanitizeDisplayText(value);
+}
+
+function looksEllipsizedText(value: string) {
+  return /\.\.\.|…/.test(value);
+}
+
+function bestSummaryText(...values: unknown[]) {
+  const candidates = values
+    .map((value) => sanitizeDisplayText(value))
+    .filter((value) => Boolean(value) && !isPlaceholderText(value) && !looksEllipsizedText(value));
+  const fullText = candidates.filter((value) => !looksEllipsizedText(value));
+  return (
+    fullText.sort((left, right) => right.length - left.length)[0] ||
+    candidates.sort((left, right) => right.length - left.length)[0] ||
+    ""
+  );
 }
 
 function findingKeyForMatch(item: unknown, index: number): string {
@@ -532,27 +548,22 @@ function effortRank(value: string) {
 function questionSummaryText(bucketName: string, question: AnyRecord | null | undefined) {
   const rec = asRecord(question) ?? {};
   const displayName = displayBucketName(bucketName) || bucketName;
-  const selectedText = sanitizeDisplayText(rec.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  const selectedText = bestSummaryText(rec.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
   const selectedMark = asNumber(rec.selected_option ?? rec.mark);
   const options = lookupQuestionOptions(bucketName, asString(rec.id));
   const matched = options.find((option) => option.mark === selectedMark);
-  const questionLabel = sanitizeDisplayText(rec.question);
+  const questionLabel = bestSummaryText(rec.question);
   const selectedAnswer =
     (selectedText && !isPlaceholderText(selectedText) ? selectedText : "") ||
-    (matched?.text ? matched.text.trim() : "");
-  const observationRaw =
-    sanitizeDisplayText(rec.observation) ||
-    sanitizeDisplayText(rec.evidence) ||
-    sanitizeDisplayText(rec.question);
+    bestSummaryText(matched?.text);
+  const observationRaw = bestSummaryText(rec.observation, rec.evidence, rec.question);
   const observation =
     observationRaw &&
     !isPlaceholderText(observationRaw) &&
     !isPromptLikeText(observationRaw, questionLabel)
       ? observationRaw
       : selectedAnswer;
-  const recommendationRaw =
-    sanitizeDisplayText(rec.recommendation) ||
-    sanitizeDisplayText(rec.observation);
+  const recommendationRaw = bestSummaryText(rec.recommendation, rec.observation, rec.evidence);
   const recommendation =
     recommendationRaw &&
     !isPlaceholderText(recommendationRaw) &&

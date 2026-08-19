@@ -7,6 +7,8 @@ import { IntroPageSection } from "./sections/IntroPageSection";
 import { OverviewSection } from "./sections/OverviewSection";
 import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
+import { buildCriticalFindingsPages } from "./sections/FindingsSection";
+import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
 import type { ReportPage } from "./sections/shared";
 
 type ScorecardRow = {
@@ -701,62 +703,6 @@ function formatDate(iso: string) {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
 }
 
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] px-2.5 py-1 text-xs text-[color:var(--ink-muted)]">
-      {children}
-    </span>
-  );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="text-sm font-semibold tracking-tight">{children}</div>;
-}
-
-function Subtle({ children }: { children: React.ReactNode }) {
-  return <div className="text-sm text-[color:var(--ink-muted)]">{children}</div>;
-}
-
-function FindingCard({ f }: { f: FindingDetailed }) {
-  return (
-    <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm font-semibold">
-          {f.rank}. {f.bucket}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Pill>{f.severity}</Pill>
-          <Pill>Effort: {f.effort}</Pill>
-          <Pill>{f.priority_tier}</Pill>
-        </div>
-      </div>
-
-      <div className="mt-3 grid gap-3">
-        <div>
-          <SectionTitle>What we found</SectionTitle>
-          <Subtle>{f.what_we_found}</Subtle>
-        </div>
-        <div>
-          <SectionTitle>Why it matters</SectionTitle>
-          <Subtle>{f.why_it_matters}</Subtle>
-        </div>
-        <div>
-          <SectionTitle>Recommendation</SectionTitle>
-          <Subtle>{f.recommendation}</Subtle>
-        </div>
-        <div>
-          <SectionTitle>Acceptance criteria</SectionTitle>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted)]">
-            {f.acceptance_criteria.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function DemoReport() {
   const [hydratedCompetitors, setHydratedCompetitors] = useState<DemoCompetitor[]>(
     DEMO.competitor_analysis as DemoCompetitor[],
@@ -854,12 +800,8 @@ export function DemoReport() {
   const pages = useMemo<ReportPage[]>(() => {
     const scorecard = DEMO.scorecard;
     const pillars = DEMO.pillar_scores;
-    const findings = DEMO.findings_detailed;
-    const quickWins = DEMO.quick_wins_table;
-    const roadmap = DEMO.roadmap;
     const competitors = hydratedCompetitors;
-    const topFindings = findings.slice(0, 5);
-    const overallScore = Math.max(0, Math.min(100, DEMO.overall_score));
+  const overallScore = Math.max(0, Math.min(100, DEMO.overall_score));
     const pillarOrder = ["Accessibility", "Impact", "Delight"] as const;
   const scoreCardOrder = ["Accessibility", "Impact", "Delight"] as const;
   const groupedScoreRows = pillarOrder.map((pillar) => ({
@@ -907,87 +849,8 @@ export function DemoReport() {
       ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Impact", bucketData: summaryBucketData.Impact }),
       ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Delight", bucketData: summaryBucketData.Delight }),
       ...buildCompetitorAnalysisPages({ competitors }),
-      {
-        key: "critical_findings",
-        title: "Critical Findings",
-        body: (
-          <div className="space-y-4">
-            {topFindings.map((f) => (
-              <FindingCard key={f.rank} f={f} />
-            ))}
-          </div>
-        ),
-        variant: "standard",
-      },
-      {
-        key: "quick_wins_roadmap",
-        title: "Quick Wins & Roadmap",
-        body: (
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-sm font-semibold">Quick wins table</div>
-              <div className="mt-4 overflow-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
-                    <tr>
-                      <th className="py-2 pr-4">Finding</th>
-                      <th className="py-2 pr-4">Recommendation</th>
-                      <th className="py-2 pr-4">ETA</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[color:var(--card-border)]/60">
-                    {quickWins.map((w) => (
-                      <tr key={w.finding}>
-                        <td className="py-3 pr-4 font-medium">{w.finding}</td>
-                        <td className="py-3 pr-4 text-[color:var(--muted)]">{w.recommendation}</td>
-                        <td className="py-3 pr-4 font-mono">{w.estimated_time}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">Week 1–2</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {roadmap.week_1_2.map((x) => (
-                    <li key={x}>{x}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">Month 1</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {roadmap.month_1.map((x) => (
-                    <li key={x}>{x}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">Quarter 1</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {roadmap.quarter_1.map((x) => (
-                    <li key={x}>{x}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-sm font-semibold">Closing note</div>
-              <div className="mt-3 text-sm text-[color:var(--muted)]">{DEMO.closing_note}</div>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Link className="btn btnGhost" href="/">
-                Back to home <span aria-hidden="true">→</span>
-              </Link>
-            </div>
-          </div>
-        ),
-        variant: "standard",
-      },
+      ...buildCriticalFindingsPages({ findings: DEMO.findings_detailed as never }),
+      ...buildQuickWinsRoadmapPages({ vm: coverVm as never }),
     ];
   }, [coverVm, hydratedCompetitors]);
   const [page, setPage] = useState(0);

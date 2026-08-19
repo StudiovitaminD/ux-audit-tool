@@ -1258,7 +1258,7 @@ export function AuditForm() {
 
     if (appSession.email === "guest@local.test") {
       setError("Please sign in or sign up before creating an audit.");
-      router.push("/sign-in?returnTo=/audit");
+      router.push("/sign-in?returnTo=/report");
       return;
     }
 

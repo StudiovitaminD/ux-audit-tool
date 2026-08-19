@@ -1,8 +1,11 @@
 import chromium from "@sparticuz/chromium";
 import { chromium as pwChromium, type Page } from "playwright-core";
-import { createElement, Fragment } from "react";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { createElement } from "react";
 import { asString, buildReportViewModel } from "@/lib/report-model";
 import { loadStoredReport } from "@/lib/report-record";
+import { PrintReport } from "@/components/report/print-report";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -20,6 +23,28 @@ function baseUrlFrom(req: Request) {
   return `${protocol}://${host}`;
 }
 
+async function getLayoutStylesheetHref(baseUrl: string) {
+  const candidates = [
+    join(process.cwd(), ".next", "app-build-manifest.json"),
+    join(process.cwd(), "workspace", "app", ".next", "app-build-manifest.json"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const manifest = JSON.parse(await readFile(candidate, "utf8")) as {
+        pages?: Record<string, string[]>;
+      };
+      const layoutFiles = manifest.pages?.["/layout"] || [];
+      const cssFile = layoutFiles.find((file) => file.startsWith("static/css/"));
+      if (cssFile) return `${baseUrl}/_next/${cssFile}`;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return null;
+}
+
 async function prepareBrowserPage(page: Page) {
   await page.route("**/*", (route) => {
     const resourceType = route.request().resourceType();
@@ -29,70 +54,6 @@ async function prepareBrowserPage(page: Page) {
     return route.continue();
   });
 }
-
-async function applyExportStyles(page: Page) {
-  await page.addStyleTag({
-    content: `
-      *, *::before, *::after {
-        animation: none !important;
-        transition: none !important;
-      }
-      html {
-        scroll-behavior: auto !important;
-      }
-      header,
-      nav,
-      footer,
-      .nav,
-      .navbar,
-      .navigation,
-      .siteFooter,
-      .skipLink,
-      [role="navigation"],
-      [data-report-toolbar],
-      [data-report-pagination],
-      [data-report-pagination-controls],
-      .no-print {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-        min-height: 0 !important;
-        max-height: 0 !important;
-        overflow: hidden !important;
-        pointer-events: none !important;
-        position: static !important;
-      }
-      body {
-        background: #ffffff !important;
-        padding: 0 !important;
-        margin: 0 !important;
-      }
-      [data-report-live-root] {
-        padding: 24px !important;
-      }
-      [data-report-live-canvas] {
-        margin-top: 0 !important;
-      }
-      [data-report-live-page],
-      [data-report-live-page] * {
-        overflow: visible !important;
-        max-height: none !important;
-        content-visibility: visible !important;
-        contain: none !important;
-        animation: none !important;
-        transition: none !important;
-      }
-    `,
-  }).catch(() => {});
-}
-
-type PageScreenshot = {
-  src: string;
-  widthPx: number;
-  heightPx: number;
-};
 
 async function captureLocator(locator: ReturnType<Page["locator"]>, label: string) {
   await locator.scrollIntoViewIfNeeded().catch(() => {});
@@ -115,62 +76,6 @@ async function captureLocator(locator: ReturnType<Page["locator"]>, label: strin
   };
 }
 
-async function capturePrintPages(page: Page) {
-  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
-  await page.waitForTimeout(1000).catch(() => {});
-
-  const printPageCount = await page.locator(".print-page").count();
-  if (!printPageCount) {
-    throw new Error("Unable to determine print page count");
-  }
-
-  const capturedPages: PageScreenshot[] = [];
-  for (let index = 0; index < printPageCount; index += 1) {
-    const printPage = page.locator(".print-page").nth(index);
-    capturedPages.push(await captureLocator(printPage, `print page ${index + 1}`));
-    await page.waitForTimeout(200).catch(() => {});
-  }
-
-  return { capturedPages, pageCount: printPageCount };
-}
-
-async function buildPdfBuffer(pages: PageScreenshot[]) {
-  const { pdf, Document, Page: PdfPage, Image } = await import("@react-pdf/renderer");
-
-  const pxToPt = (px: number) => px * 0.75;
-
-  const doc = createElement(
-    Document,
-    null,
-    createElement(
-      Fragment,
-      null,
-      ...pages.map((pageData, index) => {
-        const pageSize: [number, number] = [pxToPt(pageData.widthPx), pxToPt(pageData.heightPx)];
-        return createElement(
-          PdfPage,
-          {
-            key: `report-page-${index + 1}`,
-            size: pageSize,
-            style: { margin: 0, padding: 0, backgroundColor: "#ffffff" },
-          },
-          createElement(Image, {
-            src: pageData.src,
-            style: {
-              width: pageSize[0],
-              height: pageSize[1],
-            },
-          }),
-        );
-      }),
-    ),
-  );
-
-  const instance = pdf(doc);
-  const blob = await instance.toBlob();
-  return blob.arrayBuffer();
-}
-
 export async function GET(
   req: Request,
   { params }: { params: { id: string } },
@@ -186,6 +91,7 @@ export async function GET(
 
     const vm = buildReportViewModel(loaded.report);
     const filename = `${fileNameFrom(asString(vm.productName) || "ux-audit-report")}.pdf`;
+    const { renderToStaticMarkup } = await import("react-dom/server");
 
     const executablePath = await chromium.executablePath();
     browser = await pwChromium.launch({
@@ -199,23 +105,58 @@ export async function GET(
       deviceScaleFactor: 2,
     });
 
-    await prepareBrowserPage(livePage);
-    const printUrl = `${baseUrlFrom(req)}/report/${encodeURIComponent(id)}/print`;
-    await livePage.goto(printUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: 120_000,
-    });
-    await applyExportStyles(livePage);
-    await livePage.waitForSelector('[data-report-print-ready="true"]', {
-      timeout: 120_000,
-      state: "visible",
-    });
+    const stylesheetHref = await getLayoutStylesheetHref(baseUrlFrom(req));
+    const reportMarkup = renderToStaticMarkup(createElement(PrintReport, { report: loaded.report }));
+    const html = `<!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          ${stylesheetHref ? `<link rel="stylesheet" href="${stylesheetHref}" />` : ""}
+          <style>
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+            html { scroll-behavior: auto !important; }
+            body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; }
+            header, nav, footer, .nav, .navbar, .navigation, .siteFooter, .skipLink,
+            [role="navigation"], [data-report-toolbar], [data-report-pagination],
+            [data-report-pagination-controls], .no-print {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              width: 0 !important;
+              height: 0 !important;
+              min-height: 0 !important;
+              max-height: 0 !important;
+              overflow: hidden !important;
+              pointer-events: none !important;
+              position: static !important;
+            }
+            [data-report-live-root] { padding: 24px !important; }
+            [data-report-live-canvas] { margin-top: 0 !important; }
+            [data-report-live-page], [data-report-live-page] * {
+              overflow: visible !important;
+              max-height: none !important;
+              content-visibility: visible !important;
+              contain: none !important;
+              animation: none !important;
+              transition: none !important;
+            }
+          </style>
+        </head>
+        <body>${reportMarkup}</body>
+      </html>`;
 
-    const { capturedPages } = await capturePrintPages(livePage);
+    await livePage.setContent(html, { waitUntil: "load", timeout: 120_000 });
+    await livePage.emulateMedia({ media: "print" }).catch(() => undefined);
+    await livePage.waitForTimeout(1500).catch(() => undefined);
+
+    const buffer = await livePage.pdf({
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: { top: "0", right: "0", bottom: "0", left: "0" },
+    });
 
     await livePage.close().catch(() => {});
-
-    const buffer = await buildPdfBuffer(capturedPages);
 
     return new Response(new Uint8Array(buffer), {
       headers: {

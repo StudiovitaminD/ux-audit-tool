@@ -1,10 +1,17 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const entryFile = resolve("dist/server/index.js");
+const requiredServerFilesPath = resolve("dist/.next/required-server-files.json");
+
+if (!existsSync(requiredServerFilesPath)) {
+  console.log("Skipping Sites entry generation; dist build output not present.");
+  process.exit(0);
+}
+
 mkdirSync(dirname(entryFile), { recursive: true });
 const requiredServerFiles = JSON.parse(
-  readFileSync(resolve("dist/.next/required-server-files.json"), "utf8"),
+  readFileSync(requiredServerFilesPath, "utf8"),
 );
 
 writeFileSync(

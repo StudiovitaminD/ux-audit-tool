@@ -163,7 +163,8 @@ export function OverviewSection({ vm }: SharedSectionProps) {
     );
   });
   const overallScore = clampPercent(vm.overallScore ?? null);
-  const businessMetrics = calculateBusinessImpactMetrics(vm.pillarScores);
+  const pillarScores = vm.pillarScores ?? { Accessibility: null, Impact: null, Delight: null };
+  const businessMetrics = calculateBusinessImpactMetrics(pillarScores);
   const pillarOrder = ["Accessibility", "Impact", "Delight"];
   const scoreCardOrder = ["Accessibility", "Impact", "Delight"];
   const scoreRowLookup = new Map<string, AnyRecord>();
@@ -196,7 +197,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
             to guide design decisions.
           </div>
         </div>
-        <div className="print-avoid-break flex flex-none w-full min-w-0 flex-col items-start gap-3 self-stretch overflow-hidden rounded-2xl bg-[color:var(--report-grey-bg)] p-3">
+        <div className="print-avoid-break mt-4 flex flex-none w-full min-w-0 flex-col items-start gap-3 self-stretch overflow-hidden rounded-2xl bg-[color:var(--report-grey-bg)] p-3">
           <div className="flex w-full min-w-0 flex-col items-start gap-2 self-stretch">
             <div
               className="text-[16px] font-bold leading-none text-[color:var(--report-black)]"
@@ -248,7 +249,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
           <div className="flex w-full min-w-0 flex-col items-start space-y-4 self-stretch">
             <div className="flex w-full min-w-0 items-start gap-3 self-stretch">
               {scoreCardOrder.map((name) => {
-                const p = vm.pillarScores[name];
+                const p = pillarScores[name] ?? { score: null };
                 const tone = scoreToneClasses(p.score);
                 return (
                   <div
