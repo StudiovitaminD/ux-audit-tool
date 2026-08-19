@@ -89,10 +89,13 @@ function bucketPillarFromName(bucketName: string, fallbackPillar = "") {
   if (["visual consistency", "motion & microinteractions", "brand expression", "icons & imagery"].includes(normalized)) {
     return "Delight";
   }
-  if (normalized === "content") {
+  if (normalized === "content (impact)" || normalized === "content") {
     const rawFallback = normalizeKey(fallbackPillar);
     if (rawFallback.includes("delight")) return "Delight";
     return "Impact";
+  }
+  if (normalized === "content (delight)") {
+    return "Delight";
   }
   const fallback = normalizeKey(fallbackPillar);
   if (fallback.includes("access")) return "Accessibility";
@@ -192,7 +195,7 @@ const SUMMARY_BUCKET_DETAILS = {
       "There is a good base for turning clarity improvements into conversion lifts.",
     ],
   },
-  Content: {
+  "Content (Impact)": {
     topProblems: [
       "Copy should be clearer at key decision points so users feel more confident.",
       "Plain language is needed where jargon currently slows understanding.",
@@ -202,6 +205,18 @@ const SUMMARY_BUCKET_DETAILS = {
       "The site already has the right places to add better guidance.",
       "Core messaging can be sharpened without rewriting the full experience.",
       "This is a strong opportunity to improve trust through clearer language.",
+    ],
+  },
+  "Content (Delight)": {
+    topProblems: [
+      "Tone should feel more distinctive and emotionally consistent across key moments.",
+      "The writing can better reflect the product's personality without losing clarity.",
+      "Some messages could feel warmer and more memorable while still supporting the task.",
+    ],
+    whatsWorking: [
+      "The brand already has opportunities to sound more human and engaging.",
+      "There is room to strengthen emotional resonance without changing core meaning.",
+      "The writing direction is already strong enough to refine into a clearer voice.",
     ],
   },
   "Consistency & UI Patterns": {

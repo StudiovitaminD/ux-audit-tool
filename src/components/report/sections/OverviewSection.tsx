@@ -82,10 +82,13 @@ function bucketPillarFromName(bucketName: string, fallbackPillar = "") {
   if (["visual consistency", "motion & microinteractions", "brand expression", "icons & imagery"].includes(normalized)) {
     return "Delight";
   }
-  if (normalized === "content") {
+  if (normalized === "content (impact)" || normalized === "content") {
     const rawFallback = normalizeKey(fallbackPillar);
     if (rawFallback.includes("delight")) return "Delight";
     return "Impact";
+  }
+  if (normalized === "content (delight)") {
+    return "Delight";
   }
   const fallback = normalizeKey(fallbackPillar);
   if (fallback.includes("access")) return "Accessibility";
