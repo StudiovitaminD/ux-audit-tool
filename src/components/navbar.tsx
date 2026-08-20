@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  createDefaultSession,
   SESSION_CHANGE_EVENT,
   buildOptimisticAppSession,
   fetchAppSession,
@@ -16,7 +17,8 @@ import {
 
 export function Navbar() {
   const router = useRouter();
-  const [session, setSession] = useState<AppSession>(() => readAppSession());
+  const [session, setSession] = useState<AppSession>(() => createDefaultSession());
+  const [sessionLoaded, setSessionLoaded] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.remove("dark");
@@ -26,17 +28,18 @@ export function Navbar() {
 
   useEffect(() => {
     const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
-    setSession(readAppSession());
     void fetchAppSession({ expectedStorageValue: storageSnapshot })
       .then((next) => {
         if (window.localStorage.getItem(SESSION_STORAGE_KEY) === storageSnapshot) {
           setSession(next);
         }
+        setSessionLoaded(true);
       })
       .catch(() => undefined);
 
     const syncSession = () => {
       setSession(readAppSession());
+      setSessionLoaded(true);
     };
     window.addEventListener("storage", syncSession);
     window.addEventListener(SESSION_CHANGE_EVENT, syncSession);
@@ -56,6 +59,7 @@ export function Navbar() {
   }
 
   const isGuest = session.email === "guest@local.test";
+  const showAdminLinks = sessionLoaded && session.role === "admin";
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 w-full bg-[#f6f1e8] px-16 pt-5 text-[#191919]">
@@ -71,7 +75,7 @@ export function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-3 lg:flex">
-          {session.role === "admin" ? (
+          {showAdminLinks ? (
             <Link
               href="/admin"
               className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
@@ -79,7 +83,7 @@ export function Navbar() {
               Dashboard
             </Link>
           ) : null}
-          {session.role === "admin" ? (
+          {showAdminLinks ? (
             <Link
               href="/report"
               className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
