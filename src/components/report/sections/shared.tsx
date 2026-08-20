@@ -3,10 +3,18 @@ import { QUESTION_BANK } from "../../../../worker/src/question-bank";
 import { asString, displayBucketName, stringifyValue, type AnyRecord } from "@/lib/report-model";
 
 export function normalizeList(value: unknown, limit = 8) {
-  if (Array.isArray(value)) return value.map(stringifyValue).filter(Boolean).slice(0, limit);
+  const cleanItem = (item: unknown) =>
+    stringifyValue(item)
+      .replace(/^\s*[-•]\s*/g, "")
+      .replace(/\s*\n\s*/g, " ")
+      .replace(/\s*(?:\.{3,}|…)\s*$/, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
+  if (Array.isArray(value)) return value.map(cleanItem).filter(Boolean).slice(0, limit);
   return String(value ?? "")
     .split(/\n|\r|\u2022|\u2023|\u25E6|\u2027/)
-    .map((item) => item.trim().replace(/\.$/, ""))
+    .map((item) => cleanItem(item))
     .filter(Boolean)
     .slice(0, limit);
 }
