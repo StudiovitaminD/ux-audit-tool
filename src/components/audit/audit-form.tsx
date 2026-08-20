@@ -1445,16 +1445,6 @@ export function AuditForm() {
 
       <aside className="lg:col-span-4">
         <Card className="sticky top-20 p-5">
-          <div className="text-xs font-semibold tracking-wider text-zinc-500 dark:text-zinc-400">
-            Founder Context Intake
-          </div>
-          <div className="mt-2 text-lg font-semibold tracking-tight">
-            {steps.length} steps
-          </div>
-          <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-            Fill this once. Your agent reads it and runs the audit.
-          </div>
-
           <div className="mt-5">
             <div className="h-2 w-full rounded-full bg-zinc-200 dark:bg-white/10">
               <div

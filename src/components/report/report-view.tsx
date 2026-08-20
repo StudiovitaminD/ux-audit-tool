@@ -727,9 +727,6 @@ export function ReportView() {
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="text-3xl font-semibold">Reports</div>
-            <div className="mt-2 text-sm text-[color:var(--ink-muted)]">
-              Open any completed audit, edit answers inside the report, or send it for re-audit with the form prefilled.
-            </div>
           </div>
           <Link className="text-sm font-medium underline underline-offset-4 hover:no-underline" href="/report?demo=1">
             View sample report
