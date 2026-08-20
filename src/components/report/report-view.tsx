@@ -728,7 +728,7 @@ export function ReportView() {
           <div>
             <div className="text-3xl font-semibold">Reports</div>
           </div>
-          <Link className="text-sm font-medium underline underline-offset-4 hover:no-underline" href="/report?demo=1">
+          <Link className="text-sm font-medium text-[#ff7a1a] hover:text-[#ff7a1a]/85" href="/report?demo=1">
             View sample report
           </Link>
         </div>

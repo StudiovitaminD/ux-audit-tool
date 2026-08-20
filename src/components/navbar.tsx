@@ -79,12 +79,14 @@ export function Navbar() {
               Dashboard
             </Link>
           ) : null}
-          <Link
-            href="/report"
-            className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
-          >
-            Reports
-          </Link>
+          {session.role === "admin" ? (
+            <Link
+              href="/report"
+              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
+            >
+              Reports
+            </Link>
+          ) : null}
           {isGuest ? (
             <Link
               href="/sign-in?returnTo=/audit"

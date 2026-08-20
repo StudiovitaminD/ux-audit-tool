@@ -46,6 +46,7 @@ function paginateQuickWinRows(rows: readonly AnyRecord[]) {
 
 export function buildQuickWinsRoadmapPages({ vm }: SharedSectionProps): ReportPage[] {
   const quickWinsRows = vm.quickWinsTable;
+  if (!quickWinsRows.length) return [];
   const rowPages = paginateQuickWinRows(quickWinsRows);
   const pages = rowPages.length ? rowPages : [[]];
 
@@ -102,10 +103,7 @@ export function QuickWinsRoadmapSection({
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="text-sm font-semibold">Quick wins table</div>
-          {continued ? <div className="text-xs text-[color:var(--ink-muted)]">continued</div> : null}
-        </div>
+        {continued ? <div className="text-right text-xs text-[color:var(--ink-muted)]">continued</div> : null}
         <div className="mt-4 overflow-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
