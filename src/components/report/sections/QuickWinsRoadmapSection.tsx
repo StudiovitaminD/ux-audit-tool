@@ -27,7 +27,6 @@ export function QuickWinsRoadmapSection({ vm }: SharedSectionProps) {
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-        <div className="text-sm font-semibold">Quick wins table</div>
         <div className="mt-4 overflow-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
