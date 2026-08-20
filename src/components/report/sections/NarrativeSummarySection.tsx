@@ -310,7 +310,7 @@ const SUMMARY_PAGE_CONTENT_LIMIT = 1000;
 const SUMMARY_BULLET_LINE_HEIGHT = 19;
 const SUMMARY_BULLET_ITEM_GAP = 12;
 const SUMMARY_CHARS_PER_LINE = 56;
-const SUMMARY_CARD_FIXED_OVERHEAD = 60;
+const SUMMARY_CARD_FIXED_OVERHEAD = 76;
 
 function estimateBulletItemHeight(text: string) {
   const normalized = text.replace(/^\s*•\s*/, "").trim();

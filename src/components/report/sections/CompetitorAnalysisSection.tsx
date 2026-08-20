@@ -32,7 +32,7 @@ type CompetitorPageBlock = {
   continued?: boolean;
 };
 
-const COMPETITOR_PAGE_CONTENT_LIMIT = 1000;
+const COMPETITOR_PAGE_CONTENT_LIMIT = 1040;
 const COMPETITOR_PAGE_GAP = 16;
 const COMPETITOR_TITLE_HEIGHT = 46;
 const COMPETITOR_POSITIONING_HEIGHT = 44;
