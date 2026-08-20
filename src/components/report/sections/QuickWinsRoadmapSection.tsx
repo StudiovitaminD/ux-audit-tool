@@ -5,7 +5,6 @@ import type { ReportPage } from "./shared";
 type QuickWinRow = {
   finding?: unknown;
   recommendation?: unknown;
-  estimated_time?: unknown;
 };
 
 const QUICK_WINS_PAGE_CONTENT_LIMIT = 940;
@@ -27,7 +26,6 @@ function estimateQuickWinRowHeight(row: QuickWinRow) {
     Math.max(
       estimateTextHeight(asString(row.finding), QUICK_WINS_ROW_CHARS_PER_LINE, QUICK_WINS_ROW_LINE_HEIGHT),
       estimateTextHeight(asString(row.recommendation), QUICK_WINS_ROW_CHARS_PER_LINE, QUICK_WINS_ROW_LINE_HEIGHT),
-      estimateTextHeight(asString(row.estimated_time), 10, QUICK_WINS_ROW_LINE_HEIGHT),
     )
   );
 }
@@ -65,12 +63,11 @@ function QuickWinsRoadmapBody({
     <div className="space-y-5">
       <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
         <div className="mt-4 overflow-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
               <tr>
                 <th className="py-2 pr-4">Finding</th>
                 <th className="py-2 pr-4">Recommendation</th>
-                <th className="py-2 pr-4">ETA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--card-border)]/60">
@@ -81,12 +78,11 @@ function QuickWinsRoadmapBody({
                     <td className="py-3 pr-4 text-[color:var(--muted)]">
                       {asString(item.recommendation) || "—"}
                     </td>
-                    <td className="py-3 pr-4 font-mono">{asString(item.estimated_time) || "—"}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td className="py-3 pr-4 text-[color:var(--muted)]" colSpan={3}>
+                  <td className="py-3 pr-4 text-[color:var(--muted)]" colSpan={2}>
                     No quick wins captured.
                   </td>
                 </tr>
@@ -105,7 +101,6 @@ export function QuickWinsRoadmapSection({ vm }: SharedSectionProps) {
       quickWins={vm.quickWinsTable.map((item) => ({
         finding: item.finding,
         recommendation: item.recommendation,
-        estimated_time: item.estimated_time,
       }))}
     />
   );
@@ -115,7 +110,6 @@ export function buildQuickWinsRoadmapPages({ vm }: SharedSectionProps): ReportPa
   const quickWins = vm.quickWinsTable.map((item) => ({
     finding: item.finding,
     recommendation: item.recommendation,
-    estimated_time: item.estimated_time,
   }));
   const tablePages = splitQuickWinRows(quickWins);
   const pages: ReportPage[] = [];

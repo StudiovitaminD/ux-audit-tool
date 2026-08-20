@@ -1226,11 +1226,6 @@ export function AuditForm() {
     return done;
   }, [payload]);
 
-  const progressPct = Math.max(
-    5,
-    Math.min(100, Math.round((completion.size / steps.length) * 100)),
-  );
-
   // ADDED
   const creatingMessages = useMemo(
     () => [
@@ -1400,7 +1395,11 @@ export function AuditForm() {
   }
 
   return (
-    <form ref={formRef} onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-12">
+    <form
+      ref={formRef}
+      onSubmit={onSubmit}
+      className="grid gap-6 pb-32 lg:grid-cols-12"
+    >
       {prefillLoading ? (
         <div className="lg:col-span-12 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-4 text-sm text-[color:var(--ink-muted)]">
           Prefilling audit form from previous report…
@@ -1445,17 +1444,6 @@ export function AuditForm() {
 
       <aside className="lg:col-span-4">
         <Card className="sticky top-20 p-5">
-          <div className="mt-5">
-            <div className="h-2 w-full rounded-full bg-zinc-200 dark:bg-white/10">
-              <div
-                className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 transition-[width]"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-            <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-            </div>
-          </div>
-
           <div className="mt-6 space-y-2">
             {steps.map((s) => {
               const done = completion.has(s.id);
@@ -1500,20 +1488,6 @@ export function AuditForm() {
 
       <section className="space-y-6 lg:col-span-8">
         {/* UPDATED: remove redundant type selection card; keep reset only */}
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={resetAll}
-            disabled={loading}
-            className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
-          >
-            Reset
-          </Button>
-        </div>
-
-        {/* UPDATED: remove this state; start directly with the form */}
 
         {error ? (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
@@ -2639,28 +2613,6 @@ Audit Flow for SCY Platform
           </Card>
         ) : null}
 
-        {/* ADDED: Back/Next navigation (validation shows only after Next) */}
-        <div className="flex items-center justify-between">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={back}
-            disabled={activeStep === 1 || loading}
-          >
-            Back
-          </Button>
-          {activeStep < maxStep ? (
-            <Button
-              type="button"
-              variant="primary"
-              onClick={next}
-              disabled={loading}
-            >
-              Next
-            </Button>
-          ) : null}
-        </div>
-
         {activeStep === maxStep ? (
           <Card className="p-5">
           <CardHeader
@@ -2683,6 +2635,46 @@ Audit Flow for SCY Platform
         </Card>
         ) : null}
       </section>
+
+      <div
+        className="no-print fixed inset-x-6 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-4 shadow-lg shadow-black/5 backdrop-blur"
+        data-audit-pagination
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={resetAll}
+            disabled={loading}
+            className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+          >
+            Clear
+          </Button>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={back}
+              disabled={activeStep === 1 || loading}
+              className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+            >
+              Back
+            </Button>
+            {activeStep < maxStep ? (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={next}
+                disabled={loading}
+                className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+              >
+                Next
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </div>
     </form>
   );
 }
