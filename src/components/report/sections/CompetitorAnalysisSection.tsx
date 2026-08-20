@@ -313,9 +313,6 @@ function CompetitorAnalysisPageBody({
         ))}
       </div>
 
-      <div className="text-xs text-[color:var(--report-grey-font)]">
-        Competitor {block.index + 1} of {block.total}
-      </div>
     </div>
   );
 }
