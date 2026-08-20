@@ -33,7 +33,6 @@ writeFileSync(
   [
     'import path from "node:path";',
     'import { existsSync } from "node:fs";',
-    'import { pathToFileURL } from "node:url";',
     "",
     'const baseDir = process.cwd();',
     'const distDir = existsSync(path.join(baseDir, ".next/required-server-files.json"))',
@@ -46,9 +45,7 @@ writeFileSync(
     "",
     'process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig);',
     "",
-    'const startServerModule = await import(',
-    '  pathToFileURL(path.join(distDir, "node_modules/next/dist/server/lib/start-server.js")).href,',
-    ");",
+    'const startServerModule = await import("../node_modules/next/dist/server/lib/start-server.js");',
     'const { startServer } = startServerModule.default ?? startServerModule;',
     "",
     'const currentPort = parseInt(process.env.PORT, 10) || 3000;',
