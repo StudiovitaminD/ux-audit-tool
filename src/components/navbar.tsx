@@ -62,9 +62,9 @@ export function Navbar() {
       <div className="mx-auto flex max-w-none items-center justify-between gap-6 rounded-full border border-[#101010]/10 bg-white/80 px-4 py-3 backdrop-blur sm:px-6">
         <Link href="/" className="flex items-center gap-2 text-[20px] font-bold tracking-[-0.03em] text-[#191919]">
           <img
-            src="/Asset%206@2x%201.svg"
+            src="/Asset%206@2x%201.png"
             alt="UX"
-            className="h-8 w-8 rounded-full object-contain"
+            className="h-9 w-9 object-contain"
             draggable={false}
           />
           <span>Design AID Audit</span>
