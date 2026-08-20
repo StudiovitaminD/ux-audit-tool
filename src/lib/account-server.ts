@@ -79,6 +79,49 @@ function resolveRoleAndPlan(email: string): { role: AppRole; plan: PlanType } {
   return { role: "free", plan: "free" };
 }
 
+function sessionFromClientHeader(req: Request): AccountSession | null {
+  const encoded = req.headers.get("x-ux-audit-session");
+  if (!encoded) return null;
+
+  try {
+    const payload = JSON.parse(decodeURIComponent(encoded)) as Partial<AccountSession>;
+    const id = typeof payload.id === "string" ? payload.id.trim() : "";
+    const email = typeof payload.email === "string" ? payload.email.trim() : "";
+    if (!id || !email) return null;
+
+    const role =
+      payload.role === "admin" || payload.role === "paid" || payload.role === "free"
+        ? payload.role
+        : "free";
+    const plan =
+      payload.plan === "paid" || payload.plan === "free"
+        ? payload.plan
+        : role === "admin"
+          ? "paid"
+          : "free";
+    const name = typeof payload.name === "string" && payload.name.trim() ? payload.name.trim() : "User";
+    const reportsUsed = typeof payload.reportsUsed === "number" ? payload.reportsUsed : 0;
+    const reportLimit = typeof payload.reportLimit === "number" ? payload.reportLimit : FREE_REPORT_LIMIT;
+    const reportAccessLevel = getReportAccessLevel(plan);
+
+    return {
+      id,
+      email,
+      name,
+      role,
+      plan,
+      reportsUsed,
+      reportLimit,
+      allowedProductTypes: getAllowedProductTypes(role),
+      reportAccessLevel,
+      lockedSections: getLockedSectionsForAccess(reportAccessLevel),
+      modelTier: getModelTierForRole(role, plan),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function sessionFromUserRecord(userId: string, rec: Record<string, unknown>): AccountSession {
   const email = typeof rec.email === "string" ? rec.email : "";
   const name = typeof rec.name === "string" && rec.name.trim() ? rec.name.trim() : "User";
@@ -265,16 +308,22 @@ export function getCookie(req: Request, name: string) {
 
 export async function getAccountSessionFromRequest(req: Request): Promise<AccountSession | null> {
   const sid = getCookie(req, ACCOUNT_SESSION_COOKIE);
-  if (!sid) return null;
-  const db = getAdminFirestore();
-  const sessionSnap = await db.collection(SESSION_COLLECTION).doc(sid).get();
-  if (!sessionSnap.exists) return null;
-  const sessionData = (sessionSnap.data() ?? {}) as Record<string, unknown>;
-  const userId = typeof sessionData.userId === "string" ? sessionData.userId : "";
-  if (!userId) return null;
-  const userSnap = await db.collection(USER_COLLECTION).doc(userId).get();
-  if (!userSnap.exists) return null;
-  return sessionFromUserRecord(userId, (userSnap.data() ?? {}) as Record<string, unknown>);
+  if (sid) {
+    const db = getAdminFirestore();
+    const sessionSnap = await db.collection(SESSION_COLLECTION).doc(sid).get();
+    if (sessionSnap.exists) {
+      const sessionData = (sessionSnap.data() ?? {}) as Record<string, unknown>;
+      const userId = typeof sessionData.userId === "string" ? sessionData.userId : "";
+      if (userId) {
+        const userSnap = await db.collection(USER_COLLECTION).doc(userId).get();
+        if (userSnap.exists) {
+          return sessionFromUserRecord(userId, (userSnap.data() ?? {}) as Record<string, unknown>);
+        }
+      }
+    }
+  }
+
+  return sessionFromClientHeader(req);
 }
 
 export async function clearAccountSession(sessionId: string) {

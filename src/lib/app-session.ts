@@ -181,6 +181,20 @@ export function writeAppSession(session: AppSession) {
   window.dispatchEvent(new Event(SESSION_CHANGE_EVENT));
 }
 
+export function getAppSessionRequestHeaders() {
+  if (typeof window === "undefined") return {} as Record<string, string>;
+
+  try {
+    const session = readAppSession();
+    if (session.email === "guest@local.test") return {} as Record<string, string>;
+    const headers: Record<string, string> = {};
+    headers["x-ux-audit-session"] = encodeURIComponent(JSON.stringify(session));
+    return headers;
+  } catch {
+    return {} as Record<string, string>;
+  }
+}
+
 export function incrementReportUsage(session: AppSession) {
   const next =
     session.role === "admin"

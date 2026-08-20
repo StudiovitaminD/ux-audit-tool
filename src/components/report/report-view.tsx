@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { readStoredIntake } from "@/lib/intake-storage";
+import { getAppSessionRequestHeaders } from "@/lib/app-session";
 import { loadLastReport } from "@/lib/report-store";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { DemoReport } from "@/components/report/demo-report";
@@ -342,6 +343,7 @@ export function ReportView() {
   const report = useMemo(() => loadLastReport<unknown>(), []);
   const processInFlightRef = useRef(false);
   const lastProcessKickMsRef = useRef(0);
+  const sessionHeaders = useMemo(() => getAppSessionRequestHeaders(), []);
 
   useEffect(() => {
     if (!rid) return;
@@ -375,7 +377,10 @@ export function ReportView() {
     try {
       const res = await fetch("/api/audit/process", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...sessionHeaders,
+        },
         body: JSON.stringify({ reportId: rid }),
       });
       const responseBody = (await res.json().catch(() => null)) as
@@ -431,6 +436,7 @@ export function ReportView() {
     try {
       const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/cancel`, {
         method: "POST",
+        headers: sessionHeaders,
       });
       const data = (await res.json().catch(() => null)) as { error?: string; status?: string } | null;
       if (!res.ok) throw new Error(data?.error || `Failed to stop report (${res.status})`);
@@ -454,7 +460,10 @@ export function ReportView() {
     try {
       const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...sessionHeaders,
+        },
       });
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(data?.error || `Failed to retry report generation (${res.status})`);
@@ -475,6 +484,7 @@ export function ReportView() {
     try {
       const res = await fetch(`/api/report/${encodeURIComponent(id)}`, {
         method: "DELETE",
+        headers: sessionHeaders,
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as
@@ -496,7 +506,7 @@ export function ReportView() {
     setLoadingHistory(true);
     setHistoryError(null);
 
-    fetch("/api/reports", { cache: "no-store" })
+    fetch("/api/reports", { cache: "no-store", headers: sessionHeaders })
       .then(async (res) => {
         const data = (await res.json()) as
           | { reports?: typeof reportHistory; error?: string }
@@ -528,6 +538,7 @@ export function ReportView() {
       try {
         const res = await fetch(`/api/report/${encodeURIComponent(id)}`, {
           cache: "no-store",
+          headers: sessionHeaders,
         });
         const data = (await res.json()) as unknown;
         if (!res.ok) {
