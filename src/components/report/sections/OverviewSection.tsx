@@ -199,7 +199,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
             to guide design decisions.
           </div>
         </div>
-        <div className="print-avoid-break flex flex-none w-full min-w-0 flex-col items-start gap-3 self-stretch overflow-hidden rounded-2xl bg-[color:var(--report-grey-bg)] p-3">
+        <div className="print-avoid-break mt-4 flex flex-none w-full min-w-0 flex-col items-start gap-3 self-stretch overflow-hidden rounded-2xl bg-[color:var(--report-grey-bg)] p-3">
           <div className="flex w-full min-w-0 flex-col items-start gap-2 self-stretch">
             <div
               className="text-[16px] font-bold leading-none text-[color:var(--report-black)]"

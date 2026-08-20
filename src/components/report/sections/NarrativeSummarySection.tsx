@@ -306,7 +306,9 @@ type SummaryPageBlock = {
 };
 
 const SUMMARY_PAGE_CARD_GAP = 20;
-const SUMMARY_PAGE_CONTENT_LIMIT = 1000;
+// Keep this slightly conservative so the final card on a summary page moves
+// to the next page before the footer can clip its last lines.
+const SUMMARY_PAGE_CONTENT_LIMIT = 900;
 const SUMMARY_BULLET_LINE_HEIGHT = 19;
 const SUMMARY_BULLET_ITEM_GAP = 12;
 const SUMMARY_CHARS_PER_LINE = 56;
