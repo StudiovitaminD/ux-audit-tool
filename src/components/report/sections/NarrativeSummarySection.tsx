@@ -91,8 +91,8 @@ function isWorkingStrengthText(text: unknown) {
 
 function synthesizeBucketStrengthFallback(bucket: Record<string, unknown>) {
   const bucketName = bucketLabel(bucket);
-  const score = asNumber(bucket?.score);
-  const health = normalizeKey(asString(bucket?.health));
+  const score = asNumber(bucket.score);
+  const health = normalizeKey(asString(bucket.health));
 
   if (score !== null) {
     if (score >= 80 || /\b(excellent|good|optimized|optimised)\b/.test(health)) {
@@ -317,19 +317,10 @@ type SummaryPageBlock = {
 };
 
 const SUMMARY_PAGE_CARD_GAP = 20;
-<<<<<<< HEAD
-// Keep this slightly conservative so the final card on a summary page moves
-// to the next page before the footer can clip its last lines.
-const SUMMARY_PAGE_CONTENT_LIMIT = 900;
-const SUMMARY_BULLET_LINE_HEIGHT = 19;
-const SUMMARY_BULLET_ITEM_GAP = 12;
-const SUMMARY_CHARS_PER_LINE = 56;
-=======
 const SUMMARY_PAGE_CONTENT_LIMIT = 1065;
 const SUMMARY_BULLET_LINE_HEIGHT = 22;
 const SUMMARY_BULLET_ITEM_GAP = 12;
 const SUMMARY_CHARS_PER_LINE = 44;
->>>>>>> bf0192f (fix pdf report rendering)
 const SUMMARY_CARD_FIXED_OVERHEAD = 76;
 
 function estimateBulletItemHeight(text: string) {
@@ -598,15 +589,8 @@ function SummaryBucketCard({
 }) {
   const currentBucketLabel = displayBucketName(spec.name);
   const resolved = renderBucketContent(bucket, bucketData);
-<<<<<<< HEAD
-  const showTopProblems =
-    (renderMode === "combined" || renderMode === "topProblems") && resolved.topProblems.length > 0;
-  const showWhatsWorking =
-    (renderMode === "combined" || renderMode === "whatsWorking") && resolved.whatsWorking.length > 0;
-=======
   const showTopProblems = (renderMode === "combined" || renderMode === "topProblems") && resolved.topProblems.length > 0;
   const showWhatsWorking = (renderMode === "combined" || renderMode === "whatsWorking") && resolved.whatsWorking.length > 0;
->>>>>>> bf0192f (fix pdf report rendering)
 
   if (!showTopProblems && !showWhatsWorking) return null;
 

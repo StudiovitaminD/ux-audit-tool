@@ -32,17 +32,6 @@ type CompetitorPageBlock = {
   continued?: boolean;
 };
 
-<<<<<<< HEAD
-const COMPETITOR_PAGE_CONTENT_LIMIT = 1040;
-const COMPETITOR_PAGE_GAP = 16;
-const COMPETITOR_TITLE_HEIGHT = 46;
-const COMPETITOR_POSITIONING_HEIGHT = 44;
-const COMPETITOR_SCREENSHOT_HEIGHT = 300;
-const COMPETITOR_SECTION_OVERHEAD = 60;
-const COMPETITOR_BULLET_LINE_HEIGHT = 19;
-const COMPETITOR_BULLET_ITEM_GAP = 12;
-const COMPETITOR_CHARS_PER_LINE = 56;
-=======
 const COMPETITOR_PAGE_CONTENT_LIMIT = 1120;
 const COMPETITOR_PAGE_GAP = 16;
 const COMPETITOR_TITLE_HEIGHT = 52;
@@ -52,7 +41,6 @@ const COMPETITOR_SECTION_OVERHEAD = 64;
 const COMPETITOR_BULLET_LINE_HEIGHT = 22;
 const COMPETITOR_BULLET_ITEM_GAP = 14;
 const COMPETITOR_CHARS_PER_LINE = 58;
->>>>>>> bf0192f (fix pdf report rendering)
 
 function splitIntoColumns(items: readonly string[], columns = 2) {
   const safeColumns = Math.max(1, columns);
@@ -325,6 +313,9 @@ function CompetitorAnalysisPageBody({
         ))}
       </div>
 
+      <div className="text-xs text-[color:var(--report-grey-font)]">
+        Competitor {block.index + 1} of {block.total}
+      </div>
     </div>
   );
 }

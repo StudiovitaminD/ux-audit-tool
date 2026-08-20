@@ -7,11 +7,7 @@ import { IntroPageSection } from "./sections/IntroPageSection";
 import { OverviewSection } from "./sections/OverviewSection";
 import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
-<<<<<<< HEAD
-import { buildCriticalFindingPages } from "./sections/FindingsSection";
-=======
 import { buildCriticalFindingsPages } from "./sections/FindingsSection";
->>>>>>> bf0192f (fix pdf report rendering)
 import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
 import type { ReportPage } from "./sections/shared";
 
@@ -868,11 +864,7 @@ export function DemoReport() {
       ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Impact", bucketData: summaryBucketData.Impact }),
       ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Delight", bucketData: summaryBucketData.Delight }),
       ...buildCompetitorAnalysisPages({ competitors }),
-<<<<<<< HEAD
-      ...buildCriticalFindingPages({ findings: topFindings }),
-=======
       ...buildCriticalFindingsPages({ findings: DEMO.findings_detailed as never }),
->>>>>>> bf0192f (fix pdf report rendering)
       ...buildQuickWinsRoadmapPages({ vm: coverVm as never }),
     ];
   }, [coverVm, hydratedCompetitors]);
