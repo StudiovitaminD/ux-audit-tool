@@ -8,6 +8,7 @@ import { OverviewSection } from "./sections/OverviewSection";
 import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
 import { buildCriticalFindingPages } from "./sections/FindingsSection";
+import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
 import type { ReportPage } from "./sections/shared";
 
 type ScorecardRow = {
@@ -924,68 +925,7 @@ export function DemoReport() {
       ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Delight", bucketData: summaryBucketData.Delight }),
       ...buildCompetitorAnalysisPages({ competitors }),
       ...buildCriticalFindingPages({ findings: topFindings }),
-      {
-        key: "quick_wins_roadmap",
-        title: "Quick Wins & Roadmap",
-        body: (
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="mt-4 overflow-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
-                    <tr>
-                      <th className="py-2 pr-4">Finding</th>
-                      <th className="py-2 pr-4">Recommendation</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[color:var(--card-border)]/60">
-                    {quickWins.map((w) => (
-                      <tr key={w.finding}>
-                        <td className="py-3 pr-4 font-medium">{w.finding}</td>
-                        <td className="py-3 pr-4 text-[color:var(--muted)]">{w.recommendation}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">Week 1–2</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {roadmap.week_1_2.map((x) => (
-                    <li key={x}>{x}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">Month 1</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {roadmap.month_1.map((x) => (
-                    <li key={x}>{x}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-                <div className="text-sm font-semibold">Quarter 1</div>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[color:var(--muted)]">
-                  {roadmap.quarter_1.map((x) => (
-                    <li key={x}>{x}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Link className="btn btnGhost" href="/">
-                Back to home <span aria-hidden="true">→</span>
-              </Link>
-            </div>
-          </div>
-        ),
-        variant: "standard",
-      },
+      ...buildQuickWinsRoadmapPages({ vm: coverVm as never }),
     ];
   }, [coverVm, hydratedCompetitors]);
   const [page, setPage] = useState(0);

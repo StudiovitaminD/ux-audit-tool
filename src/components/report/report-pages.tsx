@@ -4,7 +4,7 @@ import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
 import { AIBucketAnswersSection } from "./sections/AIBucketAnswersSection";
 import { buildCriticalFindingPages } from "./sections/FindingsSection";
-import { QuickWinsRoadmapSection } from "./sections/QuickWinsRoadmapSection";
+import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
 import { IntroPageSection } from "./sections/IntroPageSection";
 import type { ReportPage } from "./sections/shared";
 
@@ -102,13 +102,10 @@ export function buildReportPages({
       ...page,
       locked: isLocked("critical_findings"),
     })),
-    {
-      key: "quick_wins_roadmap",
-      title: "Quick Wins & Roadmap",
-      body: <QuickWinsRoadmapSection vm={vm} />,
+    ...buildQuickWinsRoadmapPages({ vm }).map((page) => ({
+      ...page,
       locked: isLocked("quick_wins_roadmap"),
-      variant: "standard",
-    },
+    })),
   );
 
   return pages;
