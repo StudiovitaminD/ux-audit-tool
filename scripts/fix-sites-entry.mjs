@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const entryFile = resolve("dist/server/index.js");
@@ -16,6 +16,14 @@ if (manifestPath !== distManifest) {
   copyFileSync(manifestPath, distManifest);
 }
 
+const standaloneNodeModules = resolve(".next/standalone/node_modules");
+const distNodeModules = resolve("dist/node_modules");
+
+if (existsSync(standaloneNodeModules)) {
+  rmSync(distNodeModules, { recursive: true, force: true });
+  cpSync(standaloneNodeModules, distNodeModules, { recursive: true });
+}
+
 const requiredServerFiles = JSON.parse(
   readFileSync(manifestPath, "utf8"),
 );
@@ -23,20 +31,21 @@ const requiredServerFiles = JSON.parse(
 writeFileSync(
   entryFile,
   [
-    'import { existsSync } from "node:fs";',
     'import { createRequire } from "node:module";',
     'import path from "node:path";',
+    'import { fileURLToPath } from "node:url";',
     "",
-    'const baseDir = process.cwd();',
-    'const distDir = existsSync(path.join(baseDir, ".next/required-server-files.json"))',
-    '  ? baseDir',
-    '  : path.join(baseDir, "dist");',
+    'const require = createRequire(import.meta.url);',
+    'const distDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");',
     `const nextConfig = ${JSON.stringify(requiredServerFiles.config)};`,
     "",
     'process.env.NODE_ENV = "production";',
     'process.chdir(distDir);',
     "",
-    'const require = createRequire(path.join(distDir, "server/index.js"));',
+    'process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig);',
+    "",
+    "require('next')",
+    "const { startServer } = require('next/dist/server/lib/start-server')",
     "",
     'const currentPort = parseInt(process.env.PORT, 10) || 3000;',
     'const hostname = process.env.HOSTNAME || "0.0.0.0";',
@@ -49,10 +58,6 @@ writeFileSync(
     ") {",
     "  keepAliveTimeout = undefined;",
     "}",
-    "",
-    'const { startServer } = require(',
-    '  path.join(distDir, "node_modules/next/dist/server/lib/start-server.js"),',
-    ");",
     "",
     "startServer({",
     "  dir: distDir,",
