@@ -346,7 +346,7 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
 .report-a4-page-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 22px;
 }
 
@@ -488,7 +488,7 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
   }
 
   .report-a4-page-body {
-    overflow: visible !important;
+    overflow: hidden !important;
     padding: 22px !important;
   }
 
