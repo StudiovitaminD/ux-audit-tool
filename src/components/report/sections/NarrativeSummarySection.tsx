@@ -306,11 +306,11 @@ type SummaryPageBlock = {
 };
 
 const SUMMARY_PAGE_CARD_GAP = 20;
-const SUMMARY_PAGE_CONTENT_LIMIT = 860;
-const SUMMARY_BULLET_LINE_HEIGHT = 24;
-const SUMMARY_BULLET_ITEM_GAP = 18;
-const SUMMARY_CHARS_PER_LINE = 30;
-const SUMMARY_CARD_FIXED_OVERHEAD = 92;
+const SUMMARY_PAGE_CONTENT_LIMIT = 960;
+const SUMMARY_BULLET_LINE_HEIGHT = 21;
+const SUMMARY_BULLET_ITEM_GAP = 14;
+const SUMMARY_CHARS_PER_LINE = 40;
+const SUMMARY_CARD_FIXED_OVERHEAD = 72;
 
 function estimateBulletItemHeight(text: string) {
   const normalized = text.replace(/^\s*•\s*/, "").trim();
