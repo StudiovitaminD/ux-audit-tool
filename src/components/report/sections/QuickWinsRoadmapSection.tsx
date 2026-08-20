@@ -29,12 +29,11 @@ export function QuickWinsRoadmapSection({ vm }: SharedSectionProps) {
       <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
         <div className="text-sm font-semibold">Quick wins table</div>
         <div className="mt-4 overflow-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
               <tr>
                 <th className="py-2 pr-4">Finding</th>
                 <th className="py-2 pr-4">Recommendation</th>
-                <th className="py-2 pr-4">ETA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--card-border)]/60">
@@ -45,12 +44,11 @@ export function QuickWinsRoadmapSection({ vm }: SharedSectionProps) {
                     <td className="py-3 pr-4 text-[color:var(--muted)]">
                       {asString(item.recommendation) || "—"}
                     </td>
-                    <td className="py-3 pr-4 font-mono">{asString(item.estimated_time) || "—"}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td className="py-3 pr-4 text-[color:var(--muted)]" colSpan={3}>
+                  <td className="py-3 pr-4 text-[color:var(--muted)]" colSpan={2}>
                     No quick wins captured.
                   </td>
                 </tr>

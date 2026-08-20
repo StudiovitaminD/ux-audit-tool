@@ -937,7 +937,6 @@ export function DemoReport() {
                     <tr>
                       <th className="py-2 pr-4">Finding</th>
                       <th className="py-2 pr-4">Recommendation</th>
-                      <th className="py-2 pr-4">ETA</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[color:var(--card-border)]/60">
@@ -945,7 +944,6 @@ export function DemoReport() {
                       <tr key={w.finding}>
                         <td className="py-3 pr-4 font-medium">{w.finding}</td>
                         <td className="py-3 pr-4 text-[color:var(--muted)]">{w.recommendation}</td>
-                        <td className="py-3 pr-4 font-mono">{w.estimated_time}</td>
                       </tr>
                     ))}
                   </tbody>
