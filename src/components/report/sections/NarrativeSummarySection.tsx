@@ -306,11 +306,11 @@ type SummaryPageBlock = {
 };
 
 const SUMMARY_PAGE_CARD_GAP = 20;
-const SUMMARY_PAGE_CONTENT_LIMIT = 760;
-const SUMMARY_BULLET_LINE_HEIGHT = 26;
-const SUMMARY_BULLET_ITEM_GAP = 20;
+const SUMMARY_PAGE_CONTENT_LIMIT = 860;
+const SUMMARY_BULLET_LINE_HEIGHT = 24;
+const SUMMARY_BULLET_ITEM_GAP = 18;
 const SUMMARY_CHARS_PER_LINE = 30;
-const SUMMARY_CARD_FIXED_OVERHEAD = 84;
+const SUMMARY_CARD_FIXED_OVERHEAD = 92;
 
 function estimateBulletItemHeight(text: string) {
   const normalized = text.replace(/^\s*•\s*/, "").trim();
@@ -579,8 +579,10 @@ function SummaryBucketCard({
 }) {
   const currentBucketLabel = displayBucketName(spec.name);
   const resolved = renderBucketContent(bucket, bucketData);
-  const showTopProblems = renderMode === "combined" || renderMode === "topProblems";
-  const showWhatsWorking = renderMode === "combined" || renderMode === "whatsWorking";
+  const showTopProblems =
+    (renderMode === "combined" || renderMode === "topProblems") && resolved.topProblems.length > 0;
+  const showWhatsWorking =
+    (renderMode === "combined" || renderMode === "whatsWorking") && resolved.whatsWorking.length > 0;
 
   if (!showTopProblems && !showWhatsWorking) return null;
 

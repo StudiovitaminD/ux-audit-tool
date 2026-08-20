@@ -207,7 +207,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
             >
               Overall Score
             </div>
-            <div className="flex items-end gap-2">
+            <div className="mt-2 flex items-end gap-2">
               <span
                 className={`text-[16px] font-bold leading-none ${
                   scoreToneFromValue(vm.overallScore) === "critical"

@@ -24,10 +24,13 @@ export function Footer() {
         <div className="flex flex-col gap-6 border-b border-white/10 pb-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-[320px]">
             <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold tracking-[-0.03em]">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-bold text-[#101010]">
-                UX
-              </span>
-              <span>AI UX Audit</span>
+              <img
+                src="/Asset%206@2x%201.svg"
+                alt="UX"
+                className="h-9 w-9 rounded-full bg-white object-contain"
+                draggable={false}
+              />
+              <span>Design AID Audit</span>
             </Link>
             <p className="mt-4 text-sm leading-7 text-white/72">
               Premium AI-powered UX audits for public websites and ecommerce teams who need clearer findings, faster decisions, and cleaner executive reporting.
@@ -93,7 +96,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-6 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
-          <div>© {year} AI UX Audit Tool. All rights reserved.</div>
+          <div>© {year} Design AID Audit Tool. All rights reserved.</div>
           <div className="flex items-center gap-4">
             <Link href="/pricing" className="transition hover:text-white">Plans</Link>
             <Link href="/sign-in" className="transition hover:text-white">Sign in</Link>

@@ -18,12 +18,6 @@ export function QuickWinsRoadmapSection({ vm }: SharedSectionProps) {
           </div>
         </div>
 
-        {vm.closingNote ? (
-          <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-            <div className="text-sm font-semibold">Closing note</div>
-            <div className="mt-3 text-sm text-[color:var(--muted)]">{vm.closingNote}</div>
-          </div>
-        ) : null}
       </div>
     );
   }
@@ -81,12 +75,6 @@ export function QuickWinsRoadmapSection({ vm }: SharedSectionProps) {
         </div>
       </div>
 
-      {vm.closingNote ? (
-        <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-          <div className="text-sm font-semibold">Closing note</div>
-          <div className="mt-3 text-sm text-[color:var(--muted)]">{vm.closingNote}</div>
-        </div>
-      ) : null}
     </div>
   );
 }

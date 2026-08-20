@@ -10,7 +10,7 @@ const robotoCondensed = Roboto_Condensed({
 });
 
 export const metadata: Metadata = {
-  title: "AI UX Audit Tool",
+  title: "Design AID Audit Tool",
   description: "AI-powered UX audits via n8n webhook",
 };
 

@@ -32,15 +32,15 @@ type CompetitorPageBlock = {
   continued?: boolean;
 };
 
-const COMPETITOR_PAGE_CONTENT_LIMIT = 760;
-const COMPETITOR_PAGE_GAP = 20;
+const COMPETITOR_PAGE_CONTENT_LIMIT = 860;
+const COMPETITOR_PAGE_GAP = 16;
 const COMPETITOR_TITLE_HEIGHT = 52;
 const COMPETITOR_POSITIONING_HEIGHT = 56;
 const COMPETITOR_SCREENSHOT_HEIGHT = 338;
-const COMPETITOR_SECTION_OVERHEAD = 80;
-const COMPETITOR_BULLET_LINE_HEIGHT = 26;
-const COMPETITOR_BULLET_ITEM_GAP = 20;
-const COMPETITOR_CHARS_PER_LINE = 44;
+const COMPETITOR_SECTION_OVERHEAD = 92;
+const COMPETITOR_BULLET_LINE_HEIGHT = 28;
+const COMPETITOR_BULLET_ITEM_GAP = 22;
+const COMPETITOR_CHARS_PER_LINE = 40;
 
 function splitIntoColumns(items: readonly string[], columns = 2) {
   const safeColumns = Math.max(1, columns);
@@ -313,9 +313,6 @@ function CompetitorAnalysisPageBody({
         ))}
       </div>
 
-      <div className="text-xs text-[color:var(--report-grey-font)]">
-        Competitor {block.index + 1} of {block.total}
-      </div>
     </div>
   );
 }

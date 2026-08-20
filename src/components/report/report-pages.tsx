@@ -3,7 +3,7 @@ import { OverviewSection } from "./sections/OverviewSection";
 import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
 import { AIBucketAnswersSection } from "./sections/AIBucketAnswersSection";
-import { FindingsSection } from "./sections/FindingsSection";
+import { buildCriticalFindingPages } from "./sections/FindingsSection";
 import { QuickWinsRoadmapSection } from "./sections/QuickWinsRoadmapSection";
 import { IntroPageSection } from "./sections/IntroPageSection";
 import type { ReportPage } from "./sections/shared";
@@ -98,13 +98,10 @@ export function buildReportPages({
   }
 
   pages.push(
-    {
-      key: "critical_findings",
-      title: "Critical Findings",
-      body: <FindingsSection findings={displayedFindings} />,
+    ...buildCriticalFindingPages({ findings: displayedFindings }).map((page) => ({
+      ...page,
       locked: isLocked("critical_findings"),
-      variant: "standard",
-    },
+    })),
     {
       key: "quick_wins_roadmap",
       title: "Quick Wins & Roadmap",

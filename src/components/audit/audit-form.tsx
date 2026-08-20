@@ -1453,7 +1453,6 @@ export function AuditForm() {
               />
             </div>
             <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-              Progress: {progressPct}%
             </div>
           </div>
 

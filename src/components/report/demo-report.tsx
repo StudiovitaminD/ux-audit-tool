@@ -7,6 +7,7 @@ import { IntroPageSection } from "./sections/IntroPageSection";
 import { OverviewSection } from "./sections/OverviewSection";
 import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
+import { buildCriticalFindingPages } from "./sections/FindingsSection";
 import type { ReportPage } from "./sections/shared";
 
 type ScorecardRow = {
@@ -922,18 +923,7 @@ export function DemoReport() {
       ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Impact", bucketData: summaryBucketData.Impact }),
       ...buildNarrativeSummaryPages({ vm: coverVm as never, pillar: "Delight", bucketData: summaryBucketData.Delight }),
       ...buildCompetitorAnalysisPages({ competitors }),
-      {
-        key: "critical_findings",
-        title: "Critical Findings",
-        body: (
-          <div className="space-y-4">
-            {topFindings.map((f) => (
-              <FindingCard key={f.rank} f={f} />
-            ))}
-          </div>
-        ),
-        variant: "standard",
-      },
+      ...buildCriticalFindingPages({ findings: topFindings }),
       {
         key: "quick_wins_roadmap",
         title: "Quick Wins & Roadmap",
@@ -990,10 +980,6 @@ export function DemoReport() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-              <div className="text-sm font-semibold">Closing note</div>
-              <div className="mt-3 text-sm text-[color:var(--muted)]">{DEMO.closing_note}</div>
-            </div>
             <div className="flex flex-wrap gap-3">
               <Link className="btn btnGhost" href="/">
                 Back to home <span aria-hidden="true">→</span>
