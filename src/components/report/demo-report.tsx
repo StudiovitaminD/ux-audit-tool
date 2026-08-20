@@ -9,6 +9,7 @@ import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
 import { buildCriticalFindingsPages } from "./sections/FindingsSection";
 import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
+import { ThankYouPageSection } from "./sections/ThankYouPageSection";
 import type { ReportPage } from "./sections/shared";
 
 type ScorecardRow = {
@@ -866,6 +867,12 @@ export function DemoReport() {
       ...buildCompetitorAnalysisPages({ competitors }),
       ...buildCriticalFindingsPages({ findings: DEMO.findings_detailed as never }),
       ...buildQuickWinsRoadmapPages({ vm: coverVm as never }),
+      {
+        key: "thank_you",
+        title: "Thank You",
+        body: <ThankYouPageSection vm={coverVm as never} />,
+        variant: "cover",
+      },
     ];
   }, [coverVm, hydratedCompetitors]);
   const [page, setPage] = useState(0);

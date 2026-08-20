@@ -6,6 +6,7 @@ import { AIBucketAnswersSection } from "./sections/AIBucketAnswersSection";
 import { buildCriticalFindingsPages } from "./sections/FindingsSection";
 import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
 import { IntroPageSection } from "./sections/IntroPageSection";
+import { ThankYouPageSection } from "./sections/ThankYouPageSection";
 import type { ReportPage } from "./sections/shared";
 
 export type BuildReportPagesOptions = {
@@ -107,6 +108,14 @@ export function buildReportPages({
       locked: isLocked("quick_wins_roadmap"),
     })),
   );
+
+  pages.push({
+    key: "thank_you",
+    title: "Thank You",
+    body: <ThankYouPageSection vm={vm} />,
+    locked: isLocked("thank_you"),
+    variant: "cover",
+  });
 
   return pages;
 }
