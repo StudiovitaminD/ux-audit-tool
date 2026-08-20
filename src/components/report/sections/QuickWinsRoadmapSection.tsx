@@ -1,5 +1,5 @@
 import { asString } from "@/lib/report-model";
-import { BulletList, type SharedSectionProps } from "./shared";
+import type { SharedSectionProps } from "./shared";
 import type { ReportPage } from "./shared";
 
 type QuickWinRow = {
@@ -8,20 +8,11 @@ type QuickWinRow = {
   estimated_time?: unknown;
 };
 
-type RoadmapBlock = {
-  title: string;
-  items: string[];
-  continued?: boolean;
-};
-
 const QUICK_WINS_PAGE_CONTENT_LIMIT = 940;
 const QUICK_WINS_TABLE_BASE_HEIGHT = 120;
 const QUICK_WINS_ROW_GAP = 0;
 const QUICK_WINS_ROW_LINE_HEIGHT = 18;
 const QUICK_WINS_ROW_CHARS_PER_LINE = 54;
-const QUICK_WINS_ROADMAP_CARD_BASE_HEIGHT = 74;
-const QUICK_WINS_ROADMAP_ITEM_GAP = 8;
-const QUICK_WINS_ROADMAP_CHARS_PER_LINE = 56;
 
 function estimateTextHeight(text: string, charsPerLine: number, lineHeight: number) {
   const normalized = text.trim();
@@ -65,47 +56,14 @@ function splitQuickWinRows(rows: QuickWinRow[]) {
 
 function QuickWinsRoadmapBody({
   quickWins,
-  roadmapBlocks,
-  closingNote,
-  isLimitedCoverage,
-  suggestedNextSteps,
 }: {
   quickWins: QuickWinRow[];
-  roadmapBlocks: RoadmapBlock[];
-  closingNote: string;
-  isLimitedCoverage: boolean;
-  suggestedNextSteps: string[];
 }) {
-  if (isLimitedCoverage) {
-    return (
-      <div className="space-y-5">
-        <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-          <div className="text-sm font-semibold">Scoring skipped</div>
-          <div className="mt-3 text-sm text-[color:var(--muted)]">
-            Quick wins and roadmap were not generated because the report did not capture enough authenticated product evidence to support reliable prioritization.
-          </div>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5 lg:col-span-3">
-            <div className="text-sm font-semibold">Suggested next steps</div>
-            <BulletList items={suggestedNextSteps} emptyLabel="Add more evidence and re-run the audit." />
-          </div>
-        </div>
-
-        {closingNote ? (
-          <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-            <div className="text-sm font-semibold">Closing note</div>
-            <div className="mt-3 text-sm text-[color:var(--muted)]">{closingNote}</div>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
+  if (!quickWins.length) return null;
 
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-        <div className="text-sm font-semibold">Quick wins table</div>
         <div className="mt-4 overflow-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
@@ -137,24 +95,6 @@ function QuickWinsRoadmapBody({
           </table>
         </div>
       </div>
-
-      <div className="grid gap-4">
-        {roadmapBlocks.map((block) => (
-          <div key={block.title} className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-            <div className="text-sm font-semibold">
-              {block.title} {block.continued ? <span className="text-xs font-medium text-[color:var(--muted)]">continued</span> : null}
-            </div>
-            <BulletList items={block.items} emptyLabel="No actions listed." />
-          </div>
-        ))}
-      </div>
-
-      {closingNote ? (
-        <div className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5">
-          <div className="text-sm font-semibold">Closing note</div>
-          <div className="mt-3 text-sm text-[color:var(--muted)]">{closingNote}</div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -167,101 +107,34 @@ export function QuickWinsRoadmapSection({ vm }: SharedSectionProps) {
         recommendation: item.recommendation,
         estimated_time: item.estimated_time,
       }))}
-      roadmapBlocks={[
-        { title: "Week 1–2", items: vm.roadmap.week_1_2 },
-        { title: "Month 1", items: vm.roadmap.month_1 },
-        { title: "Quarter 1", items: vm.roadmap.quarter_1 },
-      ]}
-      closingNote={vm.closingNote}
-      isLimitedCoverage={vm.isLimitedCoverage}
-      suggestedNextSteps={vm.captureCoverage.suggestedNextSteps}
     />
   );
 }
 
 export function buildQuickWinsRoadmapPages({ vm }: SharedSectionProps): ReportPage[] {
-  if (vm.isLimitedCoverage) {
-    return [
-      {
-        key: "quick_wins_roadmap",
-        title: "Quick Wins & Roadmap",
-        body: (
-          <QuickWinsRoadmapBody
-            quickWins={[]}
-            roadmapBlocks={[]}
-            closingNote={vm.closingNote}
-            isLimitedCoverage={true}
-            suggestedNextSteps={vm.captureCoverage.suggestedNextSteps}
-          />
-        ),
-        variant: "standard",
-      },
-    ];
-  }
-
   const quickWins = vm.quickWinsTable.map((item) => ({
     finding: item.finding,
     recommendation: item.recommendation,
     estimated_time: item.estimated_time,
   }));
   const tablePages = splitQuickWinRows(quickWins);
-  const roadmapBlocks: RoadmapBlock[] = [
-    { title: "Week 1–2", items: vm.roadmap.week_1_2 },
-    { title: "Month 1", items: vm.roadmap.month_1 },
-    { title: "Quarter 1", items: vm.roadmap.quarter_1 },
-  ];
   const pages: ReportPage[] = [];
+
+  if (!quickWins.length) return pages;
 
   tablePages.forEach((pageRows, index) => {
     pages.push({
       key: `quick_wins_roadmap_table_${index + 1}`,
-      title: "Quick Wins & Roadmap",
+      title: "Quick Wins",
       body: (
         <QuickWinsRoadmapBody
           quickWins={pageRows}
-          roadmapBlocks={[]}
-          closingNote=""
-          isLimitedCoverage={false}
-          suggestedNextSteps={[]}
         />
       ),
       variant: "standard",
       showTitle: index === 0,
     });
   });
-
-  pages.push({
-    key: "quick_wins_roadmap_roadmap",
-    title: "Quick Wins & Roadmap",
-    body: (
-      <QuickWinsRoadmapBody
-        quickWins={[]}
-        roadmapBlocks={roadmapBlocks}
-        closingNote={vm.closingNote}
-        isLimitedCoverage={false}
-        suggestedNextSteps={[]}
-      />
-    ),
-    variant: "standard",
-    showTitle: false,
-  });
-
-  if (!pages.length) {
-    pages.push({
-      key: "quick_wins_roadmap",
-      title: "Quick Wins & Roadmap",
-      body: (
-        <QuickWinsRoadmapBody
-          quickWins={[]}
-          roadmapBlocks={[]}
-          closingNote={vm.closingNote}
-          isLimitedCoverage={false}
-          suggestedNextSteps={[]}
-        />
-      ),
-      variant: "standard",
-    });
-  }
 
   return pages;
 }
