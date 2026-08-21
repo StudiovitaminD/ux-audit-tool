@@ -76,12 +76,6 @@ type Pillar = BucketRow["pillar"];
 
 const pillarOrder: Pillar[] = ["Accessibility", "Impact", "Delight"];
 
-function pillarClass(pillar: Pillar) {
-  if (pillar === "Impact") return "text-amber-300";
-  if (pillar === "Delight") return "text-sky-300";
-  return "text-rose-300";
-}
-
 function groupRowsByPillar() {
   return pillarOrder.map((pillar) => ({
     pillar,
@@ -153,9 +147,12 @@ export function BucketPicker({
                         rowSpan={pillarRows.length}
                         className="border-r border-[color:var(--card-border)]/60 align-middle px-1 py-0 text-center"
                       >
-                        <div className={`mx-auto [writing-mode:vertical-rl] rotate-180 text-[8px] font-semibold uppercase tracking-[0.12em] leading-none ${pillarClass(pillar)}`}>
+                        <h4
+                          className="mx-auto m-0 w-fit whitespace-nowrap text-center [writing-mode:vertical-rl] rotate-180 normal-case tracking-normal leading-none"
+                          style={{ color: "var(--ink)", fontSize: "14px" }}
+                        >
                           {pillar}
-                        </div>
+                        </h4>
                       </td>
                     ) : null}
                     <td className="px-4 py-3.5">
