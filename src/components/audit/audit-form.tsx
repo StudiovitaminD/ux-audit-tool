@@ -1521,7 +1521,7 @@ export function AuditForm() {
             {steps.map((s) => {
               const done = completion.has(s.id);
               const active = activeStep === s.id;
-              const isLocked = s.id > 1 && !completion.has(1);
+              const isLocked = s.id > firstIncompleteStep;
               return (
                 <button
                   key={s.id}
@@ -1872,15 +1872,15 @@ export function AuditForm() {
                       {index > 0 ? (
                         <button
                           type="button"
-                          className="inline-flex size-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 shadow-sm transition-colors hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+                          className="inline-flex size-9 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                           onClick={() => removePersonaCard(index)}
                           aria-label={`Remove persona ${String(index + 1).padStart(2, "0")}`}
                         >
                           <img
-                            src="/delete.png"
+                            src="/delete-cropped.png"
                             alt=""
                             aria-hidden="true"
-                            className="size-5 object-contain"
+                            className="size-7 object-contain"
                           />
                         </button>
                       ) : (
@@ -2002,7 +2002,7 @@ export function AuditForm() {
                     {idx > 0 ? (
                       <button
                         type="button"
-                        className="inline-flex size-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 shadow-sm transition-colors hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+                        className="inline-flex size-9 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                         onClick={() =>
                           setPayload((p) => ({
                             ...p,
@@ -2014,10 +2014,10 @@ export function AuditForm() {
                         aria-label={`Remove competitor ${String(idx + 1).padStart(2, "0")}`}
                       >
                         <img
-                          src="/delete.png"
+                          src="/delete-cropped.png"
                           alt=""
                           aria-hidden="true"
-                          className="size-5 object-contain"
+                          className="size-7 object-contain"
                         />
                       </button>
                     ) : (
