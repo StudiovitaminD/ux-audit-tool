@@ -47,7 +47,7 @@ export function IntakeAssistant({
   const hasTranscript = transcript.trim().length > 0 || Boolean(fileName);
   const triggerLabel = hasTranscript ? "View meeting transcript" : "Upload meeting transcript";
   const triggerButtonClass =
-    "inline-flex items-center justify-center rounded-full border border-[#f57f15] bg-[#ff8a1f] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(255,138,31,0.24)] transition-colors hover:bg-[#f57f15] dark:border-[#f57f15] dark:bg-[#ff8a1f] dark:text-white dark:hover:bg-[#f57f15]";
+    "inline-flex items-center justify-center rounded-full border border-[#ff8a1f] bg-white px-5 py-3 text-sm font-semibold text-[#ff8a1f] shadow-[0_10px_20px_rgba(255,138,31,0.14)] transition-colors hover:border-[#f57f15] hover:text-[#f57f15] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f] dark:hover:border-[#f57f15] dark:hover:text-[#f57f15]";
 
   const helperText = useMemo(
     () =>
@@ -106,8 +106,8 @@ export function IntakeAssistant({
             placement === "fixed"
               ? triggerButtonClass
               : placement === "header"
-                ? "inline-flex items-center justify-center rounded-full border border-[#f57f15] bg-[#ff8a1f] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(255,138,31,0.24)] transition-colors hover:bg-[#f57f15] dark:border-[#f57f15] dark:bg-[#ff8a1f] dark:text-white dark:hover:bg-[#f57f15]"
-              : "inline-flex w-full max-w-sm items-center justify-center rounded-full border border-[#f57f15] bg-[#ff8a1f] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(255,138,31,0.24)] transition-colors hover:bg-[#f57f15] dark:border-[#f57f15] dark:bg-[#ff8a1f] dark:text-white dark:hover:bg-[#f57f15] sm:w-auto"
+                ? "inline-flex items-center justify-center rounded-full border border-[#ff8a1f] bg-white px-4 py-2 text-sm font-semibold text-[#ff8a1f] shadow-[0_10px_20px_rgba(255,138,31,0.14)] transition-colors hover:border-[#f57f15] hover:text-[#f57f15] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f] dark:hover:border-[#f57f15] dark:hover:text-[#f57f15]"
+              : "inline-flex w-full max-w-sm items-center justify-center rounded-full border border-[#ff8a1f] bg-white px-5 py-3 text-sm font-semibold text-[#ff8a1f] shadow-[0_10px_20px_rgba(255,138,31,0.14)] transition-colors hover:border-[#f57f15] hover:text-[#f57f15] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f] dark:hover:border-[#f57f15] dark:hover:text-[#f57f15] sm:w-auto"
           }
           onClick={() => setOpen(true)}
           aria-label={triggerLabel}
@@ -143,7 +143,7 @@ export function IntakeAssistant({
               <div className="text-xs text-white/75">{helperText}</div>
 
               <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#f57f15] bg-[#ff8a1f] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(255,138,31,0.18)] transition-colors hover:bg-[#f57f15]">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#ff8a1f] bg-white px-5 py-3 text-sm font-semibold text-[#ff8a1f] shadow-[0_10px_20px_rgba(255,138,31,0.14)] transition-colors hover:border-[#f57f15] hover:text-[#f57f15]">
                   <input
                     type="file"
                     accept=".txt,.md,text/plain"
