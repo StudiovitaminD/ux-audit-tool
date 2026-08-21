@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { calculateBusinessImpactMetrics, displayBucketName } from "@/lib/report-model";
 import { IntroPageSection } from "./sections/IntroPageSection";
@@ -723,7 +722,6 @@ export function DemoReport() {
   const [hydratedCompetitors, setHydratedCompetitors] = useState<DemoCompetitor[]>(
     DEMO.competitor_analysis as DemoCompetitor[],
   );
-  const [demoStopped, setDemoStopped] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -878,15 +876,6 @@ export function DemoReport() {
   const [page, setPage] = useState(0);
   const current = pages[page]!;
 
-  function stopDemoReport() {
-    setDemoStopped(true);
-  }
-
-  function resetDemoReport() {
-    setDemoStopped(false);
-    setPage(0);
-  }
-
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [page]);
@@ -902,95 +891,69 @@ export function DemoReport() {
         </div>
       </div>
 
-      {demoStopped ? (
-        <div className="mt-5 flex-1 min-h-0 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-8">
-          <div className="max-w-2xl">
-            <div className="text-lg font-semibold">Report stopped</div>
-            <div className="mt-3 text-sm text-[color:var(--ink-muted)]">
-              The sample report is paused so you can go back, adjust the form, and send it again.
-              This only affects the demo preview.
-            </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link className="btnPrimary" href="/audit">
-                Edit audit form
-              </Link>
-              <button
-                type="button"
-                onClick={resetDemoReport}
-                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
-              >
-                View report again
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
+      <div
+        className="mt-5 flex-1 min-h-0 overflow-x-auto"
+        data-report-live-canvas
+        data-current-page={page + 1}
+        data-total-pages={pages.length}
+      >
         <div
-          className="mt-5 flex-1 min-h-0 overflow-x-auto"
-          data-report-live-canvas
-          data-current-page={page + 1}
-          data-total-pages={pages.length}
+          className={`report-a4-page print-page mt-5 print-report-root ${
+            current.variant === "cover"
+              ? "report-a4-page-cover bg-[#fc6d27]"
+              : current.title === "Overview"
+                ? "report-a4-page-overview"
+              : "bg-[color:var(--white)]"
+          }`}
+          data-report-live-page
+          data-report-page-title={current.title}
         >
-          <div
-            className={`report-a4-page print-page mt-5 print-report-root ${
-              current.variant === "cover"
-                ? "report-a4-page-cover bg-[#fc6d27]"
-                : current.title === "Overview"
-                  ? "report-a4-page-overview"
-                : "bg-[color:var(--white)]"
-            }`}
-            data-report-live-page
-            data-report-page-title={current.title}
-          >
-            <div className={`report-a4-page-inner relative ${current.variant === "cover" ? "h-full" : ""}`}>
-              {current.variant === "cover" ? (
-                <div className="flex h-full min-h-0 flex-col">
-                  <div className="h-full">{current.body}</div>
-                </div>
-            ) : (
+          <div className={`report-a4-page-inner relative ${current.variant === "cover" ? "h-full" : ""}`}>
+            {current.variant === "cover" ? (
               <div className="flex h-full min-h-0 flex-col">
-                <div className="report-a4-page-body">
-                  {current.showTitle !== false ? (
+                <div className="h-full">{current.body}</div>
+              </div>
+          ) : (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="report-a4-page-body">
+                {current.showTitle !== false ? (
+                  <div
+                    className={`mb-5 flex flex-col items-start gap-1 self-stretch ${
+                      current.title === "Overview"
+                        ? "pb-0"
+                        : "border-b border-[rgba(15,23,42,0.14)] pb-4"
+                    }`}
+                  >
                     <div
-                      className={`mb-5 flex flex-col items-start gap-1 self-stretch ${
-                        current.title === "Overview"
-                          ? "pb-0"
-                          : "border-b border-[rgba(15,23,42,0.14)] pb-4"
-                      }`}
+                      className="text-[24px] font-bold leading-normal text-[color:var(--report-black)]"
+                      style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
                     >
-                      <div
-                        className="text-[24px] font-bold leading-normal text-[color:var(--report-black)]"
-                        style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
-                      >
-                        {current.title}
-                      </div>
+                      {current.title}
                     </div>
-                  ) : null}
-                  {current.body}
-                </div>
-                  <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-white)]">
-                    <div>Page {page + 1}</div>
-                    <div>UX Audit Report</div>
                   </div>
+                ) : null}
+                {current.body}
+              </div>
+                <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-white)]">
+                  <div>Page {page + 1}</div>
+                  <div>UX Audit Report</div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       <div className="no-print fixed inset-x-6 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-[color:var(--ink-muted)]">
-            {demoStopped ? "Demo paused" : `Page ${page + 1} / ${pages.length}`}
-          </div>
+          <div className="text-sm text-[color:var(--ink-muted)]">{`Page ${page + 1} / ${pages.length}`}</div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0 || demoStopped}
-              style={page === 0 || demoStopped ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+              disabled={page === 0}
+              style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
             >
               ← Prev
             </button>
@@ -998,12 +961,8 @@ export function DemoReport() {
               type="button"
               className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
               onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
-              disabled={page === pages.length - 1 || demoStopped}
-              style={
-                page === pages.length - 1 || demoStopped
-                  ? { opacity: 0.5, pointerEvents: "none" }
-                  : undefined
-              }
+              disabled={page === pages.length - 1}
+              style={page === pages.length - 1 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
             >
               Next →
             </button>

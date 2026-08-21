@@ -328,7 +328,6 @@ export function ReportView() {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingPptx, setDownloadingPptx] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [stoppingReport, setStoppingReport] = useState(false);
   const [retryingReport, setRetryingReport] = useState(false);
   const [reportHistory, setReportHistory] = useState<
     Array<{
@@ -463,36 +462,6 @@ export function ReportView() {
       processInFlightRef.current = false;
     }
   }, [rid, status]);
-
-  async function stopReport() {
-    if (!reportId || stoppingReport) return;
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm("Stop this report and open the audit form so you can update it?")
-    ) {
-      return;
-    }
-
-    setStoppingReport(true);
-    setJobError(null);
-    setLastError(null);
-
-    try {
-      const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/cancel`, {
-        method: "POST",
-        headers: sessionHeaders,
-      });
-      const data = (await res.json().catch(() => null)) as { error?: string; status?: string } | null;
-      if (!res.ok) throw new Error(data?.error || `Failed to stop report (${res.status})`);
-
-      setStatus("cancelled");
-      router.push(`/audit?sourceReport=${encodeURIComponent(reportId)}`);
-    } catch (error) {
-      setJobError(error instanceof Error ? error.message : "Failed to stop report");
-    } finally {
-      setStoppingReport(false);
-    }
-  }
 
   async function retryReportGeneration() {
     if (!reportId || retryingReport) return;
@@ -1082,15 +1051,9 @@ export function ReportView() {
       <div className="p-6">
         <div className="text-lg font-semibold">Report stopped</div>
         <div className="mt-3 text-sm text-[color:var(--muted)]">
-          The current report run was cancelled so you can fix the audit form and send it again.
+          The current report run was cancelled.
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Link
-            href={`/audit?sourceReport=${encodeURIComponent(reportId)}`}
-            className="btnPrimary"
-          >
-            Edit audit form
-          </Link>
           <button
             type="button"
             onClick={() => void retryReportGeneration()}
@@ -1181,16 +1144,6 @@ export function ReportView() {
         {debugDetails ? (
           <CapturePipelineDebug debug={debugDetails} />
         ) : null}
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={stopReport}
-            disabled={stoppingReport}
-            className="rounded-full border border-red-200 bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {stoppingReport ? "Stopping…" : "Stop & edit"}
-          </button>
-        </div>
       </div>
     );
   }
