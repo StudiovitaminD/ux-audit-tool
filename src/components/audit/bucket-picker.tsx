@@ -1,4 +1,4 @@
-const bucketRows = [
+export const bucketRows = [
   {
     bucket: "Visual Feedback",
     pillar: "Accessibility",

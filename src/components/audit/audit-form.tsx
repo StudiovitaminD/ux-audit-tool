@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Field, Select, Textarea, TextInput } from "@/components/ui/field";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { BucketPicker } from "@/components/audit/bucket-picker";
+import { BucketPicker, bucketRows } from "@/components/audit/bucket-picker";
 import { IntakeAssistant } from "@/components/audit/intake-assistant";
 import {
   AUDIT_DEFAULTS,
@@ -1091,6 +1091,13 @@ export function AuditForm() {
     setPersonaCards((cards) => (cards.length > 1 ? cards.filter((_, itemIdx) => itemIdx !== index) : cards));
   }
 
+  function selectAllBuckets() {
+    setPayload((p) => ({
+      ...p,
+      selectedBuckets: bucketRows.map((row) => row.bucket),
+    }));
+  }
+
   // ADDED
   function updateDynamic(next: Record<string, string | undefined>) {
     if (!primaryType) return;
@@ -1769,7 +1776,20 @@ export function AuditForm() {
 
         {activeStep === 2 ? (
           <Card className="p-5">
-            <SectionHeader title="Audit Buckets" />
+            <SectionHeader
+              title="Audit Buckets"
+              action={
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={selectAllBuckets}
+                  className="whitespace-nowrap"
+                >
+                  Select all
+                </Button>
+              }
+            />
             <div className="mt-3">
               <BucketPicker
                 value={payload.selectedBuckets}
