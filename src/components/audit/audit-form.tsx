@@ -995,6 +995,7 @@ export function AuditForm() {
       window.scrollTo({ top: 0, behavior: "auto" });
       formRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
     });
+    router.replace("/report");
   }
 
   function updatePersonaCard(index: number, patch: Partial<PersonaCard>) {
