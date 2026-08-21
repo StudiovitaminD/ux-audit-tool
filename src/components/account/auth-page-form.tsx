@@ -131,6 +131,17 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
     <section className="flex h-full w-full items-center justify-center px-6">
       <div className="w-full max-w-[550px]">
         <div className="rounded-[32px] border border-[color:var(--cream-dark)] bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.06)] sm:p-10">
+          <div className="mb-8 flex items-center justify-center gap-3 text-[color:var(--ink)]">
+            <img
+              src="/tool%20logo.svg"
+              alt="Design AID Audit"
+              className="h-12 w-12 shrink-0 object-contain"
+              draggable={false}
+            />
+            <span className="text-[26px] font-bold tracking-[-0.04em] sm:text-[30px]">
+              Design AID Audit
+            </span>
+          </div>
           <h2 className="text-center">
             {isSignUp ? "Sign up to save and unlock reports" : "Sign in to continue your audit"}
           </h2>

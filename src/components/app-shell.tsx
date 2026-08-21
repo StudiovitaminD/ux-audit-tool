@@ -21,12 +21,12 @@ export function AppShell({ children }: PropsWithChildren) {
 
   return (
     <div className={isAuthRoute ? "h-dvh overflow-hidden" : "min-h-dvh"}>
-      <Navbar />
+      {isAuthRoute ? null : <Navbar />}
       <main
         id="main"
         className={
           isAuthRoute
-            ? "fixed inset-x-0 bottom-0 top-[104px] w-full overflow-hidden pt-0"
+            ? "fixed inset-0 w-full overflow-hidden pt-0"
             : "mt-20 mx-16 mb-16 min-h-dvh w-[calc(100%-8rem)] pt-0"
         }
       >
