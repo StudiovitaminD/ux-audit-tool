@@ -902,9 +902,20 @@ export function ReportView() {
                           data-no-card-nav
                           onClick={() => deleteReport(item.id)}
                           disabled={deletingReportId === item.id}
-                          className="rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-red-200 bg-white text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={deletingReportId === item.id ? "Deleting report" : "Delete report"}
                         >
-                          {deletingReportId === item.id ? "Deleting…" : "Delete"}
+                          {deletingReportId === item.id ? (
+                            <span className="text-xs font-medium">…</span>
+                          ) : (
+                            <img
+                              src="/delete.png"
+                              alt=""
+                              aria-hidden="true"
+                              className="h-5 w-5 object-contain"
+                              draggable={false}
+                            />
+                          )}
                         </button>
                       </div>
                     </div>
