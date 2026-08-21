@@ -60,6 +60,11 @@ export function Navbar() {
 
   const isGuest = session.email === "guest@local.test";
   const showAdminLinks = sessionLoaded && session.role === "admin";
+  const displayName =
+    session.name?.trim() ||
+    (session.email && session.email !== "guest@local.test"
+      ? session.email.split("@")[0].replace(/[._-]+/g, " ")
+      : "");
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 w-full bg-[#f6f1e8] px-16 pt-5 text-[#191919]">
@@ -99,13 +104,17 @@ export function Navbar() {
               Sign in
             </Link>
           ) : (
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition"
-            >
-              Log out
-            </button>
+            <div className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium transition">
+              <span className="text-[#191919]">{displayName}</span>
+              <span className="mx-2 text-[#191919]/35">|</span>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-[#e53935] transition hover:text-[#e53935]/85"
+              >
+                Log out
+              </button>
+            </div>
           )}
 
         </div>
