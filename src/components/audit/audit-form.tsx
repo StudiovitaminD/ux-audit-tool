@@ -110,7 +110,10 @@ function createFreshAuditPayload(): AuditPayload {
   return JSON.parse(JSON.stringify(AUDIT_DEFAULTS)) as AuditPayload;
 }
 
+type PersonaType = "primary" | "secondary";
+
 type PersonaCard = {
+  personaType: PersonaType | "";
   primaryUser: string;
   userAge: string;
   userGender: string;
@@ -190,8 +193,9 @@ function splitCommaSeparatedList(value: string) {
     .filter(Boolean);
 }
 
-function createEmptyPersonaCard(): PersonaCard {
+function createEmptyPersonaCard(personaType: PersonaType | "" = "secondary"): PersonaCard {
   return {
+    personaType,
     primaryUser: "",
     userAge: "",
     userGender: "",
@@ -204,6 +208,7 @@ function createEmptyPersonaCard(): PersonaCard {
 
 function serializePersonaCard(card: PersonaCard) {
   return [
+    `Persona type: ${card.personaType || "secondary"}`.trim(),
     `Primary users: ${card.primaryUser}`.trim(),
     `Age group: ${card.userAge}`.trim(),
     `User gender: ${card.userGender}`.trim(),
@@ -215,7 +220,7 @@ function serializePersonaCard(card: PersonaCard) {
 }
 
 function parsePersonaCard(value: string): PersonaCard | null {
-  const card = createEmptyPersonaCard();
+  const card = createEmptyPersonaCard("");
   const lines = value
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -229,6 +234,12 @@ function parsePersonaCard(value: string): PersonaCard | null {
     const label = line.slice(0, separatorIndex).trim().toLowerCase();
     const valueText = line.slice(separatorIndex + 1).trim();
     if (!valueText) continue;
+    if (label === "persona type") {
+      const normalized = valueText.toLowerCase();
+      if (normalized === "primary" || normalized === "secondary") {
+        card.personaType = normalized;
+      }
+    }
     if (label === "primary users") card.primaryUser = valueText;
     if (label === "age group") card.userAge = valueText;
     if (label === "user gender") card.userGender = valueText;
@@ -243,13 +254,21 @@ function parsePersonaCard(value: string): PersonaCard | null {
 
 function personaCardsFromPayload(payload: AuditPayload): PersonaCard[] {
   const parsedCards = payload.userPersona
-    .map((entry) => parsePersonaCard(entry))
+    .map((entry, index) => {
+      const card = parsePersonaCard(entry);
+      if (!card) return null;
+      if (card.personaType !== "primary" && card.personaType !== "secondary") {
+        card.personaType = index === 0 ? "primary" : "secondary";
+      }
+      return card;
+    })
     .filter((entry): entry is PersonaCard => entry !== null);
 
   if (parsedCards.length > 0) return parsedCards;
 
   return [
     {
+      personaType: "primary",
       primaryUser: payload.primaryUser,
       userAge: payload.userAge,
       userGender: payload.userGender,
@@ -437,7 +456,7 @@ export function AuditForm() {
   const [creatingIdx, setCreatingIdx] = useState(0);
   const [prefillLoading, setPrefillLoading] = useState(false);
   const [personaCards, setPersonaCards] = useState<PersonaCard[]>(() => [
-    createEmptyPersonaCard(),
+    createEmptyPersonaCard("primary"),
   ]);
   const formRef = useRef<HTMLFormElement | null>(null);
 
@@ -654,11 +673,12 @@ export function AuditForm() {
   }, [payload.accessMode, primaryType]);
 
   useEffect(() => {
-    const nextPrimary = personaCards[0] ?? createEmptyPersonaCard();
+    const nextPrimary = personaCards[0] ?? createEmptyPersonaCard("primary");
     const nextUserPersona = personaCards.map((card) => serializePersonaCard(card));
 
     setPayload((prev) => {
       if (
+        prev.userPersona.length === nextUserPersona.length &&
         prev.primaryUser === nextPrimary.primaryUser &&
         prev.userAge === nextPrimary.userAge &&
         prev.userGender === nextPrimary.userGender &&
@@ -666,7 +686,6 @@ export function AuditForm() {
         prev.primaryUserIntent === nextPrimary.primaryUserIntent &&
         prev.userGeography === nextPrimary.userGeography &&
         prev.primaryUserGoal === nextPrimary.primaryUserGoal &&
-        prev.userPersona.length === nextUserPersona.length &&
         prev.userPersona.every((entry, index) => entry === nextUserPersona[index])
       ) {
         return prev;
@@ -1030,7 +1049,7 @@ export function AuditForm() {
     setExtractError(null);
     setTranscriptFileName(null);
     setCustomAuditGoal("");
-    setPersonaCards([createEmptyPersonaCard()]);
+    setPersonaCards([createEmptyPersonaCard("primary")]);
     setPayload({
       ...createFreshAuditPayload(),
       userAccess: auditUserAccessFromSession(appSession),
@@ -1863,9 +1882,23 @@ export function AuditForm() {
                     key={index}
                     className="rounded-2xl border border-[#e5e0d4] bg-white/70 p-5 sm:p-6"
                   >
-                    <div className="mb-5 flex items-center justify-center gap-3">
-                      <div className="text-lg font-bold text-[color:var(--ink)]">
-                        {String(index + 1).padStart(2, "0")} User persona
+                    <div className="mb-5 flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="text-lg font-bold text-[color:var(--ink)]">
+                          {String(index + 1).padStart(2, "0")} User persona
+                        </div>
+                        <Select
+                          value={persona.personaType || "secondary"}
+                          onChange={(e) =>
+                            updatePersonaCard(index, {
+                              personaType: e.target.value as PersonaType,
+                            })
+                          }
+                          className="h-9 w-32 rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] px-3 pr-8 text-xs font-semibold text-[color:var(--ink)] shadow-none"
+                        >
+                          <option value="primary">Primary</option>
+                          <option value="secondary">Secondary</option>
+                        </Select>
                       </div>
                       {index > 0 ? (
                         <button
@@ -1993,7 +2026,7 @@ export function AuditForm() {
                   key={idx}
                   className="rounded-xl border border-[#e5e0d4] bg-white/70 p-4 sm:p-5"
                 >
-                  <div className="mb-4 flex items-center justify-center gap-3">
+                  <div className="mb-4 flex items-start justify-between gap-3">
                     <div className="text-sm font-medium text-neutral-500">
                       Competitor {String(idx + 1).padStart(2, "0")}
                     </div>
