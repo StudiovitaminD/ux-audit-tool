@@ -42,6 +42,8 @@ export function IntakeAssistant({
 
   const transcript = payload.artifacts.notes || "";
   const canExtract = transcript.trim().length > 0 && !busy;
+  const hasTranscript = transcript.trim().length > 0 || Boolean(fileName);
+  const triggerLabel = hasTranscript ? "View meeting transcript" : "Upload meeting transcript";
 
   const helperText = useMemo(
     () =>
@@ -88,18 +90,18 @@ export function IntakeAssistant({
       <div className="fixed bottom-5 right-5 z-[9999]">
         <Button
           type="button"
-          className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 shadow-xl hover:opacity-95"
+          className="inline-flex items-center gap-3 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-xl hover:opacity-95"
           onClick={() => setOpen(true)}
-          aria-label="Upload transcript"
-          title="Upload transcript"
+          aria-label={triggerLabel}
+          title={triggerLabel}
         >
-          {/* upload icon */}
           <svg
             width="22"
             height="22"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
           >
             <path
               d="M12 16V4"
@@ -121,6 +123,7 @@ export function IntakeAssistant({
               strokeLinecap="round"
             />
           </svg>
+          <span className="whitespace-nowrap">{triggerLabel}</span>
         </Button>
       </div>
 
@@ -169,7 +172,7 @@ export function IntakeAssistant({
                   Upload transcript
                 </label>
                 {fileName ? (
-                  <div className="text-xs text-white/65">Loaded: {fileName}</div>
+                      <div className="text-xs text-white/65">Loaded: {fileName}</div>
                 ) : null}
               </div>
 
@@ -211,4 +214,3 @@ export function IntakeAssistant({
     </>
   );
 }
-
