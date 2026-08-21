@@ -1487,16 +1487,23 @@ export function AuditForm() {
             {steps.map((s) => {
               const done = completion.has(s.id);
               const active = activeStep === s.id;
+              const isLocked = s.id > 1 && !completion.has(1);
               return (
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => goto(s.id)}
+                  onClick={() => {
+                    if (isLocked) return;
+                    goto(s.id);
+                  }}
+                  disabled={isLocked}
                   className={[
-                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all border border-transparent",
+                    "flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition-all",
                     active
                       ? "bg-[color:var(--cream-dark)] dark:bg-[color:var(--white)] border-[color:var(--cream-mid)] text-[color:var(--ink)] shadow-sm font-semibold scale-[1.02]"
-                      : "hover:bg-[color:var(--cream-dark)]/50 dark:hover:bg-[color:var(--white)]/50 text-[color:var(--ink-muted)] hover:text-[color:var(--ink)]",
+                      : isLocked
+                        ? "cursor-not-allowed opacity-50 text-[color:var(--ink-muted)]"
+                        : "hover:bg-[color:var(--cream-dark)]/50 dark:hover:bg-[color:var(--white)]/50 text-[color:var(--ink-muted)] hover:text-[color:var(--ink)]",
                   ].join(" ")}
                 >
                   <div
@@ -1537,7 +1544,7 @@ export function AuditForm() {
           <Card className="p-5">
             <div className="mb-5 flex items-center justify-between gap-4 border-b border-[color:var(--cream-dark)] pb-5">
               <div>
-                <h2 className="font-display text-lg font-medium tracking-tight">Audit Details</h2>
+                <h2 className="font-display text-lg font-semibold tracking-tight">Audit Details</h2>
               </div>
               <IntakeAssistant payload={payload} setPayload={setPayload} placement="header" />
             </div>
