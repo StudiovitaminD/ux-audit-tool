@@ -11,8 +11,8 @@ function cx(...classes: Array<string | undefined | false>) {
 function baseClasses({ variant, size }: { variant: Variant; size: Size }) {
   const sizes: Record<Size, string> = {
     sm: "px-4 py-2 text-sm",
-    md: "px-6 py-3 text-sm",
-    lg: "px-7 py-3.5 text-[15px]",
+    md: "px-4 py-2 text-sm",
+    lg: "px-4 py-2 text-sm",
   };
 
   const variants: Record<Variant, string> = {

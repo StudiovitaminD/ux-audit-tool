@@ -219,6 +219,23 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
   box-shadow: 0 10px 20px rgba(255, 138, 31, 0.2);
 }
 
+body.app-route :is(
+  button,
+  a.btnPrimary,
+  a.btnSecondary,
+  a.btnGhost,
+  button.btnPrimary,
+  button.btnSecondary,
+  button.btnGhost,
+  a.inline-flex,
+  button.inline-flex
+) {
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
 .btnPrimary:hover {
   background: color-mix(in srgb, var(--accent) 88%, black);
   transform: translateY(-1px);

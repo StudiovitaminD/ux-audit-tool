@@ -1,12 +1,23 @@
 "use client";
 
 import { PropsWithChildren } from "react";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Navbar } from "@/components/navbar";
 
 export function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const isAuthRoute = pathname === "/sign-in" || pathname === "/sign-up";
+
+  useEffect(() => {
+    const root = document.body;
+    root.classList.toggle("app-route", !isAuthRoute);
+    root.classList.toggle("auth-route", isAuthRoute);
+
+    return () => {
+      root.classList.remove("app-route", "auth-route");
+    };
+  }, [isAuthRoute]);
 
   return (
     <div className={isAuthRoute ? "h-dvh overflow-hidden" : "min-h-dvh"}>
