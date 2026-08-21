@@ -793,9 +793,14 @@ export function ReportView() {
           <div>
             <div className="text-3xl font-semibold">Reports</div>
           </div>
-          <Link className="text-sm font-medium text-[#ff7a1a] hover:text-[#ff7a1a]/85" href="/report?demo=1">
-            View sample report
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link className="text-sm font-medium text-[#ff7a1a] hover:text-[#ff7a1a]/85" href="/report?demo=1">
+              View sample report
+            </Link>
+            <Link className="btnPrimary" href="/audit">
+              Start Audit <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
 
         {loadingHistory ? (

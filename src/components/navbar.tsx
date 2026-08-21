@@ -108,12 +108,6 @@ export function Navbar() {
             </button>
           )}
 
-          <Link
-            href="/audit"
-            className="inline-flex items-center rounded-full bg-[#101010] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5"
-          >
-            Start audit <span className="ml-1.5" aria-hidden="true">→</span>
-          </Link>
         </div>
       </div>
     </header>
