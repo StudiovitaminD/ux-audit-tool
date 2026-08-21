@@ -1882,9 +1882,9 @@ export function AuditForm() {
                     key={index}
                     className="rounded-2xl border border-[#e5e0d4] bg-white/70 p-5 sm:p-6"
                   >
-                    <div className="mb-5 flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="text-lg font-bold text-[color:var(--ink)]">
+                    <div className="mb-5 flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 flex-nowrap items-center gap-3">
+                        <div className="shrink-0 text-xl font-semibold text-[color:var(--ink)]">
                           {String(index + 1).padStart(2, "0")} User persona
                         </div>
                         <Select
@@ -1894,7 +1894,7 @@ export function AuditForm() {
                               personaType: e.target.value as PersonaType,
                             })
                           }
-                          className="h-9 w-32 rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] px-3 pr-8 text-xs font-semibold text-[color:var(--ink)] shadow-none"
+                          className="h-9 w-32 shrink-0 rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] px-3 pr-8 text-xs font-semibold text-[color:var(--ink)] shadow-none"
                         >
                           <option value="primary">Primary</option>
                           <option value="secondary">Secondary</option>
@@ -2026,8 +2026,8 @@ export function AuditForm() {
                   key={idx}
                   className="rounded-xl border border-[#e5e0d4] bg-white/70 p-4 sm:p-5"
                 >
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div className="text-sm font-medium text-neutral-500">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="text-base font-semibold text-neutral-500">
                       Competitor {String(idx + 1).padStart(2, "0")}
                     </div>
                     {idx > 0 ? (
