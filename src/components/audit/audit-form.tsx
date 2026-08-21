@@ -1542,7 +1542,7 @@ export function AuditForm() {
         {/* UPDATED: Step 1 always renders so the user can start immediately */}
         {activeStep === 1 ? (
           <Card className="p-5">
-            <div className="mb-5 flex items-center justify-between gap-4 border-b border-[color:var(--cream-dark)] pb-5">
+            <div className="mb-8 flex items-center justify-between gap-4 border-b border-[color:var(--cream-dark)] pb-8">
               <div>
                 <h2 className="font-display text-lg font-semibold tracking-tight">Audit Details</h2>
               </div>
