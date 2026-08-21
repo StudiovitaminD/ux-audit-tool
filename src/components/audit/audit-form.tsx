@@ -1863,16 +1863,14 @@ export function AuditForm() {
                     key={index}
                     className="rounded-2xl border border-[#e5e0d4] bg-white/70 p-5 sm:p-6"
                   >
-                    <div className="mb-5 flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-lg font-bold text-[color:var(--ink)]">
-                          {String(index + 1).padStart(2, "0")} User persona
-                        </div>
+                    <div className="mb-5 flex items-center justify-center gap-3">
+                      <div className="text-lg font-bold text-[color:var(--ink)]">
+                        {String(index + 1).padStart(2, "0")} User persona
                       </div>
                       {index > 0 ? (
                         <button
                           type="button"
-                          className="inline-flex size-11 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+                          className="inline-flex size-12 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                           onClick={() => removePersonaCard(index)}
                           aria-label={`Remove persona ${String(index + 1).padStart(2, "0")}`}
                         >
@@ -1880,11 +1878,11 @@ export function AuditForm() {
                             src="/delete-cropped.png"
                             alt=""
                             aria-hidden="true"
-                            className="size-9 object-contain"
+                            className="size-10 object-contain"
                           />
                         </button>
                       ) : (
-                        <div aria-hidden="true" className="h-11 w-11" />
+                        <div aria-hidden="true" className="h-12 w-12" />
                       )}
                     </div>
 
@@ -1995,14 +1993,14 @@ export function AuditForm() {
                   key={idx}
                   className="rounded-xl border border-[#e5e0d4] bg-white/70 p-4 sm:p-5"
                 >
-                  <div className="mb-4 flex items-start justify-between gap-3">
+                  <div className="mb-4 flex items-center justify-center gap-3">
                     <div className="text-sm font-medium text-neutral-500">
                       Competitor {String(idx + 1).padStart(2, "0")}
                     </div>
                     {idx > 0 ? (
                       <button
                         type="button"
-                        className="inline-flex size-11 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+                        className="inline-flex size-12 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                         onClick={() =>
                           setPayload((p) => ({
                             ...p,
@@ -2017,11 +2015,11 @@ export function AuditForm() {
                           src="/delete-cropped.png"
                           alt=""
                           aria-hidden="true"
-                          className="size-9 object-contain"
+                          className="size-10 object-contain"
                         />
                       </button>
                     ) : (
-                      <div aria-hidden="true" className="h-11 w-11" />
+                      <div aria-hidden="true" className="h-12 w-12" />
                     )}
                   </div>
                   <div className="grid gap-4 md:grid-cols-3">
