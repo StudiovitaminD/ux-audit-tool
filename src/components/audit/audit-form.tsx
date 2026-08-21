@@ -315,7 +315,7 @@ const accessModeOptions: AuditSelectOption[] = [
 ];
 
 const orangeFileInputClassName =
-  "block w-full text-sm text-zinc-600 file:mr-4 file:rounded-full file:border file:border-[#ff8a1f] file:bg-[#ff8a1f] file:px-5 file:py-3 file:text-sm file:font-semibold file:text-white file:transition file:hover:bg-[#f57f15] dark:text-zinc-300 dark:file:bg-[#ff8a1f] dark:file:text-white dark:file:border-[#ff8a1f] dark:file:hover:bg-[#f57f15]";
+  "block w-full text-sm text-zinc-600 file:mr-4 file:rounded-full file:border file:border-[#ff8a1f] file:bg-white file:px-5 file:py-3 file:text-sm file:font-semibold file:text-[#ff8a1f] dark:text-zinc-300 dark:file:bg-white dark:file:text-[#ff8a1f] dark:file:border-[#ff8a1f]";
 
 function accessModeOptionsFor(
   type: AuditPayload["product"]["type"],
