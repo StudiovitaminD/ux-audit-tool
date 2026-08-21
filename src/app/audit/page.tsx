@@ -6,7 +6,7 @@ export default function AuditPage() {
     <div className="m-16 mt-32 pb-16">
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="font-display text-3xl font-semibold tracking-tight">
+          <h2 className="font-display text-[24px] font-semibold leading-[1.15] tracking-tight">
             Audit Details
           </h2>
         </div>

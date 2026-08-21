@@ -2632,7 +2632,7 @@ Audit Flow for SCY Platform
             variant="secondary"
             onClick={handleCancelProcess}
             disabled={loading}
-            className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+            className="rounded-full border-red-300 px-5 py-2.5 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 hover:text-red-700 !border-red-300 !text-red-600"
           >
             Cancel
           </Button>

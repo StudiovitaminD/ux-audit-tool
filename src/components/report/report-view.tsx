@@ -767,7 +767,7 @@ export function ReportView() {
       <div className="m-0 w-full max-w-none px-6 pb-6 pt-10">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="font-display text-3xl font-semibold tracking-tight">Reports</h2>
+            <h2 className="font-display text-[24px] font-semibold leading-[1.15] tracking-tight">Reports</h2>
             <div className="mt-2 max-w-xl text-sm text-[color:var(--ink-muted)]">
               Search your saved reports by product name.
             </div>
