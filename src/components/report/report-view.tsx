@@ -797,9 +797,11 @@ export function ReportView() {
             <Link className="text-sm font-medium text-[#ff7a1a] hover:text-[#ff7a1a]/85" href="/report?demo=1">
               View sample report
             </Link>
-            <Link className="btnPrimary" href="/audit">
-              Start Audit <span aria-hidden="true">→</span>
-            </Link>
+            {reportHistory.length > 0 ? (
+              <Link className="btnPrimary" href="/audit">
+                Start Audit <span aria-hidden="true">→</span>
+              </Link>
+            ) : null}
           </div>
         </div>
 
@@ -819,11 +821,6 @@ export function ReportView() {
             <div className="text-lg font-semibold">No reports yet</div>
             <div className="mt-2 text-sm text-[color:var(--ink-muted)]">
               Run your first audit and it will appear here.
-            </div>
-            <div className="mt-5">
-              <Link className="btnPrimary" href="/audit">
-                Start Audit <span aria-hidden="true">→</span>
-              </Link>
             </div>
           </div>
         ) : (
