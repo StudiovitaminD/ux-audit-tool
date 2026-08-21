@@ -1536,7 +1536,7 @@ export function AuditForm() {
                     active
                       ? "bg-[color:var(--cream-dark)] dark:bg-[color:var(--white)] border-[color:var(--cream-mid)] text-[color:var(--ink)] shadow-sm font-semibold scale-[1.02]"
                       : isLocked
-                        ? "cursor-not-allowed opacity-50 text-[color:var(--ink-muted)]"
+                        ? "cursor-not-allowed border-dashed border-[color:var(--cream-dark)] bg-white/40 opacity-55 text-[color:var(--ink-muted)] shadow-none dark:bg-white/5"
                         : "hover:bg-[color:var(--cream-dark)]/50 dark:hover:bg-[color:var(--white)]/50 text-[color:var(--ink-muted)] hover:text-[color:var(--ink)]",
                   ].join(" ")}
                 >
@@ -1547,10 +1547,12 @@ export function AuditForm() {
                         ? "border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-sm ring-2 ring-[color:var(--accent)]/20"
                         : done
                           ? "border-emerald-600 bg-emerald-600 text-white"
-                          : "border-[color:var(--cream-dark)] text-[color:var(--ink-muted)] bg-[color:var(--white)] dark:bg-[color:var(--cream-dark)]",
+                          : isLocked
+                            ? "border-dashed border-[color:var(--cream-dark)] bg-[color:var(--cream)] text-[color:var(--ink-faint)]"
+                            : "border-[color:var(--cream-dark)] text-[color:var(--ink-muted)] bg-[color:var(--white)] dark:bg-[color:var(--cream-dark)]",
                     ].join(" ")}
                   >
-                    {done ? "✓" : s.id}
+                    {done ? "✓" : isLocked ? "🔒" : s.id}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium leading-none">
@@ -1870,26 +1872,19 @@ export function AuditForm() {
                       {index > 0 ? (
                         <button
                           type="button"
-                          className="inline-flex size-8 items-center justify-center rounded-full border border-red-200 bg-white text-red-500 transition-colors hover:border-red-300 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+                          className="inline-flex size-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 shadow-sm transition-colors hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                           onClick={() => removePersonaCard(index)}
                           aria-label={`Remove persona ${String(index + 1).padStart(2, "0")}`}
                         >
                           <svg
-                            width="20"
-                            height="20"
+                            width="18"
+                            height="18"
                             viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                            fill="currentColor"
                             aria-hidden="true"
                           >
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6" />
-                            <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" />
-                            <path d="M10 11v6" />
-                            <path d="M14 11v6" />
+                            <path d="M9 3a1 1 0 0 0-1 1v1H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2h-3V4a1 1 0 0 0-1-1H9Zm1 2h4V5H10v0Z" />
+                            <path d="M6.5 8h11l-.7 10.1A2.5 2.5 0 0 1 14.3 20H9.7a2.5 2.5 0 0 1-2.5-1.9L6.5 8Zm4 2.2a.75.75 0 0 0-.75.75v4.8a.75.75 0 0 0 1.5 0v-4.8a.75.75 0 0 0-.75-.75Zm3 0a.75.75 0 0 0-.75.75v4.8a.75.75 0 0 0 1.5 0v-4.8a.75.75 0 0 0-.75-.75Z" />
                           </svg>
                         </button>
                       ) : (
@@ -2011,7 +2006,7 @@ export function AuditForm() {
                     {idx > 0 ? (
                       <button
                         type="button"
-                        className="inline-flex size-8 items-center justify-center rounded-full border border-red-200 bg-white text-red-500 transition-colors hover:border-red-300 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+                        className="inline-flex size-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 shadow-sm transition-colors hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                         onClick={() =>
                           setPayload((p) => ({
                             ...p,
@@ -2023,21 +2018,14 @@ export function AuditForm() {
                         aria-label={`Remove competitor ${String(idx + 1).padStart(2, "0")}`}
                       >
                         <svg
-                          width="20"
-                          height="20"
+                          width="18"
+                          height="18"
                           viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                          fill="currentColor"
                           aria-hidden="true"
                         >
-                          <path d="M3 6h18" />
-                          <path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6" />
-                          <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" />
-                          <path d="M10 11v6" />
-                          <path d="M14 11v6" />
+                          <path d="M9 3a1 1 0 0 0-1 1v1H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2h-3V4a1 1 0 0 0-1-1H9Zm1 2h4V5H10v0Z" />
+                          <path d="M6.5 8h11l-.7 10.1A2.5 2.5 0 0 1 14.3 20H9.7a2.5 2.5 0 0 1-2.5-1.9L6.5 8Zm4 2.2a.75.75 0 0 0-.75.75v4.8a.75.75 0 0 0 1.5 0v-4.8a.75.75 0 0 0-.75-.75Zm3 0a.75.75 0 0 0-.75.75v4.8a.75.75 0 0 0 1.5 0v-4.8a.75.75 0 0 0-.75-.75Z" />
                         </svg>
                       </button>
                     ) : (
