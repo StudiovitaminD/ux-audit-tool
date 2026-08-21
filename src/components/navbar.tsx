@@ -78,7 +78,7 @@ export function Navbar() {
           {showAdminLinks ? (
             <Link
               href="/admin"
-              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
+              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition"
             >
               Dashboard
             </Link>
@@ -86,7 +86,7 @@ export function Navbar() {
           {showAdminLinks ? (
             <Link
               href="/report"
-              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
+              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition"
             >
               Reports
             </Link>
@@ -94,7 +94,7 @@ export function Navbar() {
           {isGuest ? (
             <Link
               href="/sign-in?returnTo=/report"
-              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
+              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition"
             >
               Sign in
             </Link>
@@ -102,7 +102,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition hover:-translate-y-0.5"
+              className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium text-[#191919] transition"
             >
               Log out
             </button>

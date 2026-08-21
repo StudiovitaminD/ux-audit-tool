@@ -44,7 +44,7 @@ export function LandingHero() {
             <div className="mt-8">
               <Link
                 href="/audit"
-                className="inline-flex h-12 items-center rounded-full bg-[#101010] px-7 text-[15px] font-semibold text-white shadow-[0_16px_36px_rgba(16,16,16,0.16)] transition hover:-translate-y-0.5 hover:bg-[#1b1b1b]"
+                className="inline-flex h-12 items-center rounded-full bg-[#101010] px-7 text-[15px] font-semibold text-white shadow-[0_16px_36px_rgba(16,16,16,0.16)] transition hover:bg-[#1b1b1b]"
               >
                 Start quick audit
               </Link>
