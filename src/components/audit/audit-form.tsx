@@ -1876,16 +1876,12 @@ export function AuditForm() {
                           onClick={() => removePersonaCard(index)}
                           aria-label={`Remove persona ${String(index + 1).padStart(2, "0")}`}
                         >
-                          <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
+                          <img
+                            src="/delete.png"
+                            alt=""
                             aria-hidden="true"
-                          >
-                            <path d="M9 3a1 1 0 0 0-1 1v1H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2h-3V4a1 1 0 0 0-1-1H9Zm1 2h4V5H10v0Z" />
-                            <path d="M6.5 8h11l-.7 10.1A2.5 2.5 0 0 1 14.3 20H9.7a2.5 2.5 0 0 1-2.5-1.9L6.5 8Zm4 2.2a.75.75 0 0 0-.75.75v4.8a.75.75 0 0 0 1.5 0v-4.8a.75.75 0 0 0-.75-.75Zm3 0a.75.75 0 0 0-.75.75v4.8a.75.75 0 0 0 1.5 0v-4.8a.75.75 0 0 0-.75-.75Z" />
-                          </svg>
+                            className="size-5 object-contain"
+                          />
                         </button>
                       ) : (
                         <div aria-hidden="true" className="h-8 w-8" />
@@ -2017,16 +2013,12 @@ export function AuditForm() {
                         }
                         aria-label={`Remove competitor ${String(idx + 1).padStart(2, "0")}`}
                       >
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="currentColor"
+                        <img
+                          src="/delete.png"
+                          alt=""
                           aria-hidden="true"
-                        >
-                          <path d="M9 3a1 1 0 0 0-1 1v1H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2h-3V4a1 1 0 0 0-1-1H9Zm1 2h4V5H10v0Z" />
-                          <path d="M6.5 8h11l-.7 10.1A2.5 2.5 0 0 1 14.3 20H9.7a2.5 2.5 0 0 1-2.5-1.9L6.5 8Zm4 2.2a.75.75 0 0 0-.75.75v4.8a.75.75 0 0 0 1.5 0v-4.8a.75.75 0 0 0-.75-.75Zm3 0a.75.75 0 0 0-.75.75v4.8a.75.75 0 0 0 1.5 0v-4.8a.75.75 0 0 0-.75-.75Z" />
-                        </svg>
+                          className="size-5 object-contain"
+                        />
                       </button>
                     ) : (
                       <div aria-hidden="true" className="h-8 w-8" />
