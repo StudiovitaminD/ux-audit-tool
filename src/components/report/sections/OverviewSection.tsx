@@ -366,7 +366,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                 <th className="px-1 py-2 text-center">
                   <span className="sr-only">Pillar</span>
                 </th>
-                <th className="px-[12px] py-[4px] text-center">Bucket</th>
+                <th className="px-[12px] py-[4px] text-left">Bucket</th>
                 <th className="px-[12px] py-[4px] text-center">Score</th>
                 <th className="px-[12px] py-[4px] text-center">Health</th>
                 <th className="px-[12px] py-[4px] text-center">Priority</th>

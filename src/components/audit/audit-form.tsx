@@ -485,6 +485,8 @@ export function AuditForm() {
         ? "How should we audit this store?"
         : "How should we access this SaaS?";
   const selectedBucketSet = new Set(payload.selectedBuckets.map((bucket) => bucket.trim()));
+  const allBucketsSelected =
+    bucketRows.length > 0 && bucketRows.every((row) => selectedBucketSet.has(row.bucket));
   const wantsScreenReaderCapture = selectedBucketSet.has("Screen Reader Support");
   const wantsPerformanceCapture = selectedBucketSet.has("Performance");
 
@@ -1092,10 +1094,17 @@ export function AuditForm() {
   }
 
   function selectAllBuckets() {
-    setPayload((p) => ({
-      ...p,
-      selectedBuckets: bucketRows.map((row) => row.bucket),
-    }));
+    setPayload((p) => {
+      const allBuckets = bucketRows.map((row) => row.bucket);
+      const nextSelected = allBuckets.every((bucket) => p.selectedBuckets.includes(bucket))
+        ? []
+        : allBuckets;
+
+      return {
+        ...p,
+        selectedBuckets: nextSelected,
+      };
+    });
   }
 
   // ADDED
@@ -1786,7 +1795,7 @@ export function AuditForm() {
                   onClick={selectAllBuckets}
                   className="whitespace-nowrap"
                 >
-                  Select all
+                  {allBucketsSelected ? "Unselect all" : "Select all"}
                 </Button>
               }
             />
