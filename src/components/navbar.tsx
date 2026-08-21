@@ -104,13 +104,13 @@ export function Navbar() {
               Sign in
             </Link>
           ) : (
-            <div className="inline-flex items-center rounded-full border border-[#191919]/12 bg-white px-4 py-2 text-sm font-medium transition">
+            <div className="inline-flex items-center text-sm font-medium">
               <span className="text-[#191919]">{displayName}</span>
               <span className="mx-2 text-[#191919]/35">|</span>
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="text-[#e53935] transition hover:text-[#e53935]/85"
+                className="text-[#ff4d3a] transition hover:text-[#ff4d3a]/85"
               >
                 Log out
               </button>
