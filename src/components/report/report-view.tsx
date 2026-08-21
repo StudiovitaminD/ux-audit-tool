@@ -765,12 +765,17 @@ export function ReportView() {
   if (!rid) {
     return (
       <div className="m-0 w-full max-w-none px-6 pb-6 pt-10">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-3">
             <h2 className="font-display text-[24px] font-semibold leading-[1.15] tracking-tight">Reports</h2>
-            <div className="mt-2 max-w-xl text-sm text-[color:var(--ink-muted)]">
-              Search your saved reports by product name.
-            </div>
+            <input
+              type="search"
+              value={reportSearch}
+              onChange={(e) => setReportSearch(e.target.value)}
+              placeholder="Search reports"
+              aria-label="Search reports"
+              className="h-10 w-full max-w-[240px] rounded-full border border-[color:var(--cream-dark)] bg-white px-4 text-sm text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/10"
+            />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {showAdminDashboardCta ? (
@@ -793,24 +798,6 @@ export function ReportView() {
               </Link>
             ) : null}
           </div>
-        </div>
-
-        <div className="mb-6 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-4">
-          <label className="block">
-            <span className="text-sm font-medium text-[color:var(--ink)]">Search reports</span>
-            <input
-              type="search"
-              value={reportSearch}
-              onChange={(e) => setReportSearch(e.target.value)}
-              placeholder="Type a report name..."
-              className="mt-2 w-full rounded-2xl border border-[color:var(--cream-dark)] bg-white px-4 py-3 text-sm text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/10"
-            />
-          </label>
-          {reportSearch.trim() ? (
-            <div className="mt-2 text-xs text-[color:var(--ink-muted)]">
-              Showing results for “{reportSearch.trim()}”
-            </div>
-          ) : null}
         </div>
 
         {loadingHistory ? (
