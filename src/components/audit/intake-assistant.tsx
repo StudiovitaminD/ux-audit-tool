@@ -100,8 +100,8 @@ export function IntakeAssistant({
           type="button"
           className={
             placement === "fixed"
-              ? "inline-flex items-center gap-3 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-xl hover:opacity-95"
-              : "inline-flex w-full max-w-sm items-center justify-center gap-3 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 px-5 py-4 text-sm font-semibold text-white shadow-lg hover:opacity-95 sm:w-auto"
+              ? "inline-flex items-center gap-2 rounded-xl border-0 bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-none hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+              : "inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-xl border-0 bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-none hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto"
           }
           onClick={() => setOpen(true)}
           aria-label={triggerLabel}
@@ -205,6 +205,7 @@ export function IntakeAssistant({
                   variant="secondary"
                   onClick={() => setOpen(false)}
                   disabled={busy}
+                  className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
                 >
                   Cancel
                 </Button>

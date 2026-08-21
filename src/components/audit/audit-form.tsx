@@ -2620,27 +2620,6 @@ Audit Flow for SCY Platform
           </Card>
         ) : null}
 
-        {activeStep === maxStep ? (
-          <Card className="p-5">
-          <CardHeader
-            title="Submit"
-            description={
-              isAllRequiredComplete
-                ? "Ready to send your context to the agent."
-                : "Complete the required steps to unlock submission."
-            }
-          />
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Button type="submit" variant="primary" size="lg" disabled={loading || !isAllRequiredComplete}>
-              {loading ? <LoadingSpinner /> : null}
-              Send context to agent
-            </Button>
-          </div>
-
-          {/* UPDATED: removed helper text */}
-        </Card>
-        ) : null}
       </section>
 
       <div
@@ -2678,7 +2657,17 @@ Audit Flow for SCY Platform
               >
                 Next
               </Button>
-            ) : null}
+            ) : (
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={loading || !isAllRequiredComplete}
+                className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+              >
+                {loading ? <LoadingSpinner /> : null}
+                Submit
+              </Button>
+            )}
           </div>
         </div>
       </div>
