@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Field, Select, Textarea, TextInput } from "@/components/ui/field";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -149,6 +149,26 @@ function FilePickerButton({
       />
       {buttonText}
     </label>
+  );
+}
+
+type SectionHeaderProps = {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+};
+
+function SectionHeader({ title, description, action }: SectionHeaderProps) {
+  return (
+    <div className="mb-8 flex items-center justify-between gap-4 border-b border-[color:var(--cream-dark)] pb-8">
+      <div>
+        <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
+        {description ? (
+          <p className="mt-2 max-w-3xl text-sm text-zinc-600 dark:text-zinc-300">{description}</p>
+        ) : null}
+      </div>
+      {action ? <div>{action}</div> : null}
+    </div>
   );
 }
 
@@ -1407,8 +1427,22 @@ export function AuditForm() {
   // ADDED
   const isAllRequiredComplete = firstMissingRequiredStep === null;
 
+  const firstIncompleteStep = useMemo(() => {
+    for (const step of steps) {
+      if (!completion.has(step.id)) return step.id;
+    }
+    return maxStep;
+  }, [steps, completion, maxStep]);
+
+  useEffect(() => {
+    if (activeStep > firstIncompleteStep) {
+      setActiveStep(firstIncompleteStep);
+    }
+  }, [activeStep, firstIncompleteStep]);
+
   function goto(step: number) {
     setError(null);
+    if (step > firstIncompleteStep) return;
     setActiveStep(Math.min(step, maxStep));
   }
 
@@ -1714,7 +1748,7 @@ export function AuditForm() {
 
         {activeStep === 2 ? (
           <Card className="p-5">
-            <CardHeader title="Audit Buckets" />
+            <SectionHeader title="Audit Buckets" />
             <div className="mt-3">
               <BucketPicker
                 value={payload.selectedBuckets}
@@ -1730,10 +1764,7 @@ export function AuditForm() {
         {/* UPDATED: Step 3 is Product context */}
         {activeStep === 3 ? (
           <Card className="p-5">
-            <CardHeader
-              // UPDATED
-              title="Business Details"
-            />
+            <SectionHeader title="Business Details" />
             <div className="space-y-4">
               {/* ADDED (SaaS only) */}
               {primaryType === "saas" ? (
@@ -1822,7 +1853,7 @@ export function AuditForm() {
         {/* ADDED: Step 4 is Add User Persona */}
         {activeStep === 4 ? (
           <Card className="p-5">
-            <CardHeader title="Add User Persona" />
+            <SectionHeader title="Add User Persona" />
             <div className="space-y-5">
               <div className="space-y-4">
                 {personaCards.map((persona, index) => (
@@ -1966,7 +1997,7 @@ export function AuditForm() {
         {/* UPDATED: Step 5 is Business competitors */}
         {activeStep === 5 ? (
           <Card className="p-5">
-            <CardHeader title="Business competitors" />
+            <SectionHeader title="Business competitors" />
             <div className="space-y-5">
               {payload.businessCompetitors.map((c, idx) => (
                 <div
@@ -2090,7 +2121,7 @@ export function AuditForm() {
         {/* UPDATED: Step 6 is Product URL + credentials */}
         {activeStep === 6 ? (
           <Card className="p-5">
-            <CardHeader title="Product Access Details" />
+            <SectionHeader title="Product Access Details" />
             <div className="space-y-4">
               <Field
                 label="Product URL"
@@ -2378,7 +2409,7 @@ export function AuditForm() {
 
         {primaryType === "saas" && activeStep === 7 ? (
           <Card className="p-5">
-            <CardHeader
+            <SectionHeader
               title="Audit flow"
               description="Describe the full audit flow, exploration steps, required screenshots, and anything the agent must check before scoring."
             />
