@@ -998,6 +998,12 @@ export function AuditForm() {
     router.replace("/report");
   }
 
+  function handleCancelProcess() {
+    const shouldCancel = window.confirm("Are you sure you want to cancel the process?");
+    if (!shouldCancel) return;
+    resetAll();
+  }
+
   function updatePersonaCard(index: number, patch: Partial<PersonaCard>) {
     setPersonaCards((cards) => {
       const next = [...cards];
@@ -2645,11 +2651,11 @@ Audit Flow for SCY Platform
           <Button
             type="button"
             variant="secondary"
-            onClick={resetAll}
+            onClick={handleCancelProcess}
             disabled={loading}
             className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
           >
-            Clear
+            Cancel
           </Button>
 
           <div className="flex flex-wrap items-center gap-2">
