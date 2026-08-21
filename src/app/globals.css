@@ -201,10 +201,10 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
 .btnPrimary {
   background: var(--accent);
   color: var(--white);
-  padding: 14px 24px;
+  padding: 8px 16px;
   border-radius: 9999px;
-  font-size: 16px;
-  line-height: 1.35;
+  font-size: 14px;
+  line-height: 1.2;
   font-weight: 600;
   font-family: var(--font-display);
   letter-spacing: -0.04em;
