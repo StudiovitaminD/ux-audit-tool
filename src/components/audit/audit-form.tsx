@@ -1503,7 +1503,12 @@ export function AuditForm() {
         {/* UPDATED: Step 1 always renders so the user can start immediately */}
         {activeStep === 1 ? (
           <Card className="p-5">
-            <CardHeader title="Audit Details" />
+            <CardHeader
+              title="Audit Details"
+              right={
+                <IntakeAssistant payload={payload} setPayload={setPayload} placement="header" />
+              }
+            />
             <div className="grid gap-4 lg:grid-cols-3">
               <Field label="Product type" error={showErrorsForStep ? validation.productType : undefined}>
                 <Select
@@ -1664,7 +1669,6 @@ export function AuditForm() {
                 />
               </Field>
 
-              <IntakeAssistant payload={payload} setPayload={setPayload} placement="inline" />
             </div>
           </Card>
         ) : null}

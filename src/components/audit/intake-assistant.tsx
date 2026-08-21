@@ -35,7 +35,7 @@ export function IntakeAssistant({
 }: {
   payload: AuditPayload;
   setPayload: React.Dispatch<React.SetStateAction<AuditPayload>>;
-  placement?: "fixed" | "inline";
+  placement?: "fixed" | "inline" | "header";
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -93,48 +93,24 @@ export function IntakeAssistant({
         className={
           placement === "fixed"
             ? "fixed bottom-5 right-5 z-[9999]"
-            : "mt-6 flex justify-start"
+            : placement === "header"
+              ? "flex justify-end"
+              : "mt-6 flex justify-start"
         }
       >
         <Button
           type="button"
           className={
             placement === "fixed"
-              ? "inline-flex items-center gap-2 rounded-xl border-0 bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-none hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
-              : "inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-xl border-0 bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-none hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto"
+              ? "inline-flex items-center rounded-full border-0 bg-[color:var(--accent)] px-5 py-3 text-sm font-medium text-white shadow-none hover:bg-[color:var(--accent)]/90 dark:bg-[color:var(--accent)] dark:text-white dark:hover:bg-[color:var(--accent)]/90"
+              : placement === "header"
+                ? "inline-flex items-center rounded-full border-0 bg-[color:var(--accent)] px-4 py-2 text-sm font-medium text-white shadow-none hover:bg-[color:var(--accent)]/90 dark:bg-[color:var(--accent)] dark:text-white dark:hover:bg-[color:var(--accent)]/90"
+              : "inline-flex w-full max-w-sm items-center justify-center rounded-full border-0 bg-[color:var(--accent)] px-5 py-3 text-sm font-medium text-white shadow-none hover:bg-[color:var(--accent)]/90 dark:bg-[color:var(--accent)] dark:text-white dark:hover:bg-[color:var(--accent)]/90 sm:w-auto"
           }
           onClick={() => setOpen(true)}
           aria-label={triggerLabel}
           title={triggerLabel}
         >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 16V4"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <path
-              d="M8 8l4-4 4 4"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M4 20h16"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
           <span className="whitespace-nowrap">{triggerLabel}</span>
         </Button>
       </div>
