@@ -822,6 +822,11 @@ export function ReportView() {
             <div className="mt-2 text-sm text-[color:var(--ink-muted)]">
               Run your first audit and it will appear here.
             </div>
+            <div className="mt-5">
+              <Link className="btnPrimary" href="/audit">
+                Start Audit <span aria-hidden="true">→</span>
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
