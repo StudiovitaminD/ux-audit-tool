@@ -379,9 +379,12 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                     <tr key={pillar}>
                       <td className="relative w-[32px] min-w-[32px] border-r border-[color:var(--report-table-border)] px-0 py-0 text-center align-middle">
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="report-h4 !text-[14px] w-fit whitespace-nowrap text-center [writing-mode:vertical-rl] rotate-180 normal-case tracking-normal leading-none !text-[color:var(--report-black)]">
+                          <h4
+                            className="report-h4 m-0 w-fit whitespace-nowrap text-center [writing-mode:vertical-rl] rotate-180 normal-case tracking-normal leading-none"
+                            style={{ fontSize: "14px", color: "var(--report-black)" }}
+                          >
                             {pillar}
-                          </div>
+                          </h4>
                         </div>
                       </td>
                       <td colSpan={4} className="px-4 py-4 text-[color:var(--report-grey-font)]">
@@ -417,9 +420,12 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                           className="relative w-[32px] min-w-[32px] border-r border-[color:var(--report-table-border)] px-0 text-center"
                         >
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="report-h4 !text-[14px] w-fit whitespace-nowrap text-center [writing-mode:vertical-rl] rotate-180 normal-case tracking-normal leading-none !text-[color:var(--report-black)]">
+                            <h4
+                              className="report-h4 m-0 w-fit whitespace-nowrap text-center [writing-mode:vertical-rl] rotate-180 normal-case tracking-normal leading-none"
+                              style={{ fontSize: "14px", color: "var(--report-black)" }}
+                            >
                               {pillar}
-                            </div>
+                            </h4>
                           </div>
                         </td>
                       ) : null}

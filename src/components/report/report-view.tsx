@@ -765,19 +765,24 @@ export function ReportView() {
   if (!rid) {
     return (
       <div className="m-0 w-full max-w-none px-6 pb-6 pt-10">
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 flex-col gap-3">
-            <h2 className="font-display text-[24px] font-semibold leading-[1.15] tracking-tight">Reports</h2>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2
+              className="font-display font-semibold tracking-tight"
+              style={{ fontSize: "24px", lineHeight: "1.15", color: "var(--ink)" }}
+            >
+              Reports
+            </h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
             <input
               type="search"
               value={reportSearch}
               onChange={(e) => setReportSearch(e.target.value)}
               placeholder="Search reports"
               aria-label="Search reports"
-              className="h-10 w-full max-w-[240px] rounded-full border border-[color:var(--cream-dark)] bg-white px-4 text-sm text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/10"
+              className="h-10 w-full max-w-[220px] rounded-full border border-[color:var(--cream-dark)] bg-white px-4 text-sm text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/10"
             />
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
             {showAdminDashboardCta ? (
               <Link
                 className="inline-flex items-center rounded-full border border-[#ff7a1a] bg-white px-4 py-2 text-sm font-medium text-[#ff7a1a] transition hover:bg-[#fff7f0]"
