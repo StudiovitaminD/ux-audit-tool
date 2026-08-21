@@ -314,6 +314,9 @@ const accessModeOptions: AuditSelectOption[] = [
   { label: "Direct audit using URL", value: "browser_extension_capture" },
 ];
 
+const orangeFileInputClassName =
+  "block w-full text-sm text-zinc-600 file:mr-4 file:rounded-full file:border-0 file:bg-[#ff8a1f] file:px-5 file:py-3 file:text-sm file:font-semibold file:text-white file:shadow-[0_10px_20px_rgba(255,138,31,0.18)] file:transition file:hover:bg-[#f57f15] dark:text-zinc-300 dark:file:bg-[#ff8a1f] dark:file:text-white dark:file:hover:bg-[#f57f15]";
+
 function accessModeOptionsFor(
   type: AuditPayload["product"]["type"],
 ): AuditSelectOption[] {
@@ -2040,7 +2043,7 @@ export function AuditForm() {
                       type="file"
                       accept="image/*"
                       multiple
-                      className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-xl file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 dark:text-zinc-300 dark:file:bg-white dark:file:text-zinc-950 dark:hover:file:bg-zinc-200"
+                      className={orangeFileInputClassName}
                       onChange={async (e) => {
                         const files = Array.from(e.target.files ?? []);
                         if (files.length === 0) return;
@@ -2184,7 +2187,7 @@ export function AuditForm() {
                       type="file"
                       accept="image/*"
                       multiple
-                      className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-xl file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 dark:text-zinc-300 dark:file:bg-white dark:file:text-zinc-950 dark:hover:file:bg-zinc-200"
+                      className={orangeFileInputClassName}
                       onChange={async (e) => {
                         const files = Array.from(e.target.files ?? []);
                         if (files.length === 0) return;
@@ -2266,7 +2269,7 @@ export function AuditForm() {
                     <input
                       type="file"
                       accept="video/*"
-                      className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-xl file:border-0 file:bg-zinc-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 dark:text-zinc-300 dark:file:bg-white dark:file:text-zinc-950 dark:hover:file:bg-zinc-200"
+                      className={orangeFileInputClassName}
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
