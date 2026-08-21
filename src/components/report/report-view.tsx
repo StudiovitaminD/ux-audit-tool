@@ -794,7 +794,10 @@ export function ReportView() {
             <div className="text-3xl font-semibold">Reports</div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Link className="text-sm font-medium text-[#ff7a1a] hover:text-[#ff7a1a]/85" href="/report?demo=1">
+            <Link
+              className="inline-flex items-center rounded-full border border-[#ff7a1a] bg-white px-4 py-2 text-sm font-medium text-[#ff7a1a] transition hover:-translate-y-0.5 hover:bg-[#fff7f0]"
+              href="/report?demo=1"
+            >
               View sample report
             </Link>
             {reportHistory.length > 0 ? (
