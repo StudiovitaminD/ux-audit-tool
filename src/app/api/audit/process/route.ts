@@ -568,8 +568,13 @@ export async function POST(req: Request) {
     intake = IntakeSchema.parse(intakeRaw);
     if (!intake) throw new Error("Missing intake");
     const intakeObj = intake;
-    const modelTier = typeof doc.model_tier === "string" ? doc.model_tier : "free_limited";
-    const activeModel = getAuditModelForTier(modelTier);
+    const userRole = typeof doc.user_role === "string" ? doc.user_role : "";
+    const planType = typeof doc.plan_type === "string" ? doc.plan_type : "";
+    const modelTier = typeof doc.model_tier === "string" ? doc.model_tier : "paid_full";
+    const activeModel =
+      userRole === "free" || planType === "free"
+        ? PAID_AUDIT_MODEL
+        : getAuditModelForTier(modelTier);
     buckets = getSelectedBuckets(intakeObj);
     const payloadDebug = capturePipelineDebug(intakeObj);
     const progressRec = asRecord(doc.progress) ?? {};
@@ -675,7 +680,7 @@ export async function POST(req: Request) {
           captureDebug: {
             phase: "extension_evidence_missing",
             ...payloadDebug,
-            modelTier: typeof doc.model_tier === "string" ? doc.model_tier : "free_limited",
+            modelTier: typeof doc.model_tier === "string" ? doc.model_tier : modelTier,
             activeModel,
             ...evidenceDebug,
           },
@@ -708,7 +713,7 @@ export async function POST(req: Request) {
           captureDebug: {
             phase: "login_failed",
             ...payloadDebug,
-            modelTier: typeof doc.model_tier === "string" ? doc.model_tier : "free_limited",
+            modelTier: typeof doc.model_tier === "string" ? doc.model_tier : modelTier,
             activeModel,
             ...evidenceDebug,
           },
@@ -734,7 +739,7 @@ export async function POST(req: Request) {
           captureDebug: {
             phase: "coverage_failed",
             ...payloadDebug,
-            modelTier: typeof doc.model_tier === "string" ? doc.model_tier : "free_limited",
+            modelTier: typeof doc.model_tier === "string" ? doc.model_tier : modelTier,
             activeModel,
             ...evidenceDebug,
           },
@@ -828,7 +833,7 @@ export async function POST(req: Request) {
             captureDebug: {
               phase: "report_complete",
               ...payloadDebug,
-              modelTier: typeof doc.model_tier === "string" ? doc.model_tier : "free_limited",
+              modelTier: typeof doc.model_tier === "string" ? doc.model_tier : modelTier,
               activeModel,
             },
           },

@@ -157,10 +157,14 @@ async function runJob(env: ReturnType<typeof getEnv>, reportId: string) {
   };
 
   const scored = aggregateScores({ meta, bucketResults });
+  const userRole = typeof doc.user_role === "string" ? doc.user_role : "";
+  const planType = typeof doc.plan_type === "string" ? doc.plan_type : "";
   const narrativeModel =
-    typeof doc.model_tier === "string" && doc.model_tier === "free_limited"
-      ? FREE_AUDIT_MODEL
-      : env.OPENROUTER_MODEL;
+    userRole === "free" || planType === "free"
+      ? env.OPENROUTER_MODEL
+      : typeof doc.model_tier === "string" && doc.model_tier === "free_limited"
+        ? FREE_AUDIT_MODEL
+        : env.OPENROUTER_MODEL;
   const narrative = await writeNarrative(env, scored, narrativeModel);
 
   const merged = {

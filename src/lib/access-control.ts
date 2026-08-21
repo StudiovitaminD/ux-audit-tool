@@ -43,14 +43,17 @@ export function canCreateReport(args: {
   if (role === "admin") {
     return { allowed: true, remaining: Number.POSITIVE_INFINITY };
   }
+  if (role === "free") {
+    return { allowed: true, remaining: Number.POSITIVE_INFINITY };
+  }
 
   const remaining = Math.max(0, reportLimit - reportsUsed);
   return { allowed: remaining > 0, remaining };
 }
 
-export function getModelTierForRole(role: AppRole, plan: PlanType): ModelTier {
+export function getModelTierForRole(role: AppRole, _plan: PlanType): ModelTier {
   if (role === "admin") return "admin_full";
-  return plan === "paid" ? "paid_full" : "free_limited";
+  return "paid_full";
 }
 
 export function getAuditModelForTier(modelTier?: string | null) {

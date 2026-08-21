@@ -303,7 +303,7 @@ export const AUDIT_DEFAULTS: AuditPayload = {
     plan: "free",
     reportAccessLevel: "free_preview",
     lockedSections: [],
-    modelTier: "free_limited",
+    modelTier: "paid_full",
     reportsUsed: 0,
     reportLimit: 3,
   },

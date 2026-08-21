@@ -31,9 +31,11 @@ function deepMerge<T>(base: T, patch: unknown): T {
 export function IntakeAssistant({
   payload,
   setPayload,
+  placement = "fixed",
 }: {
   payload: AuditPayload;
   setPayload: React.Dispatch<React.SetStateAction<AuditPayload>>;
+  placement?: "fixed" | "inline";
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -87,10 +89,20 @@ export function IntakeAssistant({
 
   return (
     <>
-      <div className="fixed bottom-5 right-5 z-[9999]">
+      <div
+        className={
+          placement === "fixed"
+            ? "fixed bottom-5 right-5 z-[9999]"
+            : "mt-6 flex justify-start"
+        }
+      >
         <Button
           type="button"
-          className="inline-flex items-center gap-3 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-xl hover:opacity-95"
+          className={
+            placement === "fixed"
+              ? "inline-flex items-center gap-3 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-xl hover:opacity-95"
+              : "inline-flex w-full max-w-sm items-center justify-center gap-3 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 px-5 py-4 text-sm font-semibold text-white shadow-lg hover:opacity-95 sm:w-auto"
+          }
           onClick={() => setOpen(true)}
           aria-label={triggerLabel}
           title={triggerLabel}

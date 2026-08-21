@@ -1491,8 +1491,6 @@ export function AuditForm() {
         </Card>
       </aside>
 
-      <IntakeAssistant payload={payload} setPayload={setPayload} />
-
       <section className="space-y-6 lg:col-span-8">
         {/* UPDATED: remove redundant type selection card; keep reset only */}
 
@@ -1665,6 +1663,8 @@ export function AuditForm() {
                   placeholder=""
                 />
               </Field>
+
+              <IntakeAssistant payload={payload} setPayload={setPayload} placement="inline" />
             </div>
           </Card>
         ) : null}

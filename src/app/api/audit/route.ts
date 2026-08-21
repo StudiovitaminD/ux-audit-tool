@@ -177,8 +177,8 @@ export async function POST(req: Request) {
       reportsUsed: accountSession.reportsUsed,
       reportLimit: accountSession.reportLimit,
     });
-      if (!usageGate.allowed) {
-        return NextResponse.json(
+    if (!usageGate.allowed) {
+      return NextResponse.json(
         { error: `This plan includes ${accountSession.reportLimit} reports. Upgrade to unlock more audits.` },
         { status: 403 },
       );
@@ -202,7 +202,7 @@ export async function POST(req: Request) {
       accountSession?.role === "admin"
         ? adminChoiceToModelTier(await loadAdminAuditModelChoice())
         : accountSession?.modelTier ||
-          (typeof userAccess.model_tier === "string" ? userAccess.model_tier : "free_limited");
+          (typeof userAccess.model_tier === "string" ? userAccess.model_tier : "paid_full");
 
     try {
       const storageResult = await storeFullIntakeBlob(ref.id, body as Record<string, unknown>);

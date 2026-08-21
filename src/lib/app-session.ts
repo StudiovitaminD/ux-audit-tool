@@ -235,6 +235,6 @@ export function auditUserAccessFromSession(session: AppSession) {
 }
 
 export function reportsRemaining(session: AppSession) {
-  if (session.role === "admin") return null;
+  if (session.role === "admin" || session.role === "free") return null;
   return Math.max(0, session.reportLimit - session.reportsUsed);
 }
