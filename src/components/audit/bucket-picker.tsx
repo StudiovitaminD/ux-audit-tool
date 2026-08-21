@@ -116,7 +116,7 @@ export function BucketPicker({
               <th className="px-1 py-3 text-center">
                 <span className="sr-only">Pillar</span>
               </th>
-              <th className="px-4 py-4 text-left">Bucket</th>
+              <th className="px-4 py-4 pl-[46px] text-left">Bucket</th>
               <th className="px-4 py-4 text-left">What it covers</th>
             </tr>
           </thead>
