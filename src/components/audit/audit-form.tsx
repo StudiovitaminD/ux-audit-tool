@@ -1872,7 +1872,7 @@ export function AuditForm() {
                       {index > 0 ? (
                         <button
                           type="button"
-                          className="inline-flex size-9 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+                          className="inline-flex size-11 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                           onClick={() => removePersonaCard(index)}
                           aria-label={`Remove persona ${String(index + 1).padStart(2, "0")}`}
                         >
@@ -1880,11 +1880,11 @@ export function AuditForm() {
                             src="/delete-cropped.png"
                             alt=""
                             aria-hidden="true"
-                            className="size-7 object-contain"
+                            className="size-9 object-contain"
                           />
                         </button>
                       ) : (
-                        <div aria-hidden="true" className="h-8 w-8" />
+                        <div aria-hidden="true" className="h-11 w-11" />
                       )}
                     </div>
 
@@ -2002,7 +2002,7 @@ export function AuditForm() {
                     {idx > 0 ? (
                       <button
                         type="button"
-                        className="inline-flex size-9 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+                        className="inline-flex size-11 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                         onClick={() =>
                           setPayload((p) => ({
                             ...p,
@@ -2017,11 +2017,11 @@ export function AuditForm() {
                           src="/delete-cropped.png"
                           alt=""
                           aria-hidden="true"
-                          className="size-7 object-contain"
+                          className="size-9 object-contain"
                         />
                       </button>
                     ) : (
-                      <div aria-hidden="true" className="h-8 w-8" />
+                      <div aria-hidden="true" className="h-11 w-11" />
                     )}
                   </div>
                   <div className="grid gap-4 md:grid-cols-3">
