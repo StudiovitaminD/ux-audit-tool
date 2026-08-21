@@ -1837,21 +1837,19 @@ export function AuditForm() {
                         </div>
                       </div>
                       {index > 0 ? (
-                        <Button
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 rounded-full border-0 px-0 text-red-500 hover:text-red-600"
+                          className="inline-flex size-8 items-center justify-center rounded-full border border-red-200 bg-white text-red-500 transition-colors hover:border-red-300 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                           onClick={() => removePersonaCard(index)}
                           aria-label={`Remove persona ${String(index + 1).padStart(2, "0")}`}
                         >
                           <svg
-                            width="18"
-                            height="18"
+                            width="20"
+                            height="20"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
-                            strokeWidth="2"
+                            strokeWidth="2.2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             aria-hidden="true"
@@ -1862,7 +1860,7 @@ export function AuditForm() {
                             <path d="M10 11v6" />
                             <path d="M14 11v6" />
                           </svg>
-                        </Button>
+                        </button>
                       ) : (
                         <div aria-hidden="true" className="h-8 w-8" />
                       )}
@@ -1980,11 +1978,9 @@ export function AuditForm() {
                       Competitor {String(idx + 1).padStart(2, "0")}
                     </div>
                     {idx > 0 ? (
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 rounded-full border-0 px-0 text-red-500 hover:text-red-600"
+                        className="inline-flex size-8 items-center justify-center rounded-full border border-red-200 bg-white text-red-500 transition-colors hover:border-red-300 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
                         onClick={() =>
                           setPayload((p) => ({
                             ...p,
@@ -1996,12 +1992,12 @@ export function AuditForm() {
                         aria-label={`Remove competitor ${String(idx + 1).padStart(2, "0")}`}
                       >
                         <svg
-                          width="18"
-                          height="18"
+                          width="20"
+                          height="20"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth="2"
+                          strokeWidth="2.2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           aria-hidden="true"
@@ -2012,7 +2008,7 @@ export function AuditForm() {
                           <path d="M10 11v6" />
                           <path d="M14 11v6" />
                         </svg>
-                      </Button>
+                      </button>
                     ) : (
                       <div aria-hidden="true" className="h-8 w-8" />
                     )}
