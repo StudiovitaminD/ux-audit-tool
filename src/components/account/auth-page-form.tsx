@@ -200,7 +200,7 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
 
             <button
               type="submit"
-              className="btnPrimary w-full justify-center"
+              className="btnPrimary authSubmitButton w-full justify-center"
               disabled={busy}
             >
               {busy

@@ -765,8 +765,8 @@ export function ReportView() {
   if (!rid) {
     return (
       <div className="m-0 w-full max-w-none px-6 pb-6 pt-10">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0">
+        <div className="mb-8 flex items-start justify-between gap-6">
+          <div className="min-w-0 shrink-0">
             <h2
               className="font-display font-semibold tracking-tight"
               style={{ fontSize: "24px", lineHeight: "1.15", color: "var(--ink)" }}
@@ -774,31 +774,33 @@ export function ReportView() {
               Reports
             </h2>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col items-start gap-4">
+            <div className="flex flex-nowrap items-center gap-3">
             <input
               type="search"
               value={reportSearch}
               onChange={(e) => setReportSearch(e.target.value)}
               placeholder="Search reports"
               aria-label="Search reports"
-              className="h-10 w-full max-w-[220px] rounded-full border border-[color:var(--cream-dark)] bg-white px-4 text-sm text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/10"
+              className="h-10 w-[360px] max-w-[36vw] shrink-0 rounded-full border border-[color:var(--cream-dark)] bg-white px-4 text-sm text-[color:var(--ink)] outline-none transition placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/10"
             />
             {showAdminDashboardCta ? (
               <Link
-                className="inline-flex items-center rounded-full border border-[#ff7a1a] bg-white px-4 py-2 text-sm font-medium text-[#ff7a1a] transition hover:bg-[#fff7f0]"
+                className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-[#ff7a1a] bg-white px-4 py-2 text-sm font-medium text-[#ff7a1a] transition hover:bg-[#fff7f0]"
                 href="/admin"
               >
                 Dashboard
               </Link>
             ) : null}
             <Link
-              className="inline-flex items-center rounded-full border border-[#ff7a1a] bg-white px-4 py-2 text-sm font-medium text-[#ff7a1a] transition hover:bg-[#fff7f0]"
+              className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-[#ff7a1a] bg-white px-4 py-2 text-sm font-medium text-[#ff7a1a] transition hover:bg-[#fff7f0]"
               href="/report?demo=1"
             >
               View sample report
             </Link>
+            </div>
             {reportHistory.length > 0 ? (
-              <Link className="btnPrimary" href="/audit">
+              <Link className="btnPrimary self-start" href="/audit">
                 Start Audit <span aria-hidden="true">→</span>
               </Link>
             ) : null}
