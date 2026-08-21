@@ -47,7 +47,7 @@ export function IntakeAssistant({
   const hasTranscript = transcript.trim().length > 0 || Boolean(fileName);
   const triggerLabel = hasTranscript ? "View meeting transcript" : "Upload meeting transcript";
   const triggerButtonClass =
-    "inline-flex items-center justify-center rounded-full border border-[#ff8a1f] bg-white px-5 py-3 text-sm font-semibold text-[#ff8a1f] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f]";
+    "inline-flex items-center justify-center rounded-full !border !border-[#ff8a1f] !bg-white px-5 py-3 text-sm font-semibold !text-[#ff8a1f] dark:!border-[#ff8a1f] dark:!bg-white dark:!text-[#ff8a1f]";
 
   const helperText = useMemo(
     () =>
@@ -106,8 +106,8 @@ export function IntakeAssistant({
             placement === "fixed"
               ? triggerButtonClass
               : placement === "header"
-                ? "inline-flex items-center justify-center rounded-full border border-[#ff8a1f] bg-white px-4 py-2 text-sm font-semibold text-[#ff8a1f] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f]"
-              : "inline-flex w-full max-w-sm items-center justify-center rounded-full border border-[#ff8a1f] bg-white px-5 py-3 text-sm font-semibold text-[#ff8a1f] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f] sm:w-auto"
+                ? "inline-flex items-center justify-center rounded-full !border !border-[#ff8a1f] !bg-white px-4 py-2 text-sm font-semibold !text-[#ff8a1f] dark:!border-[#ff8a1f] dark:!bg-white dark:!text-[#ff8a1f]"
+              : "inline-flex w-full max-w-sm items-center justify-center rounded-full !border !border-[#ff8a1f] !bg-white px-5 py-3 text-sm font-semibold !text-[#ff8a1f] dark:!border-[#ff8a1f] dark:!bg-white dark:!text-[#ff8a1f] sm:w-auto"
           }
           onClick={() => setOpen(true)}
           aria-label={triggerLabel}
@@ -143,7 +143,7 @@ export function IntakeAssistant({
               <div className="text-xs text-white/75">{helperText}</div>
 
               <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#ff8a1f] bg-white px-5 py-3 text-sm font-semibold text-[#ff8a1f] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f]">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-full !border !border-[#ff8a1f] !bg-white px-5 py-3 text-sm font-semibold !text-[#ff8a1f] dark:!border-[#ff8a1f] dark:!bg-white dark:!text-[#ff8a1f]">
                   <input
                     type="file"
                     accept=".txt,.md,text/plain"

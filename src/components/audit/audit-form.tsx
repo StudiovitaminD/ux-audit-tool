@@ -315,7 +315,7 @@ const accessModeOptions: AuditSelectOption[] = [
 ];
 
 const orangeFileInputClassName =
-  "block w-full text-sm text-zinc-600 file:mr-4 file:rounded-full file:border file:border-[#ff8a1f] file:bg-white file:px-5 file:py-3 file:text-sm file:font-semibold file:text-[#ff8a1f] dark:text-zinc-300 dark:file:bg-white dark:file:text-[#ff8a1f] dark:file:border-[#ff8a1f]";
+  "block w-full text-sm text-zinc-600 focus-visible:outline-none file:mr-4 file:rounded-full file:!border file:!border-[#ff8a1f] file:!bg-white file:px-5 file:py-3 file:text-sm file:font-semibold file:!text-[#ff8a1f] file:!shadow-none file:!ring-0 file:!outline-none dark:text-zinc-300 dark:file:!bg-white dark:file:!text-[#ff8a1f] dark:file:!border-[#ff8a1f] dark:file:!shadow-none dark:file:!ring-0 dark:file:!outline-none";
 
 function accessModeOptionsFor(
   type: AuditPayload["product"]["type"],
@@ -1506,12 +1506,12 @@ export function AuditForm() {
         {/* UPDATED: Step 1 always renders so the user can start immediately */}
         {activeStep === 1 ? (
           <Card className="p-5">
-            <CardHeader
-              title="Audit Details"
-              right={
-                <IntakeAssistant payload={payload} setPayload={setPayload} placement="header" />
-              }
-            />
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="font-display text-lg font-normal tracking-tight">Audit Details</h2>
+              </div>
+              <IntakeAssistant payload={payload} setPayload={setPayload} placement="header" />
+            </div>
             <div className="grid gap-4 lg:grid-cols-3">
               <Field label="Product type" error={showErrorsForStep ? validation.productType : undefined}>
                 <Select
