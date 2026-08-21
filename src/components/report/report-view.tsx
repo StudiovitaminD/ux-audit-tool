@@ -353,6 +353,7 @@ export function ReportView() {
   const processInFlightRef = useRef(false);
   const lastProcessKickMsRef = useRef(0);
   const sessionHeaders = useMemo(() => getAppSessionRequestHeaders(), []);
+  const showAdminDashboardCta = accountReady && accountSession.role === "admin";
 
   useEffect(() => {
     const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
@@ -794,6 +795,14 @@ export function ReportView() {
             <div className="text-3xl font-semibold">Reports</div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            {showAdminDashboardCta ? (
+              <Link
+                className="inline-flex items-center rounded-full border border-[#ff7a1a] bg-white px-4 py-2 text-sm font-medium text-[#ff7a1a] transition hover:bg-[#fff7f0]"
+                href="/admin"
+              >
+                Dashboard
+              </Link>
+            ) : null}
             <Link
               className="inline-flex items-center rounded-full border border-[#ff7a1a] bg-white px-4 py-2 text-sm font-medium text-[#ff7a1a] transition hover:bg-[#fff7f0]"
               href="/report?demo=1"
