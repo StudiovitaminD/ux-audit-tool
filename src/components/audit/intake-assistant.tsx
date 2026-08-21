@@ -48,11 +48,12 @@ export function IntakeAssistant({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transcriptFileName, setTranscriptFileName] = useState<string | null>(null);
+  const [transcriptApplied, setTranscriptApplied] = useState(false);
   const transcriptRestoreRef = useRef<AuditPayload | null>(null);
 
   const transcript = payload.artifacts.notes || "";
   const canExtract = transcript.trim().length > 0 && !busy;
-  const hasTranscript = transcript.trim().length > 0 || Boolean(transcriptFileName);
+  const hasTranscript = transcriptApplied;
   const triggerLabel = hasTranscript ? "View meeting transcript" : "Upload meeting transcript";
   const triggerButtonClass =
     "inline-flex items-center justify-center rounded-full !border !border-[#ff8a1f] !bg-white px-5 py-3 text-sm font-semibold !text-[#ff8a1f] dark:!border-[#ff8a1f] dark:!bg-white dark:!text-[#ff8a1f]";
@@ -90,6 +91,7 @@ export function IntakeAssistant({
           ? (data as Record<string, unknown>).patch
           : null;
       setPayload((p) => deepMerge(p, patch));
+      setTranscriptApplied(true);
       setOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -114,6 +116,7 @@ export function IntakeAssistant({
       },
     }));
     setTranscriptFileName(null);
+    setTranscriptApplied(false);
     resetTranscriptState();
   }
 
@@ -134,6 +137,7 @@ export function IntakeAssistant({
       }));
     }
     setTranscriptFileName(null);
+    setTranscriptApplied(false);
     resetTranscriptState();
   }
 
@@ -211,6 +215,8 @@ export function IntakeAssistant({
                           if (!f) return;
                           const text = await f.text();
                           setTranscriptFileName(f.name);
+                          setTranscriptApplied(false);
+                          transcriptRestoreRef.current = null;
                           setPayload((p) => ({
                             ...p,
                             artifacts: { ...p.artifacts, notes: text },
