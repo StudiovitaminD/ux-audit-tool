@@ -120,6 +120,38 @@ type PersonaCard = {
   primaryUserGoal: string;
 };
 
+type FilePickerButtonProps = {
+  buttonText: string;
+  accept: string;
+  multiple?: boolean;
+  onFilesSelected: (files: File[]) => Promise<void> | void;
+};
+
+function FilePickerButton({
+  buttonText,
+  accept,
+  multiple = false,
+  onFilesSelected,
+}: FilePickerButtonProps) {
+  return (
+    <label className="inline-flex cursor-pointer items-center justify-center rounded-full border-2 border-[#ff8a1f] bg-white px-5 py-3 text-sm font-semibold text-[#ff8a1f] shadow-none">
+      <input
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        className="hidden"
+        onChange={async (e) => {
+          const files = Array.from(e.currentTarget.files ?? []);
+          if (files.length === 0) return;
+          await onFilesSelected(files);
+          e.currentTarget.value = "";
+        }}
+      />
+      {buttonText}
+    </label>
+  );
+}
+
 const geographyOptions = [
   { label: "Global", value: "Global" },
   { label: "North America", value: "North America" },
@@ -313,9 +345,6 @@ const accessModeOptions: AuditSelectOption[] = [
   { label: "Screenshot upload only", value: "screenshot_upload_only" },
   { label: "Direct audit using URL", value: "browser_extension_capture" },
 ];
-
-const orangeFileInputClassName =
-  "block w-full text-sm text-zinc-600 focus-visible:outline-none file:mr-4 file:rounded-full file:!border file:!border-[#ff8a1f] file:!bg-white file:px-5 file:py-3 file:text-sm file:font-semibold file:!text-[#ff8a1f] file:!shadow-none file:!ring-0 file:!outline-none dark:text-zinc-300 dark:file:!bg-white dark:file:!text-[#ff8a1f] dark:file:!border-[#ff8a1f] dark:file:!shadow-none dark:file:!ring-0 dark:file:!outline-none";
 
 function accessModeOptionsFor(
   type: AuditPayload["product"]["type"],
@@ -1809,7 +1838,23 @@ export function AuditForm() {
                         disabled={personaCards.length <= 1}
                         aria-label={`Remove persona ${String(index + 1).padStart(2, "0")}`}
                       >
-                        ×
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6" />
+                          <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                        </svg>
                       </Button>
                     </div>
 
@@ -2039,16 +2084,12 @@ export function AuditForm() {
               {isPublicAuditType(primaryType) ? (
                 <>
                   <Field label="Screenshots">
-                    <input
-                      type="file"
+                    <FilePickerButton
+                      buttonText="Choose files"
                       accept="image/*"
                       multiple
-                      className={orangeFileInputClassName}
-                      onChange={async (e) => {
-                        const files = Array.from(e.target.files ?? []);
-                        if (files.length === 0) return;
+                      onFilesSelected={async (files) => {
                         await uploadScreenshots(files);
-                        e.currentTarget.value = "";
                       }}
                     />
 
@@ -2183,16 +2224,12 @@ export function AuditForm() {
 
                   {/* ADDED */}
                   <Field label="Screenshots">
-                    <input
-                      type="file"
+                    <FilePickerButton
+                      buttonText="Choose files"
                       accept="image/*"
                       multiple
-                      className={orangeFileInputClassName}
-                      onChange={async (e) => {
-                        const files = Array.from(e.target.files ?? []);
-                        if (files.length === 0) return;
+                      onFilesSelected={async (files) => {
                         await uploadScreenshots(files);
-                        e.currentTarget.value = "";
                       }}
                     />
 
@@ -2266,15 +2303,13 @@ export function AuditForm() {
 
                   {/* ADDED */}
                   <Field label="Critical-flow video (optional)">
-                    <input
-                      type="file"
+                    <FilePickerButton
+                      buttonText="Choose files"
                       accept="video/*"
-                      className={orangeFileInputClassName}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
+                      onFilesSelected={async (files) => {
+                        const file = files[0];
                         if (!file) return;
                         await uploadCriticalFlowVideo(file);
-                        e.currentTarget.value = "";
                       }}
                     />
 
