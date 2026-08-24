@@ -41,6 +41,29 @@ export function Subtle({ children }: { children: ReactNode }) {
   return <div className="text-sm text-[color:var(--ink-muted)]">{children}</div>;
 }
 
+type CalloutTone = "issue" | "effect" | "solution";
+
+export function Callout({
+  children,
+  tone = "issue",
+}: {
+  children: ReactNode;
+  tone?: CalloutTone;
+}) {
+  const styles =
+    tone === "effect"
+      ? "border-[#d7e7ff] bg-[#f4f8ff] text-[color:var(--ink)]"
+      : tone === "solution"
+        ? "border-[#cdeed8] bg-[#f3fbf5] text-[color:var(--ink)]"
+        : "border-[#ffd2ae] bg-[#fff7ef] text-[color:var(--ink)]";
+
+  return (
+    <div className={`rounded-xl border px-3 py-2 text-sm font-medium ${styles}`}>
+      {children}
+    </div>
+  );
+}
+
 export function BulletList({ items, emptyLabel }: { items: unknown; emptyLabel: string }) {
   const values = normalizeList(items, 8);
   if (!values.length) {
@@ -422,15 +445,21 @@ export function FindingCard({ finding }: { finding: Record<string, unknown> }) {
       <div className="mt-3 grid gap-3">
         <div>
           <SectionTitle>Issue</SectionTitle>
-          <Subtle>{asString(finding.what_we_found) || "—"}</Subtle>
+          <div className="mt-1">
+            <Callout tone="issue">{asString(finding.what_we_found) || "—"}</Callout>
+          </div>
         </div>
         <div>
           <SectionTitle>Effect of this issue</SectionTitle>
-          <Subtle>{asString(finding.why_it_matters) || "—"}</Subtle>
+          <div className="mt-1">
+            <Callout tone="effect">{asString(finding.why_it_matters) || "—"}</Callout>
+          </div>
         </div>
         <div>
           <SectionTitle>Solution for this issue</SectionTitle>
-          <Subtle>{asString(finding.recommendation) || "—"}</Subtle>
+          <div className="mt-1">
+            <Callout tone="solution">{asString(finding.recommendation) || "—"}</Callout>
+          </div>
         </div>
         {criteria.length ? (
           <div>

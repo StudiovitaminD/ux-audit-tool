@@ -1835,6 +1835,12 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
   const rec = asRecord(item) ?? {};
   const recommendation = sanitizeDisplayText(rec.recommendation);
   const question = matchingQuestion(report, rec);
+  const findingLabel =
+    sanitizeDisplayText(rec.title) ||
+    sanitizeDisplayText(question?.title) ||
+    sanitizeDisplayText(rec.bucket) ||
+    sanitizeDisplayText(rec.section) ||
+    sanitizeDisplayText(rec.question);
   const questionLabel =
     sanitizeDisplayText(rec.question) ||
     sanitizeDisplayText(question?.question) ||
@@ -1871,7 +1877,7 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
       foundText && !isPlaceholderText(foundText)
         ? foundText
         : answerText
-          ? `Best available answer: ${answerText}.`
+          ? `${findingLabel || questionLabel || "This finding"}: Best available answer: ${answerText}.`
           : questionLabel ||
             sanitizeDisplayText(rec.what) ||
             (sanitizeDisplayText(rec.evidence) && !isPromptLikeText(rec.evidence, questionLabel)
@@ -1883,8 +1889,8 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
         ? whyText
         : answerText
           ? isLowScore
-            ? `This points to a likely friction point in ${questionLabel || "this area"}, so it should be validated in a follow-up pass.`
-            : `This suggests the current pattern is working reasonably well in ${questionLabel || "this area"}, but it should still be confirmed with more evidence.`
+            ? `This can create confusion and add friction in ${findingLabel || questionLabel || "this area"}, so it should be validated in a follow-up pass.`
+            : `This appears to work reasonably well in ${findingLabel || questionLabel || "this area"}, but it should still be confirmed with more evidence.`
           : sanitizeDisplayText(rec.evidence) || asString(rec.severity),
     recommendation:
       recommendationText && !isPlaceholderText(recommendationText)
