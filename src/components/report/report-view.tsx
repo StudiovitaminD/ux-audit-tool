@@ -870,12 +870,14 @@ export function ReportView() {
                       event.preventDefault();
                       router.push(`/report?rid=${encodeURIComponent(item.id)}`);
                     }}
-                    className="cursor-pointer rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-5 transition hover:bg-black/[0.015] focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+                    className="group cursor-pointer rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-5 transition hover:border-white/10 hover:bg-[#3e3e3e] focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <div className="text-lg font-semibold">{item.productName}</div>
-                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--ink-muted)]">
+                        <div className="text-lg font-semibold transition group-hover:text-white">
+                          {item.productName}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--ink-muted)] transition group-hover:text-white/70">
                           <span>{item.productType || "Type unknown"}</span>
                           <span aria-hidden="true">|</span>
                           <span>{item.primaryPlatform || "Platform unknown"}</span>
@@ -886,13 +888,13 @@ export function ReportView() {
                             </>
                           ) : null}
                         </div>
-                        <div className="mt-4 flex flex-wrap gap-3">
+                        <div className="mt-4 flex flex-wrap gap-3 transition group-hover:text-white">
                           {item.overallScore !== null ? (
-                            <div className="rounded-[14px] border border-[color:var(--cream-dark)] bg-white px-4 py-2 text-sm font-medium">
+                            <div className="rounded-[14px] border border-[color:var(--cream-dark)] bg-white px-4 py-2 text-sm font-medium transition group-hover:border-white/10 group-hover:bg-white/10 group-hover:text-white">
                               {item.overallScore}/100
                             </div>
                           ) : null}
-                          <div className="rounded-[14px] border border-[color:var(--cream-dark)] bg-white px-4 py-2 text-sm font-medium">
+                          <div className="rounded-[14px] border border-[color:var(--cream-dark)] bg-white px-4 py-2 text-sm font-medium transition group-hover:border-white/10 group-hover:bg-white/10 group-hover:text-white">
                             {statusLabel}
                           </div>
                         </div>
@@ -901,7 +903,7 @@ export function ReportView() {
                       <div className="flex flex-wrap items-center gap-3">
                         <Link
                           data-no-card-nav
-                          className="btnSecondary"
+                          className="btnSecondary transition group-hover:border-[#fc9223] group-hover:bg-[#fc9223] group-hover:text-white"
                           href={`/audit?sourceReport=${encodeURIComponent(item.id)}`}
                         >
                           Re-audit

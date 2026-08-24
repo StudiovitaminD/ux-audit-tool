@@ -367,9 +367,9 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                   <span className="sr-only">Pillar</span>
                 </th>
                 <th className="px-[12px] py-[4px] text-left">Bucket</th>
-                <th className="px-[12px] py-[4px] text-center">Score</th>
-                <th className="px-[12px] py-[4px] text-center">Health</th>
-                <th className="px-[12px] py-[4px] text-center">Priority</th>
+                <th className="px-[12px] py-[4px] text-left">Score</th>
+                <th className="px-[12px] py-[4px] text-left">Health</th>
+                <th className="px-[12px] py-[4px] text-left">Priority</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--report-table-border)]">
@@ -432,15 +432,15 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                       <td className="w-[200px] max-w-[200px] whitespace-nowrap px-[12px] text-left font-medium leading-tight text-[color:var(--report-black)] align-middle">
                         {bucketName}
                       </td>
-                      <td className="whitespace-nowrap px-[12px] text-center font-mono font-semibold leading-tight text-[color:var(--report-black)] align-middle">{score}</td>
-                      <td className="w-[200px] max-w-[200px] px-[12px] text-center align-middle">
+                      <td className="whitespace-nowrap px-[12px] text-left font-mono font-semibold leading-tight text-[color:var(--report-black)] align-middle">{score}</td>
+                      <td className="w-[200px] max-w-[200px] px-[12px] text-left align-middle">
                         <span
-                          className={`inline-flex w-[200px] max-w-[200px] items-center justify-center rounded-full border px-[4px] py-[4px] text-[11px] font-semibold leading-tight ${healthColors}`}
+                          className={`inline-flex w-[200px] max-w-[200px] items-center justify-start rounded-full border px-[12px] py-[4px] text-[11px] font-semibold leading-tight ${healthColors}`}
                         >
                           {experience}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-[12px] text-center font-semibold leading-tight text-[color:var(--report-black)] align-middle">
+                      <td className="whitespace-nowrap px-[12px] text-left font-semibold leading-tight text-[color:var(--report-black)] align-middle">
                         <span className="inline-flex">{priority.toUpperCase()}</span>
                       </td>
                     </tr>
