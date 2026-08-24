@@ -228,23 +228,21 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
   font-weight: 500;
   font-family: var(--font-sans);
   letter-spacing: 0;
-  border: 1.5px solid var(--accent);
+  border: 1px solid var(--accent);
   cursor: pointer;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-    gap: 10px;
-    transition: background-color 0.2s ease, transform 0.15s ease, border-color 0.2s ease,
-      color 0.2s ease;
-  }
+  gap: 10px;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
 
 .btnSecondary:hover {
   background: color-mix(in srgb, var(--accent) 8%, white);
   color: var(--accent);
   border-color: var(--accent);
-  transform: translateY(-1px);
-  }
+}
 
 .btnText {
   background: transparent;
@@ -258,19 +256,18 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
   font-family: var(--font-sans);
   letter-spacing: 0;
   cursor: pointer;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: color 0.2s ease, transform 0.15s ease;
-    box-shadow: none;
-  }
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: color 0.2s ease;
+  box-shadow: none;
+}
 
-  .btnText:hover {
-    color: color-mix(in srgb, var(--accent) 84%, black);
-    transform: translateY(-1px);
-  }
+.btnText:hover {
+  color: color-mix(in srgb, var(--accent) 84%, black);
+}
 
 body.app-route :is(
   button,
