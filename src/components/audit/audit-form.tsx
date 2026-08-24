@@ -2759,7 +2759,7 @@ Audit Flow for SCY Platform
       </section>
 
       <div
-        className="no-print fixed inset-x-6 bottom-6 z-30 rounded-[var(--radius)] floatingBarShell p-4 shadow-lg shadow-black/10 backdrop-blur"
+        className="no-print fixed inset-x-16 bottom-6 z-30 rounded-[var(--radius)] floatingBarShell p-4 shadow-lg shadow-black/10 backdrop-blur"
         data-audit-pagination
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2768,11 +2768,7 @@ Audit Flow for SCY Platform
             variant="secondary"
             onClick={handleCancelProcess}
             disabled={loading}
-            className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
-            style={{
-              borderColor: "rgb(252 165 165)",
-              color: "rgb(220 38 38)",
-            }}
+            className="floatingBarSecondary"
           >
             Cancel
           </Button>
