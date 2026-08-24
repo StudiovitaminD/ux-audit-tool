@@ -823,14 +823,14 @@ export function ReportView() {
               Run your first audit and it will appear here.
             </div>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-              <Link className="btnPrimary" href="/audit">
-                Start Audit
-              </Link>
               <Link
                 className="btnSecondary"
                 href="/report?demo=1"
               >
                 View sample report
+              </Link>
+              <Link className="btnPrimary" href="/audit">
+                Start Audit
               </Link>
             </div>
           </div>
