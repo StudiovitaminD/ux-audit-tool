@@ -433,9 +433,9 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                         {bucketName}
                       </td>
                       <td className="whitespace-nowrap px-[12px] text-left font-mono font-semibold leading-tight text-[color:var(--report-black)] align-middle">{score}</td>
-                      <td className="w-[200px] max-w-[200px] px-[12px] text-left align-middle">
+                      <td className="w-[80px] max-w-[80px] px-[12px] text-left align-middle">
                         <span
-                          className={`inline-flex w-[200px] max-w-[200px] items-center justify-start rounded-full border px-[12px] py-[4px] text-[11px] font-semibold leading-tight ${healthColors}`}
+                          className={`inline-flex w-[80px] max-w-[80px] items-center justify-center rounded-full border px-[8px] py-[4px] text-[11px] font-semibold leading-tight text-center ${healthColors}`}
                         >
                           {experience}
                         </span>
