@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { asString, buildReportViewModel, type AnyRecord } from "@/lib/report-model";
 import { buildReportPages } from "@/components/report/report-pages";
@@ -213,6 +214,11 @@ export function LiveReport({
 
   return (
     <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
+      <div className="no-print fixed left-6 top-24 z-30">
+        <Link href="/report" className="btnSecondary">
+          Back to reports
+        </Link>
+      </div>
       <ReportAccessPanel
         reportAccessLevel={reportAccessLevel}
         lockedSections={lockedSections}
@@ -303,7 +309,7 @@ export function LiveReport({
               {reportId ? (
                 <button
                   type="button"
-                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                  className="btnSecondary"
                   onClick={() => void saveChanges()}
                   disabled={!isDirty || saving}
                   style={!isDirty || saving ? { opacity: 0.5, pointerEvents: "none" } : undefined}
@@ -313,7 +319,7 @@ export function LiveReport({
               ) : null}
               <button
                 type="button"
-                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                className="btnSecondary"
                 onClick={resetAnswers}
                 disabled={saving || !isDirty}
                 style={saving || !isDirty ? { opacity: 0.5, pointerEvents: "none" } : undefined}
@@ -322,7 +328,7 @@ export function LiveReport({
               </button>
               <button
                 type="button"
-                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                className="btnSecondary"
                 onClick={() => setAiAnswersOpen((open) => !open)}
               >
                 {aiAnswersOpen ? "Close AI Answers" : "AI Answers"}
@@ -330,7 +336,7 @@ export function LiveReport({
               {onDownloadPdf ? (
                 <button
                   type="button"
-                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                  className="btnSecondary"
                   onClick={() => void saveBeforeExport(onDownloadPdf)}
                   disabled={downloadingPdf || isPreviewReport || saving}
                 >
@@ -340,7 +346,7 @@ export function LiveReport({
               {onDownloadPptx ? (
                 <button
                   type="button"
-                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                  className="btnSecondary"
                   onClick={() => void saveBeforeExport(onDownloadPptx)}
                   disabled={downloadingPptx || isPreviewReport || saving}
                 >

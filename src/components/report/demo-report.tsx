@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { calculateBusinessImpactMetrics, displayBucketName } from "@/lib/report-model";
 import { IntroPageSection } from "./sections/IntroPageSection";
@@ -881,7 +882,12 @@ export function DemoReport() {
   }, [page]);
 
   return (
-      <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
+    <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
+      <div className="no-print fixed left-6 top-24 z-30">
+        <Link href="/report" className="btnSecondary">
+          Back to reports
+        </Link>
+      </div>
       <div
         className="mt-5 flex-1 min-h-0 overflow-x-auto"
         data-report-live-canvas
