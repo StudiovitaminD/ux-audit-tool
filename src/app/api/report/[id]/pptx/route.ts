@@ -661,9 +661,9 @@ async function buildPptxResponse(req: Request, id: string) {
             h: 2.4,
             title: `${index * 2 + findingIndex + 1}. ${asString(finding.bucket)} — ${asString(finding.severity)}`,
             text: [
-              `What we found: ${truncate(finding.what_we_found || finding.question, 300)}`,
-              `Why it matters: ${truncate(finding.why_it_matters || finding.observation, 300)}`,
-              `Recommendation: ${truncate(finding.recommendation, 300)}`,
+              `Issue: ${truncate(finding.what_we_found || finding.question, 300)}`,
+              `Effect of this issue: ${truncate(finding.why_it_matters || finding.observation, 300)}`,
+              `Solution for this issue: ${truncate(finding.recommendation, 300)}`,
               criteria.length ? `Acceptance criteria: ${criteria.map((item) => `• ${item}`).join(" ")}` : "",
             ].join("\n"),
             line: LINE,

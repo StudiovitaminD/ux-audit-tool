@@ -421,15 +421,15 @@ export function FindingCard({ finding }: { finding: Record<string, unknown> }) {
 
       <div className="mt-3 grid gap-3">
         <div>
-          <SectionTitle>What we found</SectionTitle>
+          <SectionTitle>Issue</SectionTitle>
           <Subtle>{asString(finding.what_we_found) || "—"}</Subtle>
         </div>
         <div>
-          <SectionTitle>Why it matters</SectionTitle>
+          <SectionTitle>Effect of this issue</SectionTitle>
           <Subtle>{asString(finding.why_it_matters) || "—"}</Subtle>
         </div>
         <div>
-          <SectionTitle>Recommendation</SectionTitle>
+          <SectionTitle>Solution for this issue</SectionTitle>
           <Subtle>{asString(finding.recommendation) || "—"}</Subtle>
         </div>
         {criteria.length ? (

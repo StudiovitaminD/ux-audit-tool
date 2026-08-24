@@ -178,9 +178,9 @@ function buildDocxXml(report: unknown, reportId: string) {
           "Heading2",
         ),
       );
-      parts.push(paragraph(`What we found: ${asString(finding.what_we_found) || "—"}`));
-      parts.push(paragraph(`Why it matters: ${asString(finding.why_it_matters) || "—"}`));
-      parts.push(paragraph(`Recommendation: ${asString(finding.recommendation) || "—"}`));
+      parts.push(paragraph(`Issue: ${asString(finding.what_we_found) || "—"}`));
+      parts.push(paragraph(`Effect of this issue: ${asString(finding.why_it_matters) || "—"}`));
+      parts.push(paragraph(`Solution for this issue: ${asString(finding.recommendation) || "—"}`));
       normalizeList(finding.acceptance_criteria, 6).forEach((item) =>
         parts.push(bulletParagraph(item)),
       );
