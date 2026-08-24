@@ -1,5 +1,6 @@
 import chromium from "@sparticuz/chromium";
 import { chromium as pwChromium, type Page } from "playwright-core";
+import { deflateSync } from "node:zlib";
 import { asRecord, asString } from "@/lib/report-model";
 import { loadStoredReport } from "@/lib/report-record";
 
@@ -15,6 +16,15 @@ function fileNameFrom(value: string) {
   return value.replace(/[^\w\- ]+/g, "").trim().slice(0, 64) || "ux-audit-report";
 }
 
+function encodeReportForUrl(report: unknown) {
+  try {
+    const json = JSON.stringify(report);
+    return deflateSync(Buffer.from(json, "utf8")).toString("base64url");
+  } catch {
+    return "";
+  }
+}
+
 async function prepareBrowserPage(page: Page) {
   await page.route("**/*", (route) => {
     const resourceType = route.request().resourceType();
@@ -25,17 +35,29 @@ async function prepareBrowserPage(page: Page) {
   });
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+async function readReportOverride(req: Request) {
+  if (req.method !== "POST") return null;
+  try {
+    const raw = (await req.json().catch(() => null)) as { report?: unknown } | null;
+    if (!raw || raw.report === undefined) return null;
+    return raw.report;
+  } catch {
+    return null;
+  }
+}
+
+async function generatePdf(req: Request, { params }: { params: { id: string } }) {
   let browser: Awaited<ReturnType<typeof pwChromium.launch>> | null = null;
 
   try {
     const id = params.id;
     if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
-    const loaded = await loadStoredReport(id);
-    if (!loaded) return Response.json({ error: "Not found" }, { status: 404 });
+    const reportOverride = await readReportOverride(req);
+    const loaded = reportOverride ? null : await loadStoredReport(id);
+    if (!reportOverride && !loaded) return Response.json({ error: "Not found" }, { status: 404 });
 
-    const reportRecord = asRecord(loaded.report) ?? {};
+    const reportRecord = asRecord(reportOverride ?? loaded?.report) ?? {};
     const filename = `${fileNameFrom(asString(reportRecord.product_name) || asString(reportRecord.productName) || "ux-audit-report")}.pdf`;
 
     const executablePath = await chromium.executablePath();
@@ -51,8 +73,15 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     });
     await prepareBrowserPage(livePage);
 
-    const printUrl = new URL(`/report/${encodeURIComponent(id)}/print`, new URL(req.url).origin).toString();
-    await livePage.goto(printUrl, { waitUntil: "load", timeout: 120_000 });
+    const printUrl = new URL(`/report/${encodeURIComponent(id)}/print`, new URL(req.url).origin);
+    if (reportOverride) {
+      const encoded = encodeReportForUrl(reportOverride);
+      if (encoded) {
+        printUrl.searchParams.set("report", encoded);
+      }
+    }
+
+    await livePage.goto(printUrl.toString(), { waitUntil: "load", timeout: 120_000 });
     await livePage.waitForSelector('[data-report-print-ready="true"]', { timeout: 120_000 });
     await livePage.evaluate(async () => {
       if (document.fonts?.ready) {
@@ -88,4 +117,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   } finally {
     await browser?.close().catch(() => {});
   }
+}
+
+export async function GET(req: Request, ctx: { params: { id: string } }) {
+  return generatePdf(req, ctx);
+}
+
+export async function POST(req: Request, ctx: { params: { id: string } }) {
+  return generatePdf(req, ctx);
 }

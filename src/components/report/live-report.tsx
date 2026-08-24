@@ -22,7 +22,7 @@ export function LiveReport({
   report: unknown;
   reportId?: string | null;
   onReaudit?: () => void;
-  onDownloadPdf?: () => void;
+  onDownloadPdf?: (reportOverride?: unknown) => void | Promise<void>;
   onDownloadDocx?: () => void;
   onDownloadPptx?: (reportOverride?: unknown) => void | Promise<void>;
   downloadingPdf?: boolean;

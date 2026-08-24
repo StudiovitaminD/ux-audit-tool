@@ -949,7 +949,40 @@ export function ReportView() {
     else setDownloadingPptx(true);
     try {
       if (kind === "pdf") {
-        window.location.assign(`/api/report/${encodeURIComponent(reportId)}/pdf`);
+        const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/pdf`, reportOverride !== undefined
+          ? {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ report: reportOverride }),
+            }
+          : undefined);
+        if (!res.ok) {
+          const contentType = res.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            const json = (await res.json().catch(() => null)) as
+              | { error?: string; phase?: string; stack?: string }
+              | null;
+            const details = [
+              json?.error || `Download failed (${res.status})`,
+              json?.phase ? `Phase: ${json.phase}` : "",
+              json?.stack ? `Stack: ${json.stack.split("\n")[0]}` : "",
+            ]
+              .filter(Boolean)
+              .join(" | ");
+            throw new Error(details);
+          }
+          const text = await res.text().catch(() => "");
+          throw new Error(text || `Download failed (${res.status})`);
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${name.replace(/[^\w\- ]+/g, "").slice(0, 60) || "ux-report"}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
         return;
       }
       const isPptxWithOverride = kind === "pptx" && reportOverride !== undefined;
@@ -1196,7 +1229,7 @@ export function ReportView() {
       report={effectiveReport}
       reportId={reportId}
       onReaudit={() => router.push(`/audit?sourceReport=${encodeURIComponent(reportId || "")}`)}
-      onDownloadPdf={reportId ? () => download("pdf") : undefined}
+      onDownloadPdf={reportId ? (reportOverride) => download("pdf", reportOverride) : undefined}
       onDownloadDocx={reportId ? () => download("docx") : undefined}
       onDownloadPptx={reportId ? (reportOverride) => download("pptx", reportOverride) : undefined}
       downloadingPdf={downloadingPdf}
