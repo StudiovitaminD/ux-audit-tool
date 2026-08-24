@@ -503,7 +503,7 @@ body.app-route :is(
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
-    background: var(--report-grey-bg) !important;
+    background: var(--report-white) !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -517,7 +517,7 @@ body.app-route :is(
 
   .report-a4-page-body {
     overflow: hidden !important;
-    padding: 22px 22px 52px !important;
+    padding: 22px 22px 40px !important;
   }
 
   .report-a4-page-cover {
