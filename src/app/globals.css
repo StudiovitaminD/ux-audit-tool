@@ -430,6 +430,8 @@ body.app-route :is(
   html,
   body {
     background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -467,6 +469,7 @@ body.app-route :is(
 
   .print-report-root {
     background: #ffffff !important;
+    margin: 0 !important;
     padding: 0 !important;
   }
 

@@ -1,32 +1,12 @@
 import chromium from "@sparticuz/chromium";
-import { Document as PdfDocument, Image, Page as PdfPage, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { chromium as pwChromium, type Page } from "playwright-core";
-import { createElement } from "react";
 import { asRecord, asString } from "@/lib/report-model";
 import { loadStoredReport } from "@/lib/report-record";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-type CapturedPageImage = {
-  src: string;
-  widthPx: number;
-  heightPx: number;
-};
-
-const pdfStyles = StyleSheet.create({
-  page: {
-    position: "relative",
-    backgroundColor: "#ffffff",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-});
-
-const A4_VIEWPORT = {
+const PRINT_VIEWPORT = {
   width: 794,
   height: 1123,
 } as const;
@@ -43,49 +23,6 @@ async function prepareBrowserPage(page: Page) {
     }
     return route.continue();
   });
-}
-
-async function captureReportPage(locator: ReturnType<Page["locator"]>, label: string): Promise<CapturedPageImage> {
-  await locator.scrollIntoViewIfNeeded().catch(() => {});
-  await locator.waitFor({ state: "visible", timeout: 15_000 });
-  await locator.page().waitForTimeout(250).catch(() => {});
-
-  const box = await locator.boundingBox();
-  if (!box || box.width < 40 || box.height < 40) {
-    throw new Error(`Unable to measure ${label}`);
-  }
-
-  const image = await locator.screenshot({
-    type: "png",
-    scale: "css",
-  });
-
-  return {
-    src: `data:image/png;base64,${image.toString("base64")}`,
-    widthPx: Math.ceil(box.width),
-    heightPx: Math.ceil(box.height),
-  };
-}
-
-function buildPdfDocument(title: string, pages: CapturedPageImage[]) {
-  return createElement(
-    PdfDocument,
-    { title, producer: "react-pdf", creator: "ux-audit-tool" },
-    ...pages.map((page, index) =>
-      createElement(
-        PdfPage,
-        {
-          key: `page-${index + 1}`,
-          size: "A4",
-          style: pdfStyles.page,
-        },
-        createElement(Image, {
-          src: page.src,
-          style: pdfStyles.image,
-        }),
-      ),
-    ),
-  );
 }
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
@@ -109,36 +46,34 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     });
 
     const livePage = await browser.newPage({
-      viewport: { ...A4_VIEWPORT },
-      deviceScaleFactor: 1,
+      viewport: { ...PRINT_VIEWPORT },
+      deviceScaleFactor: 2,
     });
     await prepareBrowserPage(livePage);
 
     const printUrl = new URL(`/report/${encodeURIComponent(id)}/print`, new URL(req.url).origin).toString();
-    await livePage.goto(printUrl, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    await livePage.goto(printUrl, { waitUntil: "load", timeout: 120_000 });
     await livePage.waitForSelector('[data-report-print-ready="true"]', { timeout: 120_000 });
     await livePage.evaluate(async () => {
       if (document.fonts?.ready) {
         await document.fonts.ready;
       }
     });
+    await livePage.emulateMedia({ media: "print" });
     await livePage.waitForTimeout(250).catch(() => undefined);
 
-    const reportPages = livePage.locator(".print-page");
-    const pageCount = await reportPages.count();
-    if (!pageCount) {
-      throw new Error("No report pages were rendered");
-    }
-
-    const capturedPages: CapturedPageImage[] = [];
-    for (let index = 0; index < pageCount; index += 1) {
-      const pageLocator = reportPages.nth(index);
-      capturedPages.push(await captureReportPage(pageLocator, `report page ${index + 1}`));
-    }
+    const pdfBuffer = await livePage.pdf({
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: "0",
+        right: "0",
+        bottom: "0",
+        left: "0",
+      },
+    });
 
     await livePage.close().catch(() => {});
-
-    const pdfBuffer = await renderToBuffer(buildPdfDocument(filename, capturedPages));
 
     return new Response(new Uint8Array(pdfBuffer), {
       headers: {
