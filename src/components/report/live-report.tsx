@@ -218,12 +218,6 @@ export function LiveReport({
         lockedSections={lockedSections}
       />
 
-      <div className="no-print flex flex-wrap items-start justify-between gap-4" data-report-toolbar>
-        <div>
-          <div className="text-lg font-semibold">Generated report: {vm.productName}</div>
-        </div>
-      </div>
-
       <div
         className="mt-5 flex-1 min-h-0 overflow-x-auto"
         data-report-live-canvas

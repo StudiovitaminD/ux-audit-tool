@@ -951,7 +951,7 @@ export function DemoReport() {
           <div className="text-center text-sm text-[color:var(--ink-muted)]">{`${page + 1} / ${pages.length}`}</div>
           <button
             type="button"
-            className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+            className="btnPrimary"
             onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
             disabled={page === pages.length - 1}
             style={page === pages.length - 1 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
