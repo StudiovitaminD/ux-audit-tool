@@ -946,7 +946,7 @@ export function DemoReport() {
         </div>
       </div>
 
-      <div className="no-print fixed inset-x-6 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
+      <div className="no-print fixed inset-x-16 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-[color:var(--ink-muted)]">{`Page ${page + 1} / ${pages.length}`}</div>
           <div className="flex flex-wrap items-center gap-2">
