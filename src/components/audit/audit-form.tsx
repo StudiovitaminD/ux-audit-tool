@@ -2794,7 +2794,7 @@ Audit Flow for SCY Platform
                 variant="primary"
                 onClick={next}
                 disabled={loading}
-                className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+                className="btnPrimary rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
               >
                 Next
               </Button>
@@ -2803,7 +2803,7 @@ Audit Flow for SCY Platform
                 type="submit"
                 variant="primary"
                 disabled={loading || !isAllRequiredComplete}
-                className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+                className="btnPrimary rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
               >
                 {loading ? <LoadingSpinner /> : null}
                 Submit
