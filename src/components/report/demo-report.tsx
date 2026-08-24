@@ -941,14 +941,14 @@ export function DemoReport() {
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
           <button
             type="button"
-            className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+            className="rounded-full border border-[#ff8a1f] bg-white px-4 py-2 text-sm font-medium text-[#ff8a1f] transition hover:bg-[#fff7f0] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f] dark:hover:bg-[#fff7f0]"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
             style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
           >
             Prev
           </button>
-          <div className="text-center text-sm text-[color:var(--ink-muted)]">{`Page ${page + 1} / ${pages.length}`}</div>
+          <div className="text-center text-sm text-[color:var(--ink-muted)]">{`${page + 1} / ${pages.length}`}</div>
           <button
             type="button"
             className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"

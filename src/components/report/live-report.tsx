@@ -306,7 +306,7 @@ export function LiveReport({
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-[color:var(--ink-muted)]" data-report-page-indicator>
-              Page {page + 1} / {pages.length}
+              {page + 1} / {pages.length}
             </div>
             <div className="flex flex-wrap items-center gap-2" data-report-pagination-controls>
               {reportId ? (
@@ -358,7 +358,7 @@ export function LiveReport({
               ) : null}
               <button
                 type="button"
-                className="btnPrimary"
+                className="rounded-full border border-[#ff8a1f] bg-white px-4 py-2 text-sm font-medium text-[#ff8a1f] transition hover:bg-[#fff7f0] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f] dark:hover:bg-[#fff7f0]"
                 data-report-prev
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={page === 0}
