@@ -901,7 +901,7 @@ export function ReportView() {
                       <div className="flex flex-wrap items-center gap-3">
                         <Link
                           data-no-card-nav
-                          className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+                          className="btnSecondary"
                           href={`/audit?sourceReport=${encodeURIComponent(item.id)}`}
                         >
                           Re-audit

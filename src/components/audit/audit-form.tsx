@@ -1617,7 +1617,6 @@ export function AuditForm() {
               <div>
                 <h2 className="font-display text-lg font-semibold tracking-tight">Audit Details</h2>
               </div>
-              <IntakeAssistant payload={payload} setPayload={setPayload} placement="header" />
             </div>
             <div className="grid gap-4 lg:grid-cols-3">
               <Field label="Product type" error={showErrorsForStep ? validation.productType : undefined}>
@@ -2784,7 +2783,7 @@ Audit Flow for SCY Platform
               variant="secondary"
               onClick={back}
               disabled={activeStep === 1 || loading}
-              className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+              className="rounded-full border-[#ff8a1f] px-5 py-2.5 text-sm font-semibold text-[#ff8a1f] shadow-sm hover:bg-[#fff7f0] hover:text-[#ff8a1f]"
             >
               Back
             </Button>

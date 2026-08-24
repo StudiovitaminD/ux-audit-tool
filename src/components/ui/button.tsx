@@ -17,7 +17,7 @@ function baseClasses({ variant, size }: { variant: Variant; size: Size }) {
 
   const variants: Record<Variant, string> = {
     primary:
-      "bg-[color:var(--ink)] text-[color:var(--cream)] hover:bg-[color:var(--accent)]",
+      "bg-[color:var(--accent)] text-[color:var(--white)] hover:bg-[color:var(--accent)]/90",
     secondary:
       "bg-[color:var(--white)] text-[color:var(--ink)] border border-[color:var(--cream-dark)] hover:bg-[color:var(--cream)]",
     ghost:

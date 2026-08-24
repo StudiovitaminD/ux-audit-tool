@@ -298,21 +298,18 @@ export function LiveReport({
           className="no-print fixed inset-x-16 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur"
           data-report-pagination
         >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm text-[color:var(--ink-muted)]" data-report-page-indicator>
-              {page + 1} / {pages.length}
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2" data-report-pagination-controls>
               {reportId ? (
-              <button
-                type="button"
-                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-                onClick={() => void saveChanges()}
-                disabled={!isDirty || saving}
-                style={!isDirty || saving ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-              >
-                {saving ? "Saving…" : "Save Changes"}
-              </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                  onClick={() => void saveChanges()}
+                  disabled={!isDirty || saving}
+                  style={!isDirty || saving ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+                >
+                  {saving ? "Saving…" : "Save Changes"}
+                </button>
               ) : null}
               <button
                 type="button"
@@ -341,15 +338,21 @@ export function LiveReport({
                 </button>
               ) : null}
               {onDownloadPptx ? (
-              <button
-                type="button"
-                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-                onClick={() => void saveBeforeExport(onDownloadPptx)}
-                disabled={downloadingPptx || isPreviewReport || saving}
-              >
-                {isPreviewReport ? "Upgrade for PPTX" : downloadingPptx ? "Exporting PPTX…" : "Export PPTX"}
-              </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+                  onClick={() => void saveBeforeExport(onDownloadPptx)}
+                  disabled={downloadingPptx || isPreviewReport || saving}
+                >
+                  {isPreviewReport
+                    ? "Upgrade for PPTX"
+                    : downloadingPptx
+                      ? "Exporting PPTX…"
+                      : "Export PPTX"}
+                </button>
               ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 className="rounded-full border border-[#ff8a1f] bg-white px-4 py-2 text-sm font-medium text-[#ff8a1f] transition hover:bg-[#fff7f0] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f] dark:hover:bg-[#fff7f0]"
@@ -361,6 +364,9 @@ export function LiveReport({
               >
                 Prev
               </button>
+              <div className="text-sm text-[color:var(--ink-muted)]" data-report-page-indicator>
+                {page + 1} / {pages.length}
+              </div>
               <button
                 type="button"
                 className="btnPrimary"

@@ -12,10 +12,61 @@ function safeJsonParse<T>(raw: string): T | null {
   try {
     return JSON.parse(txt) as T;
   } catch {}
+  const unfenced = txt
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+  if (unfenced !== txt) {
+    try {
+      return JSON.parse(unfenced) as T;
+    } catch {}
+  }
   try {
-    const match = txt.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]) as T;
+    const start = txt.indexOf("{");
+    const end = txt.lastIndexOf("}");
+    const match = start >= 0 && end > start ? txt.slice(start, end + 1) : "";
+    if (match) return JSON.parse(match) as T;
   } catch {}
+  try {
+    const start = unfenced.indexOf("{");
+    const end = unfenced.lastIndexOf("}");
+    const match = start >= 0 && end > start ? unfenced.slice(start, end + 1) : "";
+    if (match) return JSON.parse(match) as T;
+  } catch {}
+  return null;
+}
+
+function normalizePatchCandidate(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const rec = value as Record<string, unknown>;
+  if (rec.patch && typeof rec.patch === "object" && !Array.isArray(rec.patch)) {
+    return rec.patch as Record<string, unknown>;
+  }
+  const directKeys = [
+    "productName",
+    "productOneLiner",
+    "productUrl",
+    "product",
+    "primaryPlatform",
+    "productStage",
+    "auditGoals",
+    "auditFlows",
+    "selectedBuckets",
+    "primaryUser",
+    "primaryUserGoal",
+    "primaryUserIntent",
+    "frequencyOfUse",
+    "primaryBusinessObjective",
+    "competitors",
+    "differentiation",
+    "knownProblem",
+    "constraints",
+    "whoImplements",
+    "successMetric",
+    "auth",
+    "artifacts",
+  ];
+  if (directKeys.some((key) => key in rec)) return rec;
   return null;
 }
 
@@ -165,14 +216,9 @@ Important: Only include keys you can fill confidently from the transcript.`;
       );
     }
 
-    const parsed = safeJsonParse<{
-      patch?: Record<string, unknown>;
-    }>(extractOpenRouterContent(raw));
-
-    const patch =
-      parsed?.patch && typeof parsed.patch === "object"
-        ? (parsed.patch as Record<string, unknown>)
-        : null;
+    const content = extractOpenRouterContent(raw);
+    const parsed = safeJsonParse<unknown>(content) ?? safeJsonParse<unknown>(raw);
+    const patch = normalizePatchCandidate(parsed) ?? normalizePatchCandidate(safeJsonParse<unknown>(content));
 
     if (!patch) {
       return NextResponse.json(

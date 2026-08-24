@@ -93,7 +93,7 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="text-[#ff4d3a] transition hover:text-[#ff4d3a]/85"
+                className="btnText text-[#ff4d3a] transition hover:text-[#ff4d3a]/85"
               >
                 Log out
               </button>
