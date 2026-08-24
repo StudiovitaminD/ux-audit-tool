@@ -546,4 +546,15 @@ body.app-route :is(
     width: 100% !important;
     box-sizing: border-box !important;
   }
+
+  .report-a4-page-overview .business-impact-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+  }
+
+  .report-a4-page-overview .business-impact-grid > * {
+    min-width: 0 !important;
+  }
 }

@@ -304,7 +304,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
           >
             Business Impact Index
           </div>
-          <div className="grid gap-3 lg:grid-cols-3">
+          <div className="business-impact-grid grid gap-3 lg:grid-cols-3">
             {businessMetrics.map((metric, index) => {
               const isFirst = index === 0;
               const betterLabel = metric.label === "Drop-off Rate" ? "Lower is better" : "Higher is better";
