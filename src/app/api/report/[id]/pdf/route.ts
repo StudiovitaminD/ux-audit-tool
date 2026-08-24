@@ -11,8 +11,8 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const PRINT_VIEWPORT = {
-  width: 794,
-  height: 1123,
+  width: 1440,
+  height: 1200,
 } as const;
 
 function fileNameFrom(value: string) {

@@ -934,9 +934,11 @@ export function DemoReport() {
                 ) : null}
                 {current.body}
               </div>
-                <div className="mt-auto flex h-[30px] shrink-0 items-center justify-between self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] px-8 py-1.5 text-[14px] leading-5 text-[color:var(--report-white)]">
-                  <div>Page {page + 1}</div>
-                  <div>UX Audit Report</div>
+                <div className="report-a4-page-footer mt-auto h-[30px] shrink-0 self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] text-[14px] leading-5 text-[color:var(--report-white)]">
+                  <div className="report-a4-page-footer-inner flex h-full items-center justify-between px-8 py-1.5">
+                    <div>Page {page + 1}</div>
+                    <div>UX Audit Report</div>
+                  </div>
                 </div>
               </div>
             )}

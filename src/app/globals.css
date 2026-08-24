@@ -362,6 +362,7 @@ body.app-route :is(
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
 }
 
 .report-a4-page-body {
@@ -449,7 +450,7 @@ body.app-route :is(
     width: 794px !important;
     height: 1123px !important;
     margin: 0 !important;
-    padding: 12px !important;
+    padding: 0 !important;
     border: none !important;
     border-radius: 0 !important;
     break-after: page;
@@ -482,10 +483,12 @@ body.app-route :is(
     width: 794px !important;
     height: 1123px !important;
     margin: 0 !important;
-    padding: 12px !important;
+    padding: 0 !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    position: relative !important;
+    overflow: hidden !important;
   }
 
   .report-a4-page-cover {
@@ -509,11 +512,12 @@ body.app-route :is(
   .report-a4-page-inner {
     height: 100% !important;
     min-height: 0 !important;
+    position: relative !important;
   }
 
   .report-a4-page-body {
     overflow: hidden !important;
-    padding: 22px !important;
+    padding: 22px 22px 52px !important;
   }
 
   .report-a4-page-cover {
@@ -526,5 +530,20 @@ body.app-route :is(
 
   .report-a4-page-inner-cover {
     height: 1123px !important;
+  }
+
+  .report-a4-page-footer {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  .report-a4-page-footer-inner {
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 }
