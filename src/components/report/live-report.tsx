@@ -301,7 +301,7 @@ export function LiveReport({
         </div>
 
         <div
-          className="no-print fixed inset-x-16 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur"
+          className="no-print fixed inset-x-16 bottom-6 z-30 rounded-[var(--radius)] border border-white/10 bg-[#272727] p-5 shadow-lg shadow-black/10 backdrop-blur"
           data-report-pagination
         >
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -370,7 +370,7 @@ export function LiveReport({
               >
                 Prev
               </button>
-              <div className="text-sm text-[color:var(--ink-muted)]" data-report-page-indicator>
+              <div className="text-sm text-white/70" data-report-page-indicator>
                 {page + 1} / {pages.length}
               </div>
               <button

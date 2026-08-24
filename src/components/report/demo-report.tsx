@@ -943,7 +943,7 @@ export function DemoReport() {
         </div>
       </div>
 
-      <div className="no-print fixed inset-x-16 bottom-6 z-30 mx-auto w-[min(460px,calc(100%-8rem))] rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
+      <div className="no-print fixed inset-x-16 bottom-6 z-30 mx-auto w-[min(460px,calc(100%-8rem))] rounded-[var(--radius)] border border-white/10 bg-[#272727] p-5 shadow-lg shadow-black/10 backdrop-blur">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
           <button
             type="button"
@@ -954,7 +954,7 @@ export function DemoReport() {
           >
             Prev
           </button>
-          <div className="text-center text-sm text-[color:var(--ink-muted)]">{`${page + 1} / ${pages.length}`}</div>
+          <div className="text-center text-sm text-white/70">{`${page + 1} / ${pages.length}`}</div>
           <button
             type="button"
             className="btnPrimary"
