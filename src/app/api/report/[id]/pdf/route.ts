@@ -1,7 +1,10 @@
 import chromium from "@sparticuz/chromium";
 import { chromium as pwChromium, type Page } from "playwright-core";
 import { asRecord, asString } from "@/lib/report-model";
-import { storeReportExportOverride } from "@/lib/report-export-overrides";
+import {
+  deleteReportExportOverride,
+  storeReportExportOverride,
+} from "@/lib/report-export-overrides";
 import { loadStoredReport } from "@/lib/report-record";
 
 export const runtime = "nodejs";
@@ -39,6 +42,7 @@ async function readReportOverride(req: Request) {
 
 async function generatePdf(req: Request, { params }: { params: { id: string } }) {
   let browser: Awaited<ReturnType<typeof pwChromium.launch>> | null = null;
+  let overrideToken: string | null = null;
 
   try {
     const id = params.id;
@@ -66,7 +70,8 @@ async function generatePdf(req: Request, { params }: { params: { id: string } })
 
     const printUrl = new URL(`/report/${encodeURIComponent(id)}/print`, new URL(req.url).origin);
     if (reportOverride) {
-      printUrl.searchParams.set("token", storeReportExportOverride(reportOverride));
+      overrideToken = await storeReportExportOverride(reportOverride);
+      printUrl.searchParams.set("token", overrideToken);
     }
 
     await livePage.goto(printUrl.toString(), { waitUntil: "load", timeout: 120_000 });
@@ -104,6 +109,9 @@ async function generatePdf(req: Request, { params }: { params: { id: string } })
     return Response.json({ error: `PDF generation failed: ${message}` }, { status: 500 });
   } finally {
     await browser?.close().catch(() => {});
+    if (overrideToken) {
+      await deleteReportExportOverride(overrideToken);
+    }
   }
 }
 
