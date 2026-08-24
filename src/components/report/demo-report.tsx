@@ -881,16 +881,7 @@ export function DemoReport() {
   }, [page]);
 
   return (
-    <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
-      <div className="no-print flex flex-wrap items-start justify-between gap-4" data-report-toolbar>
-        <div>
-          <div className="text-lg font-semibold">Sample report: {DEMO.product_name}</div>
-          <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
-            Client‑deliverable preview (multi-page).
-          </div>
-        </div>
-      </div>
-
+      <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
       <div
         className="mt-5 flex-1 min-h-0 overflow-x-auto"
         data-report-live-canvas
@@ -946,29 +937,27 @@ export function DemoReport() {
         </div>
       </div>
 
-      <div className="no-print fixed inset-x-16 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-[color:var(--ink-muted)]">{`Page ${page + 1} / ${pages.length}`}</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-            >
-              Prev
-            </button>
-            <button
-              type="button"
-              className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-              onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
-              disabled={page === pages.length - 1}
-              style={page === pages.length - 1 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-            >
-              Next
-            </button>
-          </div>
+      <div className="no-print fixed inset-x-16 bottom-6 z-30 mx-auto w-[min(460px,calc(100%-8rem))] rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-5 shadow-lg shadow-black/5 backdrop-blur">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+          <button
+            type="button"
+            className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+          >
+            Prev
+          </button>
+          <div className="text-center text-sm text-[color:var(--ink-muted)]">{`Page ${page + 1} / ${pages.length}`}</div>
+          <button
+            type="button"
+            className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
+            onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
+            disabled={page === pages.length - 1}
+            style={page === pages.length - 1 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>

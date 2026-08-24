@@ -221,9 +221,6 @@ export function LiveReport({
       <div className="no-print flex flex-wrap items-start justify-between gap-4" data-report-toolbar>
         <div>
           <div className="text-lg font-semibold">Generated report: {vm.productName}</div>
-          <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
-            Client‑deliverable preview (multi-page).
-          </div>
         </div>
       </div>
 
