@@ -269,6 +269,54 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
   color: color-mix(in srgb, var(--accent) 84%, black);
 }
 
+.floatingBarShell {
+  background: #3e3e3e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.floatingBarSecondary,
+.floatingBarPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 9999px;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.floatingBarSecondary {
+  background: transparent;
+  color: #fc9223;
+  border: 1px solid #fc9223;
+}
+
+.floatingBarSecondary:hover {
+  background: color-mix(in srgb, #fc9223 10%, #3e3e3e);
+  color: #fc9223;
+  border-color: #fc9223;
+}
+
+.floatingBarPrimary {
+  background: #fc9223;
+  color: #ffffff;
+  border: 1px solid #fc9223;
+}
+
+.floatingBarPrimary:hover {
+  background: color-mix(in srgb, #fc9223 88%, black);
+  color: #ffffff;
+  border-color: #fc9223;
+}
+
 body.app-route :is(
   button,
   a.btnPrimary,

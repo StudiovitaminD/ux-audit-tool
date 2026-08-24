@@ -943,11 +943,11 @@ export function DemoReport() {
         </div>
       </div>
 
-      <div className="no-print fixed inset-x-16 bottom-6 z-30 mx-auto w-[min(460px,calc(100%-8rem))] rounded-[var(--radius)] border border-white/10 bg-[#272727] p-5 shadow-lg shadow-black/10 backdrop-blur">
+      <div className="no-print fixed inset-x-16 bottom-6 z-30 mx-auto w-[min(460px,calc(100%-8rem))] rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
           <button
             type="button"
-            className="rounded-full border border-[#ff8a1f] bg-white px-4 py-2 text-sm font-medium text-[#ff8a1f] transition hover:bg-[#fff7f0] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f] dark:hover:bg-[#fff7f0]"
+            className="floatingBarSecondary"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
             style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
@@ -957,7 +957,7 @@ export function DemoReport() {
           <div className="text-center text-sm text-white/70">{`${page + 1} / ${pages.length}`}</div>
           <button
             type="button"
-            className="btnPrimary"
+            className="floatingBarPrimary"
             onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
             disabled={page === pages.length - 1}
             style={page === pages.length - 1 ? { opacity: 0.5, pointerEvents: "none" } : undefined}

@@ -2759,7 +2759,7 @@ Audit Flow for SCY Platform
       </section>
 
       <div
-        className="no-print fixed inset-x-6 bottom-6 z-30 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] p-4 shadow-lg shadow-black/5 backdrop-blur"
+        className="no-print fixed inset-x-6 bottom-6 z-30 rounded-[var(--radius)] floatingBarShell p-4 shadow-lg shadow-black/10 backdrop-blur"
         data-audit-pagination
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2783,7 +2783,7 @@ Audit Flow for SCY Platform
               variant="secondary"
               onClick={back}
               disabled={activeStep === 1 || loading}
-              className="rounded-full border-[#ff8a1f] px-5 py-2.5 text-sm font-semibold text-[#ff8a1f] shadow-sm hover:bg-[#fff7f0] hover:text-[#ff8a1f]"
+              className="floatingBarSecondary"
             >
               Back
             </Button>
@@ -2793,7 +2793,7 @@ Audit Flow for SCY Platform
                 variant="primary"
                 onClick={next}
                 disabled={loading}
-                className="btnPrimary rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+                className="floatingBarPrimary"
               >
                 Next
               </Button>
@@ -2802,7 +2802,7 @@ Audit Flow for SCY Platform
                 type="submit"
                 variant="primary"
                 disabled={loading || !isAllRequiredComplete}
-                className="btnPrimary rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+                className="floatingBarPrimary"
               >
                 {loading ? <LoadingSpinner /> : null}
                 Submit

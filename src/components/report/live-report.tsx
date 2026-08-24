@@ -301,7 +301,7 @@ export function LiveReport({
         </div>
 
         <div
-          className="no-print fixed inset-x-16 bottom-6 z-30 rounded-[var(--radius)] border border-white/10 bg-[#272727] p-5 shadow-lg shadow-black/10 backdrop-blur"
+          className="no-print fixed inset-x-16 bottom-6 z-30 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
           data-report-pagination
         >
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -309,7 +309,7 @@ export function LiveReport({
               {reportId ? (
                 <button
                   type="button"
-                  className="btnSecondary"
+                  className="floatingBarSecondary"
                   onClick={() => void saveChanges()}
                   disabled={!isDirty || saving}
                   style={!isDirty || saving ? { opacity: 0.5, pointerEvents: "none" } : undefined}
@@ -319,7 +319,7 @@ export function LiveReport({
               ) : null}
               <button
                 type="button"
-                className="btnSecondary"
+                className="floatingBarSecondary"
                 onClick={resetAnswers}
                 disabled={saving || !isDirty}
                 style={saving || !isDirty ? { opacity: 0.5, pointerEvents: "none" } : undefined}
@@ -328,7 +328,7 @@ export function LiveReport({
               </button>
               <button
                 type="button"
-                className="btnSecondary"
+                className="floatingBarSecondary"
                 onClick={() => setAiAnswersOpen((open) => !open)}
               >
                 {aiAnswersOpen ? "Close AI Answers" : "AI Answers"}
@@ -336,7 +336,7 @@ export function LiveReport({
               {onDownloadPdf ? (
                 <button
                   type="button"
-                  className="btnSecondary"
+                  className="floatingBarSecondary"
                   onClick={() => void saveBeforeExport(onDownloadPdf)}
                   disabled={downloadingPdf || isPreviewReport || saving}
                 >
@@ -346,7 +346,7 @@ export function LiveReport({
               {onDownloadPptx ? (
                 <button
                   type="button"
-                  className="btnSecondary"
+                  className="floatingBarSecondary"
                   onClick={() => void saveBeforeExport(onDownloadPptx)}
                   disabled={downloadingPptx || isPreviewReport || saving}
                 >
@@ -361,7 +361,7 @@ export function LiveReport({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                className="rounded-full border border-[#ff8a1f] bg-white px-4 py-2 text-sm font-medium text-[#ff8a1f] transition hover:bg-[#fff7f0] dark:border-[#ff8a1f] dark:bg-white dark:text-[#ff8a1f] dark:hover:bg-[#fff7f0]"
+                className="floatingBarSecondary"
                 data-report-prev
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={page === 0}
@@ -375,7 +375,7 @@ export function LiveReport({
               </div>
               <button
                 type="button"
-                className="btnPrimary"
+                className="floatingBarPrimary"
                 data-report-next
                 onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
                 disabled={page === pages.length - 1}
