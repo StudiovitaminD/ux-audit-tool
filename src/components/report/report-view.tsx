@@ -799,7 +799,7 @@ export function ReportView() {
               </Link>
             {reportHistory.length > 0 ? (
               <Link className="btnPrimary shrink-0" href="/audit">
-                Start Audit <span aria-hidden="true">→</span>
+                Start Audit
               </Link>
             ) : null}
           </div>
@@ -824,7 +824,7 @@ export function ReportView() {
             </div>
             <div className="mt-5">
               <Link className="btnPrimary" href="/audit">
-                Start Audit <span aria-hidden="true">→</span>
+                Start Audit
               </Link>
             </div>
           </div>

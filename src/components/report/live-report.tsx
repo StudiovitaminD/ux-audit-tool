@@ -368,7 +368,7 @@ export function LiveReport({
                 aria-disabled={page === 0}
                 style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
               >
-                ← Prev
+                Prev
               </button>
               <button
                 type="button"
@@ -381,7 +381,7 @@ export function LiveReport({
                   page === pages.length - 1 ? { opacity: 0.5, pointerEvents: "none" } : undefined
                 }
               >
-                Next →
+                Next
               </button>
             </div>
           </div>
