@@ -1,7 +1,7 @@
 import chromium from "@sparticuz/chromium";
 import { chromium as pwChromium, type Page } from "playwright-core";
-import { deflateSync } from "node:zlib";
 import { asRecord, asString } from "@/lib/report-model";
+import { storeReportExportOverride } from "@/lib/report-export-overrides";
 import { loadStoredReport } from "@/lib/report-record";
 
 export const runtime = "nodejs";
@@ -14,15 +14,6 @@ const PRINT_VIEWPORT = {
 
 function fileNameFrom(value: string) {
   return value.replace(/[^\w\- ]+/g, "").trim().slice(0, 64) || "ux-audit-report";
-}
-
-function encodeReportForUrl(report: unknown) {
-  try {
-    const json = JSON.stringify(report);
-    return deflateSync(Buffer.from(json, "utf8")).toString("base64url");
-  } catch {
-    return "";
-  }
 }
 
 async function prepareBrowserPage(page: Page) {
@@ -75,10 +66,7 @@ async function generatePdf(req: Request, { params }: { params: { id: string } })
 
     const printUrl = new URL(`/report/${encodeURIComponent(id)}/print`, new URL(req.url).origin);
     if (reportOverride) {
-      const encoded = encodeReportForUrl(reportOverride);
-      if (encoded) {
-        printUrl.searchParams.set("report", encoded);
-      }
+      printUrl.searchParams.set("token", storeReportExportOverride(reportOverride));
     }
 
     await livePage.goto(printUrl.toString(), { waitUntil: "load", timeout: 120_000 });
