@@ -847,7 +847,7 @@ export function ReportView() {
                 {deleteError}
               </div>
             ) : null}
-            <div className="grid gap-4">
+            <div className="grid gap-4 lg:grid-cols-2">
               {filteredReportHistory.map((item) => {
                 const statusLabel = item.status
                   ? `${item.status.charAt(0).toUpperCase()}${item.status.slice(1)}`
