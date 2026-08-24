@@ -142,9 +142,6 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
               Design AID Audit
             </span>
           </div>
-          <h2 className="text-center">
-            {isSignUp ? "Sign up to save and unlock reports" : "Sign in to continue your audit"}
-          </h2>
           {isSignUp && selectedReportLimit ? (
             <div className="mt-5 rounded-2xl border border-black/8 bg-[color:var(--cream)]/40 px-4 py-3 text-sm leading-6 text-[color:var(--ink)]">
               Selected plan: <span className="font-semibold">{selectedReportLimit} reports</span>
