@@ -14,7 +14,7 @@ export function PrintReport({ report }: { report: unknown }) {
 
   return (
     <div
-      className="print-report-root m-16 min-h-screen bg-[color:var(--background)] p-0"
+      className="print-report-root min-h-screen bg-[color:var(--background)] p-0"
       data-report-print-ready="true"
     >
       <div className="report-a4-stage mx-auto space-y-6">
