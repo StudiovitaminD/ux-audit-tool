@@ -215,8 +215,7 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-  box-shadow: 0 10px 20px rgba(255, 138, 31, 0.2);
+  transition: background-color 0.2s ease;
 }
 
 .btnSecondary {
@@ -303,7 +302,6 @@ body.app-route :is(a.btnText, button.btnText) {
 
 .btnPrimary:hover {
   background: color-mix(in srgb, var(--accent) 88%, black);
-  transform: translateY(-1px);
 }
 
 .btnPrimary:disabled {

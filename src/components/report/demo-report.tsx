@@ -883,7 +883,7 @@ export function DemoReport() {
 
   return (
     <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
-      <div className="no-print fixed left-6 top-24 z-30">
+      <div className="no-print fixed left-16 top-24 z-30">
         <Link href="/report" className="btnSecondary">
           Back to reports
         </Link>
