@@ -159,14 +159,29 @@ export function BucketPicker({
                       <div className="flex items-center gap-[10px]">
                         <span
                           className={[
-                            "grid size-5 shrink-0 place-items-center rounded-md border text-[10px] transition-colors",
+                            "grid size-5 shrink-0 place-items-center rounded-md border transition-colors",
                             isChecked
-                              ? "border-transparent bg-[color:var(--accent)] text-zinc-950"
+                              ? "border-transparent bg-[color:var(--accent)] text-white"
                               : "border-[color:var(--card-border)] text-[color:var(--muted)]",
                           ].join(" ")}
                           aria-hidden="true"
                         >
-                          {isChecked ? "✓" : ""}
+                          {isChecked ? (
+                            <svg
+                              viewBox="0 0 16 16"
+                              aria-hidden="true"
+                              className="size-3.5"
+                              fill="none"
+                            >
+                              <path
+                                d="M3.5 8.5L6.5 11.5L12.5 4.5"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          ) : null}
                         </span>
                         <span className="text-[15px] font-medium text-[color:var(--ink)]">
                           {row.bucket.includes("Content") ? "Content" : row.bucket}

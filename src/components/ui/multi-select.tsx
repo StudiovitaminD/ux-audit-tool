@@ -100,13 +100,28 @@ export function MultiSelect({
                 >
                   <span
                     className={cx(
-                      "flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs font-bold",
+                      "flex h-5 w-5 shrink-0 items-center justify-center rounded border",
                       selected
                         ? "border-[color:var(--ink)] bg-[color:var(--ink)] text-[color:var(--cream)]"
                         : "border-[color:var(--cream-dark)] bg-[color:var(--white)] text-transparent",
                     )}
                   >
-                    ✓
+                    {selected ? (
+                      <svg
+                        viewBox="0 0 16 16"
+                        aria-hidden="true"
+                        className="size-3.5"
+                        fill="none"
+                      >
+                        <path
+                          d="M3.5 8.5L6.5 11.5L12.5 4.5"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : null}
                   </span>
                   <span className="text-[color:var(--ink)]">{opt.label}</span>
                 </button>
