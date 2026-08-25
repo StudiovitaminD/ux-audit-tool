@@ -50,14 +50,7 @@ export function Callout({
   children: ReactNode;
   tone?: CalloutTone;
 }) {
-  const styles =
-    tone === "effect"
-      ? "text-[color:var(--muted)]"
-      : tone === "solution"
-        ? "text-[color:var(--ink)]"
-        : "text-[color:var(--ink)]";
-
-  return <div className={`text-[14px] font-normal leading-[21px] ${styles}`}>{children}</div>;
+  return <div className="text-[14px] font-normal leading-[21px] text-[color:var(--ink)]">{children}</div>;
 }
 
 export function BulletList({ items, emptyLabel }: { items: unknown; emptyLabel: string }) {
