@@ -52,6 +52,15 @@ export function AIBucketAnswersView({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {extraActions}
+            {onResetAnswers ? (
+              <button
+                type="button"
+                className="btnSecondary"
+                onClick={onResetAnswers}
+              >
+                Reset Answers
+              </button>
+            ) : null}
             {onSave ? (
               <button
                 type="button"
@@ -73,7 +82,6 @@ export function AIBucketAnswersView({
           <AIBucketAnswersSection
             bucketAnswerSections={bucketAnswerSections}
             onAnswerChange={onAnswerChange}
-            onResetAnswers={onResetAnswers}
           />
         </div>
       </div>
