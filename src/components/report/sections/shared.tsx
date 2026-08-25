@@ -422,10 +422,6 @@ export function BucketAnswersCard({
 }
 
 export function FindingCard({ finding }: { finding: Record<string, unknown> }) {
-  const criteria = Array.isArray(finding.acceptance_criteria)
-    ? finding.acceptance_criteria.map(stringifyValue).filter(Boolean)
-    : [];
-
   return (
     <div
       className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-4"
@@ -459,16 +455,6 @@ export function FindingCard({ finding }: { finding: Record<string, unknown> }) {
             <Callout tone="solution">{asString(finding.recommendation) || "—"}</Callout>
           </div>
         </div>
-        {criteria.length ? (
-          <div>
-            <SectionTitle>Acceptance criteria</SectionTitle>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[color:var(--muted)]">
-              {criteria.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </div>
     </div>
   );
