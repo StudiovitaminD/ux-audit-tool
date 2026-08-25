@@ -153,7 +153,10 @@ export async function POST(
       return Response.json({ error: "You do not have access to edit this report." }, { status: 403 });
     }
 
-    const raw = (await req.json().catch(() => null)) as { report?: unknown } | null;
+    const raw = (await req.json().catch(() => null)) as {
+      report?: unknown;
+      updated_questions?: unknown;
+    } | null;
     const requestReport = asRecord(raw?.report);
     const storedReport = asRecord(unwrapReportPayload(storedData.report));
     const loadedStoredReport = storedReport ? null : await loadStoredReport(id);
@@ -178,10 +181,34 @@ export async function POST(
       return Response.json({ error: "Missing bucket results" }, { status: 400 });
     }
 
+    const editContext = Array.isArray(raw?.updated_questions)
+      ? raw.updated_questions
+          .map((item) => {
+            const rec = asRecord(item);
+            if (!rec) return "";
+            const bucket = asString(rec.bucket);
+            const question = asString(rec.question);
+            const before = asString(rec.before);
+            const after = asString(rec.after);
+            const questionId = asString(rec.questionId);
+            const lines = [
+              bucket ? `Bucket: ${bucket}` : "",
+              questionId ? `Question ID: ${questionId}` : "",
+              question ? `Question: ${question}` : "",
+              before ? `Before: ${before}` : "",
+              after ? `After: ${after}` : "",
+            ].filter(Boolean);
+            return lines.join(" | ");
+          })
+          .filter(Boolean)
+          .join("\n")
+      : "";
+
     const refreshed = await finalizeAudit({
       intake: intake as Intake,
       evidence: (evidence as EvidenceBundle | null) ?? null,
       bucket_results: bucketResults,
+      editContext: editContext || undefined,
       modelOverride: asString(sanitizedReport.modelOverride) || undefined,
     });
 

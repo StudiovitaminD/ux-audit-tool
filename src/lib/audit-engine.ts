@@ -661,6 +661,7 @@ async function completeMissingQuestions(args: {
   expectedQuestions: BucketQuestion[];
   existingQuestions: Array<Record<string, unknown>>;
   evidence: EvidenceBundle | null;
+  editContext?: string;
   modelOverride?: string;
 }) {
   const existingById = new Map(
@@ -1374,6 +1375,7 @@ async function writeNarrative(args: {
   evidence: EvidenceBundle | null;
   bucket_results: BucketResult[];
   overall_score: number;
+  editContext?: string;
   modelOverride?: string;
 }) {
   const compactBuckets = args.bucket_results.map((b) => ({
@@ -1389,7 +1391,7 @@ async function writeNarrative(args: {
   const compactEvidence = narrativeEvidenceSummary(args.evidence);
   const competitorSeeds = parseCompetitorsFromIntakeText(args.intake.competitors);
 
-  const prompt = `You are a principal UX strategist writing a client-ready audit report.\n\nUse ONLY:\n1) intake context\n2) evidence capture text (headings/nav/text snippets)\n3) scored bucket findings/improvements\n4) competitor seeds\n\nHard rules:\n- Do not invent screens or features not supported by evidence.\n- Do not write filler or score-only narrative like "Bucket scored 43/100" unless it directly supports a decision.\n- Executive summary must be specific, action-led, and useful for a client stakeholder.\n- Section narratives must explain what is happening and what to do next in bullet-ready sentences.\n- Competitor analysis must return real per-competitor positioning, CTA, strengths, gaps, and steal_this ideas based on compare_focus and available context. If truly unknown, return empty strings/arrays instead of generic placeholders.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON matching this schema:\n{\n  \"executive_summary\": {\n    \"one_line_verdict\": \"...\",\n    \"strongest_area\": \"...\",\n    \"main_issue\": \"...\",\n    \"top_problems\": [\"...\"],\n    \"whats_working\": [\"...\"],\n    \"first_priority\": [\"...\"],\n    \"top_3_quick_wins\": [\"...\"],\n    \"first_priority_recommendation\": \"...\"\n  },\n  \"overall_assessment\": \"...\",\n  \"top_risks\": [\"...\"],\n  \"quick_wins\": [{\"title\":\"...\",\"why\":\"...\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"recommendations\": [{\"title\":\"...\",\"details\":\"...\",\"priority\":\"P1|P2|P3|P4\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"strategic_insights\": [\"...\"],\n  \"per_bucket_notes\": [{\"bucket\":\"...\",\"summary\":\"...\",\"biggest_risk\":\"...\",\"best_opportunity\":\"...\"}],\n  \"section_narrative\": {\n    \"delight_narrative\": [\"...\"],\n    \"impact_narrative\": [\"...\"],\n    \"accessibility_narrative\": [\"...\"]\n  },\n  \"competitor_analysis\": {\n    \"competitors\": [{\"name\":\"...\",\"url\":\"...\",\"compare_focus\":\"...\",\"positioning\":\"...\",\"primary_cta\":\"...\",\"strengths\":[\"...\"],\"gaps\":[\"...\"],\"steal_this\":[\"...\"]}]\n  }\n}\n\nIntake:\n${JSON.stringify(compactIntake, null, 2)}\n\nCompetitor seeds:\n${JSON.stringify(competitorSeeds, null, 2)}\n\nEvidence:\n${compactEvidence}\n\nScored buckets:\n${JSON.stringify(compactBuckets, null, 2)}\n\nOverall score: ${args.overall_score}\n`;
+  const prompt = `You are a principal UX strategist writing a client-ready audit report.\n\nUse ONLY:\n1) intake context\n2) evidence capture text (headings/nav/text snippets)\n3) scored bucket findings/improvements\n4) competitor seeds\n${args.editContext ? "5) edited question changes from the report editor\\n" : ""}\nHard rules:\n- Do not invent screens or features not supported by evidence.\n- Do not write filler or score-only narrative like "Bucket scored 43/100" unless it directly supports a decision.\n- Executive summary must be specific, action-led, and useful for a client stakeholder.\n- Section narratives must explain what is happening and what to do next in bullet-ready sentences.\n- Competitor analysis must return real per-competitor positioning, CTA, strengths, gaps, and steal_this ideas based on compare_focus and available context. If truly unknown, return empty strings/arrays instead of generic placeholders.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON matching this schema:\n{\n  \"executive_summary\": {\n    \"one_line_verdict\": \"...\",\n    \"strongest_area\": \"...\",\n    \"main_issue\": \"...\",\n    \"top_problems\": [\"...\"],\n    \"whats_working\": [\"...\"],\n    \"first_priority\": [\"...\"],\n    \"top_3_quick_wins\": [\"...\"],\n    \"first_priority_recommendation\": \"...\"\n  },\n  \"overall_assessment\": \"...\",\n  \"top_risks\": [\"...\"],\n  \"quick_wins\": [{\"title\":\"...\",\"why\":\"...\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"recommendations\": [{\"title\":\"...\",\"details\":\"...\",\"priority\":\"P1|P2|P3|P4\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"strategic_insights\": [\"...\"],\n  \"per_bucket_notes\": [{\"bucket\":\"...\",\"summary\":\"...\",\"biggest_risk\":\"...\",\"best_opportunity\":\"...\"}],\n  \"section_narrative\": {\n    \"delight_narrative\": [\"...\"],\n    \"impact_narrative\": [\"...\"],\n    \"accessibility_narrative\": [\"...\"]\n  },\n  \"competitor_analysis\": {\n    \"competitors\": [{\"name\":\"...\",\"url\":\"...\",\"compare_focus\":\"...\",\"positioning\":\"...\",\"primary_cta\":\"...\",\"strengths\":[\"...\"],\"gaps\":[\"...\"],\"steal_this\":[\"...\"]}]\n  }\n}\n\nIntake:\n${JSON.stringify(compactIntake, null, 2)}\n\nCompetitor seeds:\n${JSON.stringify(competitorSeeds, null, 2)}\n\n${args.editContext ? `Edited question changes:\n${args.editContext}\n` : ""}Evidence:\n${compactEvidence}\n\nScored buckets:\n${JSON.stringify(compactBuckets, null, 2)}\n\nOverall score: ${args.overall_score}\n`;
 
   const schemaHint =
     '{ "executive_summary": {"one_line_verdict":"...","strongest_area":"...","main_issue":"...","top_problems":["..."],"whats_working":["..."],"first_priority":["..."],"top_3_quick_wins":["..."],"first_priority_recommendation":"..."}, "overall_assessment": "...", "top_risks": ["..."], "quick_wins": [{"title":"...","why":"...","effort":"S|M|L","impact":"Low|Med|High"}], "recommendations": [{"title":"...","details":"...","priority":"P1|P2|P3|P4","effort":"S|M|L","impact":"Low|Med|High"}], "strategic_insights": ["..."], "per_bucket_notes": [{"bucket":"...","summary":"...","biggest_risk":"...","best_opportunity":"..."}], "section_narrative": {"delight_narrative":["..."],"impact_narrative":["..."],"accessibility_narrative":["..."]}, "competitor_analysis": {"competitors":[{"name":"...","url":"...","compare_focus":"...","positioning":"...","primary_cta":"...","strengths":["..."],"gaps":["..."],"steal_this":["..."]}] } }';
@@ -1409,7 +1411,7 @@ async function writeNarrative(args: {
       message.toLowerCase().includes("context length") ||
       message.toLowerCase().includes("maximum context")
     ) {
-      const compactPrompt = `You are a senior UX lead writing a client-ready audit report.\nReturn ONLY valid JSON matching this schema:\n${schemaHint}\n\nIntake:\n${JSON.stringify(compactIntake, null, 2)}\n\nEvidence:\n${trimText(compactEvidence, 1400)}\n\nScored buckets:\n${JSON.stringify(compactBuckets, null, 2)}\n\nOverall score: ${args.overall_score}\n`;
+      const compactPrompt = `You are a senior UX lead writing a client-ready audit report.\nReturn ONLY valid JSON matching this schema:\n${schemaHint}\n\nIntake:\n${JSON.stringify(compactIntake, null, 2)}\n\n${args.editContext ? `Edited question changes:\n${trimText(args.editContext, 1200)}\n\n` : ""}Evidence:\n${trimText(compactEvidence, 1400)}\n\nScored buckets:\n${JSON.stringify(compactBuckets, null, 2)}\n\nOverall score: ${args.overall_score}\n`;
       const raw = await openRouterChat(compactPrompt, { modelOverride: args.modelOverride });
       const parsed = safeJsonParse(raw);
       if (parsed && typeof parsed === "object") return parsed as NarrativeReport;
@@ -2767,6 +2769,7 @@ export async function finalizeAudit(args: {
   intake: Intake;
   evidence: EvidenceBundle | null;
   bucket_results: BucketResult[];
+  editContext?: string;
   modelOverride?: string;
 }) {
   try {
@@ -2909,6 +2912,7 @@ export async function finalizeAudit(args: {
     evidence: args.evidence,
     bucket_results: onlyResults,
     overall_score: overallScore ?? rawOverallScore,
+    editContext: args.editContext,
     modelOverride: args.modelOverride,
   }).catch(() => null);
 

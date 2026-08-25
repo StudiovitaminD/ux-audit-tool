@@ -29,6 +29,10 @@ function asNumber(value: unknown) {
   return null;
 }
 
+function asString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : String(value ?? "").trim();
+}
+
 function tryParseJsonString(value: unknown): unknown {
   if (typeof value !== "string") return value;
   const trimmed = value.trim();
@@ -107,6 +111,96 @@ function normalizedReportFromResponse(value: unknown, fallbackId: string | null)
       fallbackId ||
       "",
   };
+}
+
+function summarizeQuestion(question: AnyRecord | null | undefined) {
+  if (!question) return "";
+  const parts = [
+    asString(question.selected_option_text),
+    asString(question.observation),
+    asString(question.recommendation),
+    asString(question.evidence),
+  ].filter(Boolean);
+  if (parts.length) return parts[0];
+  const mark = asString(question.selected_option || question.mark);
+  return mark ? `Selected option ${mark}` : asString(question.question);
+}
+
+function collectChangedQuestions(baseReportValue: AnyRecord | null, nextReportValue: AnyRecord | null) {
+  const baseBuckets = Array.isArray(baseReportValue?.bucket_results) ? baseReportValue?.bucket_results : [];
+  const nextBuckets = Array.isArray(nextReportValue?.bucket_results) ? nextReportValue?.bucket_results : [];
+  const baseBucketMap = new Map<string, AnyRecord>();
+
+  for (const bucket of baseBuckets) {
+    const rec = bucket && typeof bucket === "object" ? (bucket as AnyRecord) : null;
+    const bucketName = asString(rec?.bucket_name);
+    if (bucketName) baseBucketMap.set(bucketName, rec || {});
+  }
+
+  const changes: Array<{
+    bucket: string;
+    questionId: string;
+    question: string;
+    before: string;
+    after: string;
+  }> = [];
+
+  for (const bucket of nextBuckets) {
+    const nextBucket = bucket && typeof bucket === "object" ? (bucket as AnyRecord) : null;
+    const bucketName = asString(nextBucket?.bucket_name);
+    if (!bucketName) continue;
+    const baseBucket = baseBucketMap.get(bucketName) ?? {};
+    const baseQuestions = Array.isArray(baseBucket.questions) ? baseBucket.questions : [];
+    const nextQuestions = Array.isArray(nextBucket?.questions) ? nextBucket?.questions : [];
+    const baseQuestionMap = new Map<string, AnyRecord>();
+    for (const question of baseQuestions) {
+      const rec = question && typeof question === "object" ? (question as AnyRecord) : null;
+      const questionId = asString(rec?.id);
+      if (questionId) baseQuestionMap.set(questionId, rec || {});
+    }
+
+    for (const question of nextQuestions) {
+      const nextQuestion = question && typeof question === "object" ? (question as AnyRecord) : null;
+      const questionId = asString(nextQuestion?.id);
+      if (!questionId) continue;
+      const baseQuestion = baseQuestionMap.get(questionId) ?? {};
+      const before = [
+        baseQuestion.selected_option,
+        baseQuestion.selected_option_text,
+        baseQuestion.mark,
+        baseQuestion.observation,
+        baseQuestion.recommendation,
+        baseQuestion.evidence,
+        baseQuestion.user_reason,
+        baseQuestion.user_evidence,
+      ]
+        .map((item) => JSON.stringify(item ?? null))
+        .join("|");
+      const after = [
+        nextQuestion?.selected_option,
+        nextQuestion?.selected_option_text,
+        nextQuestion?.mark,
+        nextQuestion?.observation,
+        nextQuestion?.recommendation,
+        nextQuestion?.evidence,
+        nextQuestion?.user_reason,
+        nextQuestion?.user_evidence,
+      ]
+        .map((item) => JSON.stringify(item ?? null))
+        .join("|");
+      if (before === after) continue;
+
+      changes.push({
+        bucket: bucketName,
+        questionId,
+        question: asString(nextQuestion?.question) || asString(baseQuestion.question),
+        before: summarizeQuestion(baseQuestion),
+        after: summarizeQuestion(nextQuestion),
+      });
+    }
+  }
+
+  return changes;
 }
 
 export function AIBucketAnswersRoute() {
@@ -226,6 +320,10 @@ export function AIBucketAnswersRoute() {
     () => Boolean(baseReport && editableReport && JSON.stringify(editableReport) !== JSON.stringify(baseReport)),
     [baseReport, editableReport],
   );
+  const changedQuestions = useMemo(
+    () => collectChangedQuestions(baseReport, editableReport),
+    [baseReport, editableReport],
+  );
 
   async function saveChanges() {
     if (isDemo || !rid || !editableReport) return;
@@ -233,17 +331,26 @@ export function AIBucketAnswersRoute() {
     setSaveMessage(null);
 
     try {
-      const res = await fetch(`/api/report/${encodeURIComponent(rid)}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/report/${encodeURIComponent(rid)}/refresh`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...sessionHeaders,
         },
-        body: JSON.stringify({ report: editableReport }),
+        body: JSON.stringify({
+          report: editableReport,
+          updated_questions: changedQuestions,
+        }),
       });
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      const data = (await res.json().catch(() => null)) as { error?: string; report?: unknown } | null;
       if (!res.ok) throw new Error(data?.error || `Save failed (${res.status})`);
-      setBaseReport(editableReport);
+      if (data?.report && typeof data.report === "object") {
+        const refreshed = data.report as AnyRecord;
+        setBaseReport(refreshed);
+        setEditableReport(refreshed);
+      } else {
+        setBaseReport(editableReport);
+      }
       setSaveMessage("Changes saved");
     } catch (err) {
       setSaveMessage(err instanceof Error ? err.message : "Failed to save changes");
