@@ -57,11 +57,7 @@ export function Callout({
         ? "text-[color:var(--ink)]"
         : "text-[color:var(--ink)]";
 
-  return (
-    <div className={`text-sm leading-7 ${tone === "issue" ? "font-semibold" : "font-medium"} ${styles}`}>
-      {children}
-    </div>
-  );
+  return <div className={`text-[14px] font-normal leading-[21px] ${styles}`}>{children}</div>;
 }
 
 export function BulletList({ items, emptyLabel }: { items: unknown; emptyLabel: string }) {

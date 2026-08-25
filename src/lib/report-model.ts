@@ -426,6 +426,32 @@ function uniqueSemanticList(values: string[], limit = values.length) {
   return output;
 }
 
+function uniqueQuickWinRows(items: unknown[]) {
+  const seen = new Set<string>();
+  const rows: AnyRecord[] = [];
+
+  for (const item of items) {
+    const rec = normalizedQuickWin(item);
+    const finding = asString(rec.finding);
+    const recommendation = asString(rec.recommendation);
+    if (!finding || !recommendation) continue;
+
+    const key = semanticKey(finding) || finding.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push({
+      finding,
+      recommendation,
+      effort: asString(rec.effort),
+      estimated_time: asString(rec.estimated_time),
+      bucket: asString(rec.bucket),
+      impact: asString(rec.impact),
+    });
+  }
+
+  return rows;
+}
+
 function quickWinText(item: unknown): string {
   if (typeof item === "string") {
     const text = sanitizeDisplayText(item);
@@ -3008,15 +3034,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
     quickWinsTable:
       isLimitedCoverage || (isScoringUnavailable && !hasPartialScoring)
         ? []
-        : uniqueSemanticList(
-            mergedQuickWinsSource.map((item) => {
-              const rec = normalizedQuickWin(item);
-              return `${asString(rec.finding)}|||${asString(rec.recommendation)}|||${asString(rec.effort)}|||${asString(rec.estimated_time)}|||${asString(rec.bucket)}|||${asString(rec.impact)}`;
-            }),
-          ).map((value) => {
-            const [finding, recommendation, effort, estimated_time, bucket, impact] = value.split("|||");
-            return { finding, recommendation, effort, estimated_time, bucket, impact };
-          }),
+        : uniqueQuickWinRows(mergedQuickWinsSource),
     roadmap: {
       week_1_2:
         isLimitedCoverage || isScoringUnavailable
