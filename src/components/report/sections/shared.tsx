@@ -50,8 +50,17 @@ export function Callout({
   children: ReactNode;
   tone?: CalloutTone;
 }) {
+  const styles =
+    tone === "effect"
+      ? "border-[#d4e4ff] bg-[#f7fbff] text-[color:var(--ink)]"
+      : tone === "solution"
+        ? "border-[#cfead9] bg-[#f4faf5] text-[color:var(--ink)]"
+        : "border-[#ffb57a] bg-[#fff3e7] text-[color:var(--ink)]";
+
   return (
-    <div className="text-sm font-medium leading-7 text-[color:var(--ink)]">
+    <div
+      className={`rounded-xl border px-4 py-3 text-sm leading-7 ${tone === "issue" ? "border-2 font-semibold shadow-[0_0_0_1px_rgba(255,165,92,0.08)]" : "font-medium"} ${styles}`}
+    >
       {children}
     </div>
   );

@@ -448,6 +448,100 @@ function quickWinText(item: unknown): string {
   );
 }
 
+function stripBucketPrefix(value: string) {
+  return sanitizeDisplayText(value).replace(/^[^:]{2,80}:\s*/, "").trim();
+}
+
+function isWeakQuickWinText(value: string) {
+  const text = stripBucketPrefix(value).toLowerCase();
+  if (!text) return true;
+  return (
+    isPlaceholderText(text) ||
+    /^(does|do|is|are|can|could|should|would|will|did|has|have|had|how|what|when|where|why|which)\b/.test(text) ||
+    /^(finding|recommendation|quick win|issue|action)\b/.test(text) ||
+    /major issues\s*[—-]|large gaps or significant friction remain|update this flow so the selected answer is supported/i.test(
+      text,
+    )
+  );
+}
+
+function quickWinIssueText(item: AnyRecord, bucketName: string) {
+  const bucketLabel = displayBucketName(bucketName) || bucketName || "This area";
+  const summary = stripBucketPrefix(questionSummaryText(bucketName, item).problem || "");
+  const title =
+    [
+      item.finding,
+      item.title,
+      item.question,
+      item.observation,
+      item.evidence,
+      item.recommendation,
+    ]
+      .map((value) => sanitizeDisplayText(value))
+      .find((value) => value && !isPlaceholderText(value)) || "";
+  const candidate = stripBucketPrefix(title);
+  if (candidate && !isWeakQuickWinText(candidate)) return candidate;
+  if (summary && !isWeakQuickWinText(summary)) return summary;
+
+  const cue = stripBucketPrefix(
+    sanitizeDisplayText(item.question || item.observation || item.recommendation || bucketLabel),
+  ).toLowerCase();
+  if (/contrast|color/i.test(cue)) return "Text contrast needs to be tightened.";
+  if (/keyboard|focus|tab|screen reader/i.test(cue)) return "Keyboard and assistive feedback need to be clearer.";
+  if (/navigation|findability|menu|breadcrumb|wayfinding/i.test(cue)) return "Navigation needs to be easier to scan.";
+  if (/content|copy|writing|message|microcopy/i.test(cue)) return "The content needs to be clearer and shorter.";
+  if (/layout|typography|visual|hierarchy|readability/i.test(cue)) return "The visual hierarchy needs to be cleaner.";
+  if (/validation|error|input|form/i.test(cue)) return "Form feedback needs to be clearer.";
+  if (/loading|success|empty|state/i.test(cue)) return "System states need to be more obvious.";
+  return `${bucketLabel} has a quick-win opportunity that is still creating friction.`;
+}
+
+function quickWinRecommendationText(item: AnyRecord, bucketName: string, issueText: string) {
+  const summary = stripBucketPrefix(questionSummaryText(bucketName, item).action || "");
+  const title =
+    [
+      item.recommendation,
+      item.action,
+      item.observation,
+      item.evidence,
+      item.title,
+      issueText,
+    ]
+      .map((value) => sanitizeDisplayText(value))
+      .find((value) => value && !isPlaceholderText(value)) || "";
+  const candidate = stripBucketPrefix(title);
+  if (candidate && !isWeakQuickWinText(candidate) && !isPromptLikeText(candidate, item.question)) {
+    return candidate;
+  }
+  if (summary && !isWeakQuickWinText(summary)) return summary;
+
+  const cue = stripBucketPrefix(
+    sanitizeDisplayText(issueText || item.question || item.observation || bucketName),
+  ).toLowerCase();
+  if (/contrast|color/i.test(cue)) {
+    return "Increase text and UI contrast so important content is easier to read.";
+  }
+  if (/keyboard|focus|tab|screen reader/i.test(cue)) {
+    return "Add clearer keyboard focus states and assistive feedback.";
+  }
+  if (/navigation|findability|menu|breadcrumb|wayfinding/i.test(cue)) {
+    return "Simplify labels and make the next step more obvious.";
+  }
+  if (/content|copy|writing|message|microcopy/i.test(cue)) {
+    return "Rewrite the copy with shorter labels and clearer guidance.";
+  }
+  if (/layout|typography|visual|hierarchy|readability/i.test(cue)) {
+    return "Tighten spacing and hierarchy so the layout scans more cleanly.";
+  }
+  if (/validation|error|input|form/i.test(cue)) {
+    return "Add clearer inline validation and more specific error messages.";
+  }
+  if (/loading|success|empty|state/i.test(cue)) {
+    return "Make the state changes explicit so users always know what is happening.";
+  }
+  return "Fix it with clearer guidance, tighter hierarchy, and more helpful feedback.";
+}
+
 function executiveListLooksWeak(items: string[]) {
   if (!items.length) return true;
   return items.every(
@@ -1672,28 +1766,9 @@ function normalizeReportCollections(report: AnyRecord): AnyRecord {
 
 function normalizedQuickWin(item: unknown): AnyRecord {
   const rec = asRecord(item) ?? {};
-  const finding =
-    [
-      rec.finding,
-      rec.question,
-      rec.observation,
-      rec.evidence,
-      rec.title,
-      rec.bucket,
-    ]
-      .map((value) => sanitizeDisplayText(value))
-      .find((value) => value && !isPlaceholderText(value)) || "";
-  const recommendation =
-    [
-      rec.recommendation,
-      rec.action,
-      rec.observation,
-      rec.evidence,
-      rec.title,
-      finding,
-    ]
-      .map((value) => sanitizeDisplayText(value))
-      .find((value) => value && !isPlaceholderText(value)) || "";
+  const bucketName = asString(rec.bucket) || asString(rec.bucket_name) || asString(rec.section);
+  const finding = quickWinIssueText(rec, bucketName);
+  const recommendation = quickWinRecommendationText(rec, bucketName, finding);
   const title =
     sanitizeDisplayText(
       rec.title ||
@@ -1708,8 +1783,7 @@ function normalizedQuickWin(item: unknown): AnyRecord {
   return {
     ...rec,
     finding: finding || asString(rec.bucket) || title,
-    recommendation:
-      recommendation || title,
+    recommendation: recommendation || title,
     effort:
       asString(rec.effort) ||
       (severity === "critical" ? "High" : severity === "high" ? "Medium" : ""),
@@ -1831,6 +1905,105 @@ function bestAvailableAnswer(report: AnyRecord, item: AnyRecord) {
   return questionLabel;
 }
 
+function compactQuestionCue(questionLabel: string) {
+  const cleaned = asString(questionLabel)
+    .replace(/\s+/g, " ")
+    .replace(/^(does|do|is|are|can|could|should|would|will|did|has|have|had|how|what|when|where|why|which)\s+/i, "")
+    .replace(/\?$/, "")
+    .trim();
+  if (!cleaned) return "";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function isGenericFindingText(value: string) {
+  const text = asString(value).toLowerCase();
+  if (!text) return true;
+  return /major issues\s*[—-]|large gaps or significant friction remain|this can create confusion and add friction|update this flow so the selected answer is supported with clearer guidance, stronger hierarchy, or better feedback|maintain this pattern and verify it stays consistent across related screens|this appears to work reasonably well/i.test(
+    text,
+  );
+}
+
+function fallbackIssueText(questionLabel: string, answerText: string) {
+  const cue = compactQuestionCue(questionLabel);
+  if (/contrast|color/i.test(cue)) {
+    return "Color contrast is not strong enough to support fast scanning and easy readability.";
+  }
+  if (/keyboard|focus|tab|screen reader/i.test(cue)) {
+    return "Keyboard and assistive-technology feedback is not clear enough to guide users confidently.";
+  }
+  if (/navigation|findability|menu|breadcrumb|wayfinding/i.test(cue)) {
+    return "Navigation and wayfinding are still too unclear for users to move confidently.";
+  }
+  if (/content|copy|writing|message|microcopy/i.test(cue)) {
+    return "The content hierarchy is not clear enough to guide users quickly.";
+  }
+  if (/layout|typography|visual|hierarchy|readability/i.test(cue)) {
+    return "The visual hierarchy is not strong enough to guide attention cleanly.";
+  }
+  if (/validation|error|input|form/i.test(cue)) {
+    return "Form validation feedback is not clear enough during input.";
+  }
+  if (/loading|success|empty|state/i.test(cue)) {
+    return "System states are not communicated clearly enough.";
+  }
+  if (cue) {
+    return `${cue} still leaves too much friction and uncertainty.`;
+  }
+  return answerText || "The current experience still leaves too much friction and uncertainty.";
+}
+
+function fallbackEffectText(questionLabel: string) {
+  const cue = compactQuestionCue(questionLabel);
+  if (/contrast|color/i.test(cue)) {
+    return "Users may miss important text or need to work harder to read the page.";
+  }
+  if (/keyboard|focus|tab|screen reader/i.test(cue)) {
+    return "Keyboard and screen-reader users may not understand where they are or what changed.";
+  }
+  if (/navigation|findability|menu|breadcrumb|wayfinding/i.test(cue)) {
+    return "Visitors may struggle to move through the site and find the next step.";
+  }
+  if (/content|copy|writing|message|microcopy/i.test(cue)) {
+    return "Users may need extra effort to understand the page and decide what to do next.";
+  }
+  if (/layout|typography|visual|hierarchy|readability/i.test(cue)) {
+    return "The page may feel harder to scan, which slows comprehension and increases friction.";
+  }
+  if (/validation|error|input|form/i.test(cue)) {
+    return "Users may miss mistakes or be unsure how to fix them, leading to more failed submissions.";
+  }
+  if (/loading|success|empty|state/i.test(cue)) {
+    return "Users may not know whether the system is working or what they should do next.";
+  }
+  return "This can increase confusion and make the task harder to complete.";
+}
+
+function fallbackRecommendationText(questionLabel: string) {
+  const cue = compactQuestionCue(questionLabel);
+  if (/contrast|color/i.test(cue)) {
+    return "Increase contrast on text and important UI states so users can scan and read more easily.";
+  }
+  if (/keyboard|focus|tab|screen reader/i.test(cue)) {
+    return "Add stronger keyboard focus indicators and clearer assistive feedback for state changes.";
+  }
+  if (/navigation|findability|menu|breadcrumb|wayfinding/i.test(cue)) {
+    return "Simplify navigation labels and make the next step more obvious at each stage.";
+  }
+  if (/content|copy|writing|message|microcopy/i.test(cue)) {
+    return "Rewrite the content with clearer labels, tighter hierarchy, and more direct guidance.";
+  }
+  if (/layout|typography|visual|hierarchy|readability/i.test(cue)) {
+    return "Strengthen visual hierarchy with clearer spacing, sizing, and emphasis.";
+  }
+  if (/validation|error|input|form/i.test(cue)) {
+    return "Add clearer inline validation, helpful error messages, and stronger confirmation states.";
+  }
+  if (/loading|success|empty|state/i.test(cue)) {
+    return "Make loading, success, and empty states more explicit so users always know what is happening.";
+  }
+  return "Clarify the interaction with stronger guidance, hierarchy, and feedback.";
+}
+
 function normalizedFinding(report: AnyRecord, item: unknown, index: number): AnyRecord {
   const rec = asRecord(item) ?? {};
   const recommendation = sanitizeDisplayText(rec.recommendation);
@@ -1875,9 +2048,13 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
     rank: asNumber(rec.rank) ?? index + 1,
     what_we_found:
       foundText && !isPlaceholderText(foundText)
-        ? foundText
+        ? isGenericFindingText(foundText)
+          ? fallbackIssueText(questionLabel, foundText)
+          : foundText
         : answerText
-          ? `${answerText}.`
+          ? isGenericFindingText(answerText)
+            ? fallbackIssueText(questionLabel, answerText)
+            : `${answerText}.`
           : questionLabel ||
             sanitizeDisplayText(rec.what) ||
             (sanitizeDisplayText(rec.evidence) && !isPromptLikeText(rec.evidence, questionLabel)
@@ -1886,18 +2063,22 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
             sanitizeDisplayText(rec.title),
     why_it_matters:
       whyText && !isPlaceholderText(whyText)
-        ? whyText
+        ? isGenericFindingText(whyText)
+          ? fallbackEffectText(questionLabel)
+          : whyText
         : answerText
           ? isLowScore
-            ? `This can create confusion and add friction in ${findingLabel || questionLabel || "this area"}, so it should be validated in a follow-up pass.`
-            : `This appears to work reasonably well in ${findingLabel || questionLabel || "this area"}, but it should still be confirmed with more evidence.`
+            ? fallbackEffectText(questionLabel)
+            : `This appears to work reasonably well, but it should still be confirmed with more evidence.`
           : sanitizeDisplayText(rec.evidence) || asString(rec.severity),
     recommendation:
       recommendationText && !isPlaceholderText(recommendationText)
-        ? recommendationText
+        ? isGenericFindingText(recommendationText)
+          ? fallbackRecommendationText(questionLabel)
+          : recommendationText
         : answerText
           ? isLowScore
-            ? `Update this flow so the selected answer is supported with clearer guidance, stronger hierarchy, or better feedback.`
+            ? fallbackRecommendationText(questionLabel)
             : `Maintain this pattern and verify it stays consistent across related screens.`
           : sanitizeDisplayText(rec.action) ||
             sanitizeDisplayText(rec.fix) ||

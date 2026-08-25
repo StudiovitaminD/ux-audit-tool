@@ -83,6 +83,17 @@ function estimateSectionBlockHeight(items: readonly string[]) {
   return COMPETITOR_SECTION_OVERHEAD + estimateBulletSectionHeight(items);
 }
 
+function formatDomainUrl(value: string) {
+  const text = value.trim();
+  if (!text) return "";
+  try {
+    const parsed = new URL(text.startsWith("http://") || text.startsWith("https://") ? text : `https://${text}`);
+    return parsed.hostname.replace(/^www\./i, "") || text;
+  } catch {
+    return text.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0] || text;
+  }
+}
+
 function splitItemsToFitSection(items: readonly string[]) {
   const chunks: string[][] = [];
   let current: string[] = [];
@@ -112,7 +123,7 @@ function buildCompetitorPageBlocks({
 }) {
   const blocks: CompetitorPageBlock[] = [];
   const brandName = asString(competitor.name) || `Competitor ${index + 1}`;
-  const brandUrl = asString(competitor.url) || "URL not captured";
+  const brandUrl = formatDomainUrl(asString(competitor.url)) || "URL not captured";
   const signals =
     competitor && typeof competitor.signals === "object" && competitor.signals
       ? (competitor.signals as Record<string, unknown>)
