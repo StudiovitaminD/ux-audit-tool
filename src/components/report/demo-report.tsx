@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { calculateBusinessImpactMetrics, displayBucketName, asString, type AnyRecord } from "@/lib/report-model";
 import { QUESTION_BANK } from "@/lib/question-bank";
 import { IntroPageSection } from "./sections/IntroPageSection";
@@ -11,7 +10,6 @@ import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
 import { buildCriticalFindingsPages } from "./sections/FindingsSection";
 import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
-import { AIBucketAnswersView } from "./sections/AIBucketAnswersView";
 import { ThankYouPageSection } from "./sections/ThankYouPageSection";
 import type { ReportPage } from "./sections/shared";
 
@@ -290,7 +288,7 @@ function demoMarkFromScore(value: unknown) {
   return 5;
 }
 
-function buildDemoBucketAnswerSections(scorecard: ScorecardRow[]) {
+export function buildDemoBucketAnswerSections(scorecard: ScorecardRow[]) {
   return scorecard
     .map((row) => {
       const questions = QUESTION_BANK[row.section] || [];
@@ -330,7 +328,7 @@ function buildDemoBucketAnswerSections(scorecard: ScorecardRow[]) {
     .filter(Boolean) as AnyRecord[];
 }
 
-const DEMO = {
+export const DEMO = {
   product_name: "Vitamin D.in",
   product_url: "vitamin-d.in",
   generated_at: "2026-05-13T11:56:23.299Z",
@@ -773,9 +771,6 @@ function formatDate(iso: string) {
 }
 
 export function DemoReport() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const view = searchParams.get("view");
   const [hydratedCompetitors, setHydratedCompetitors] = useState<DemoCompetitor[]>(
     DEMO.competitor_analysis as DemoCompetitor[],
   );
@@ -930,28 +925,12 @@ export function DemoReport() {
       },
     ];
   }, [coverVm, hydratedCompetitors]);
-  const aiBucketAnswerSections = useMemo(
-    () => buildDemoBucketAnswerSections(DEMO.scorecard),
-    [],
-  );
   const [page, setPage] = useState(0);
   const current = pages[page]!;
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [page]);
-
-  if (view === "ai-answers") {
-    return (
-      <AIBucketAnswersView
-        bucketAnswerSections={aiBucketAnswerSections}
-        onBack={() => router.push("/report?demo=1")}
-        backLabel="Back to demo report"
-        title="AI Bucket Answers"
-        subtitle="Review the question-level answers that power the demo report preview."
-      />
-    );
-  }
 
   return (
     <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
@@ -1026,13 +1005,9 @@ export function DemoReport() {
           >
             Prev
           </button>
-          <button
-            type="button"
-            className="floatingBarSecondary"
-            onClick={() => router.push("/report?demo=1&view=ai-answers")}
-          >
+          <Link className="floatingBarSecondary" href="/report/ai-answers?demo=1">
             AI Answers
-          </button>
+          </Link>
           <div className="text-center text-sm text-white/70">{`${page + 1} / ${pages.length}`}</div>
           <button
             type="button"

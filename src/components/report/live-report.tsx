@@ -6,7 +6,6 @@ import { asString, buildReportViewModel, type AnyRecord } from "@/lib/report-mod
 import { buildReportPages } from "@/components/report/report-pages";
 import { recalculateEditedReport, updateReportAnswer } from "@/lib/report-editing";
 import { ReportAccessPanel } from "@/components/account/access-panels";
-import { AIBucketAnswersView } from "@/components/report/sections/AIBucketAnswersView";
 
 export function LiveReport({
   report,
@@ -35,7 +34,6 @@ export function LiveReport({
   const [editableReport, setEditableReport] = useState(() => recalculateEditedReport(report));
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [showAiAnswersPage, setShowAiAnswersPage] = useState(false);
   const vm = useMemo(() => buildReportViewModel(editableReport), [editableReport]);
   const [page, setPage] = useState(0);
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
@@ -57,7 +55,6 @@ export function LiveReport({
     const next = recalculateEditedReport(report);
     setBaseReport(next);
     setEditableReport(next);
-    setShowAiAnswersPage(false);
   }, [report]);
 
   useEffect(() => {
@@ -213,31 +210,6 @@ export function LiveReport({
     };
   }, [pages.length]);
 
-  if (showAiAnswersPage) {
-    return (
-      <AIBucketAnswersView
-        bucketAnswerSections={Array.isArray(vm.bucketResults) ? vm.bucketResults : []}
-        onAnswerChange={(bucketName, questionId, selectedOption, userReason, userEvidence) =>
-          setEditableReport((current) =>
-            updateReportAnswer(
-              current,
-              bucketName,
-              questionId,
-              selectedOption,
-              userReason,
-              userEvidence,
-            ),
-          )
-        }
-        onResetAnswers={resetAnswers}
-        onBack={() => setShowAiAnswersPage(false)}
-        onSave={() => void saveChanges()}
-        saving={saving}
-        canSave={isDirty}
-      />
-    );
-  }
-
   return (
     <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
       <div className="no-print fixed left-16 top-24 z-30">
@@ -352,13 +324,12 @@ export function LiveReport({
               >
                 Reset Answers
               </button>
-              <button
-                type="button"
+              <Link
+                href={`/report/ai-answers${reportId ? `?rid=${encodeURIComponent(reportId)}` : ""}`}
                 className="floatingBarSecondary"
-                onClick={() => setShowAiAnswersPage(true)}
               >
                 AI Answers
-              </button>
+              </Link>
               {onDownloadPdf ? (
                 <button
                   type="button"
