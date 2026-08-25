@@ -125,7 +125,7 @@ function fallbackQuestionConclusion(question: Record<string, unknown>, answerSta
     const followUpHint = missingEvidence.length
       ? ` Missing evidence: ${missingEvidence.join(" • ")}.`
       : "";
-    return `Best available answer: ${selectedLabel}.${followUpHint}`;
+    return `${selectedLabel}.${followUpHint}`;
   }
   if (!placeholderText(baseObservation)) return baseObservation;
 
@@ -436,8 +436,6 @@ export function FindingCard({ finding }: { finding: Record<string, unknown> }) {
           {asString(finding.rank) || "—"}. {asString(finding.bucket) || "Finding"}
         </div>
         <div className="flex flex-wrap gap-2">
-          {asString(finding.severity) ? <Pill>{asString(finding.severity)}</Pill> : null}
-          {asString(finding.effort) ? <Pill>Effort: {asString(finding.effort)}</Pill> : null}
           {asString(finding.priority_tier) ? <Pill>{asString(finding.priority_tier)}</Pill> : null}
         </div>
       </div>
