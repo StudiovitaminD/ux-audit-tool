@@ -422,11 +422,6 @@ export function BucketAnswersCard({
 }
 
 export function FindingCard({ finding }: { finding: Record<string, unknown> }) {
-  const context =
-    asString(finding.context) ||
-    [asString(finding.bucket), asString(finding.question_context)]
-      .filter(Boolean)
-      .join(" • ");
   return (
     <div
       className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-4"
@@ -437,11 +432,6 @@ export function FindingCard({ finding }: { finding: Record<string, unknown> }) {
           {asString(finding.rank) || "—"}. {asString(finding.bucket) || "Finding"}
         </div>
       </div>
-      {context ? (
-        <div className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-[color:var(--ink-muted)]">
-          Where this appears: {context}
-        </div>
-      ) : null}
 
       <div className="mt-3 grid gap-3">
         <div>

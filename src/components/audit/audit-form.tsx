@@ -175,24 +175,6 @@ function SectionHeader({ title, description, action }: SectionHeaderProps) {
   );
 }
 
-const geographyOptions = [
-  { label: "Global", value: "Global" },
-  { label: "North America", value: "North America" },
-  { label: "South America", value: "South America" },
-  { label: "Europe", value: "Europe" },
-  { label: "Middle East", value: "Middle East" },
-  { label: "Africa", value: "Africa" },
-  { label: "Asia", value: "Asia" },
-  { label: "Australia / Oceania", value: "Australia / Oceania" },
-];
-
-function splitCommaSeparatedList(value: string) {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function createEmptyPersonaCard(personaType: PersonaType | "" = "secondary"): PersonaCard {
   return {
     personaType,
@@ -1999,15 +1981,12 @@ export function AuditForm() {
                         </Select>
                       </Field>
                       <Field label="User geography">
-                        <MultiSelect
-                          options={geographyOptions}
-                          values={splitCommaSeparatedList(persona.userGeography)}
-                          onChange={(values) =>
-                            updatePersonaCard(index, {
-                              userGeography: values.join(", "),
-                            })
+                        <TextInput
+                          value={persona.userGeography}
+                          onChange={(e) =>
+                            updatePersonaCard(index, { userGeography: e.target.value })
                           }
-                          placeholder="Select geographies"
+                          placeholder=""
                         />
                       </Field>
                     </div>

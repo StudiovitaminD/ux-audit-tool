@@ -2,7 +2,7 @@ import { asString, type AnyRecord } from "@/lib/report-model";
 import type { ReportPage } from "./shared";
 import { FindingCard } from "./shared";
 
-const FINDINGS_PAGE_CONTENT_LIMIT = 980;
+const FINDINGS_PAGE_CONTENT_LIMIT = 780;
 const FINDING_ROW_GAP = 24;
 const FINDING_CARD_BASE_HEIGHT = 140;
 const FINDING_CHARS_PER_LINE = 56;

@@ -464,8 +464,9 @@ function isWeakQuickWinText(value: string) {
     isPlaceholderText(text) ||
     /^\d+\??$/.test(text.trim()) ||
     /^[a-z]\??$/.test(text.trim()) ||
-    words.length > 8 ||
-    /[,;]|(?:\bwhile\b|\bthis\b|\bsome\b|\bmost\b|\bbut\b|\bwith\b)/i.test(text) ||
+    words.length > 16 ||
+    /^(quick win|recommendation|issue|action)$/i.test(text) ||
+    /(?:\bwhile\b|\bthis\b|\bsome\b|\bmost\b|\bbut\b|\bwith\b)/i.test(text) ||
     /^(does|do|is|are|can|could|should|would|will|did|has|have|had|how|what|when|where|why|which)\b/.test(text) ||
     /^(finding|recommendation|quick win|issue|action)\b/.test(text) ||
     /major issues\s*[—-]|large gaps or significant friction remain|update this flow so the selected answer is supported/i.test(
@@ -474,27 +475,19 @@ function isWeakQuickWinText(value: string) {
   );
 }
 
-function quickWinIssueText(item: AnyRecord, bucketName: string) {
-  const bucketLabel = displayBucketName(bucketName) || bucketName || "This area";
-  const summary = stripBucketPrefix(questionSummaryText(bucketName, item).problem || "");
-  const title =
-    [
-      item.finding,
-      item.title,
-      item.question,
-      item.observation,
-      item.evidence,
-      item.recommendation,
-    ]
-      .map((value) => sanitizeDisplayText(value))
-      .find((value) => value && !isPlaceholderText(value)) || "";
-  const candidate = stripBucketPrefix(title);
-  if (candidate && !isWeakQuickWinText(candidate)) return candidate;
-  if (summary && !isWeakQuickWinText(summary)) return summary;
+function isWeakQuickWinRecommendationText(value: string) {
+  const text = stripBucketPrefix(value).toLowerCase();
+  if (!text) return true;
+  return (
+    isPlaceholderText(text) ||
+    /^\d+\??$/.test(text.trim()) ||
+    /^(quick win|recommendation|issue|action)$/i.test(text) ||
+    /^(does|do|is|are|can|could|should|would|will|did|has|have|had|how|what|when|where|why|which)\b/.test(text) ||
+    /major issues\s*[—-]|large gaps or significant friction remain|fix it with clearer guidance/i.test(text)
+  );
+}
 
-  const cue = stripBucketPrefix(
-    sanitizeDisplayText(item.question || item.observation || item.recommendation || bucketLabel),
-  ).toLowerCase();
+function quickWinIssueFallback(cue: string) {
   if (/label|placeholder|field/i.test(cue) && /form|input|contact/i.test(cue)) {
     return "Form fields lack persistent visible labels.";
   }
@@ -503,6 +496,9 @@ function quickWinIssueText(item: AnyRecord, bucketName: string) {
   }
   if (/loading|spinner|progress|transition/i.test(cue)) {
     return "Loading feedback is missing during processing.";
+  }
+  if (/tap|click target|target size|44/i.test(cue)) {
+    return "Tap and click targets are too small.";
   }
   if (/alt text|alternative text|image/i.test(cue)) {
     return "Images lack descriptive alt text.";
@@ -516,13 +512,35 @@ function quickWinIssueText(item: AnyRecord, bucketName: string) {
   if (/validation|error|input|form/i.test(cue)) {
     return "Form validation feedback is unclear.";
   }
-  if (/contrast|color/i.test(cue)) return "Text contrast";
-  if (/keyboard|focus|tab|screen reader/i.test(cue)) return "Keyboard feedback";
-  if (/navigation|findability|menu|breadcrumb|wayfinding/i.test(cue)) return "Navigation clarity";
-  if (/content|copy|writing|message|microcopy/i.test(cue)) return "Content clarity";
-  if (/layout|typography|visual|hierarchy|readability/i.test(cue)) return "Visual hierarchy";
-  if (/loading|success|empty|state/i.test(cue)) return "System states";
-  return "Quick win";
+  if (/contrast|color/i.test(cue)) return "Text contrast needs improvement.";
+  if (/keyboard|focus|tab|screen reader/i.test(cue)) return "Keyboard feedback is unclear.";
+  if (/navigation|findability|menu|breadcrumb|wayfinding/i.test(cue)) return "Navigation clarity needs improvement.";
+  if (/content|copy|writing|message|microcopy/i.test(cue)) return "Content clarity needs improvement.";
+  if (/layout|typography|visual|hierarchy|readability/i.test(cue)) return "Visual hierarchy needs improvement.";
+  if (/loading|success|empty|state/i.test(cue)) return "System state feedback is unclear.";
+  return "";
+}
+
+function quickWinIssueText(item: AnyRecord, bucketName: string) {
+  const bucketLabel = displayBucketName(bucketName) || bucketName || "This area";
+  const summary = stripBucketPrefix(questionSummaryText(bucketName, item).problem || "");
+  const title =
+    [
+      item.finding,
+      item.title,
+      item.observation,
+      item.evidence,
+    ]
+      .map((value) => sanitizeDisplayText(value))
+      .find((value) => value && !isPlaceholderText(value)) || "";
+  const candidate = stripBucketPrefix(title);
+  if (candidate && !isWeakQuickWinText(candidate)) return candidate;
+  if (summary && !isWeakQuickWinText(summary)) return summary;
+
+  const cue = stripBucketPrefix(
+    sanitizeDisplayText(item.observation || item.evidence || item.recommendation || item.question || bucketLabel),
+  ).toLowerCase();
+  return quickWinIssueFallback(cue) || `${bucketLabel} needs a clearer improvement.`;
 }
 
 function quickWinRecommendationText(item: AnyRecord, bucketName: string, issueText: string) {
@@ -534,15 +552,14 @@ function quickWinRecommendationText(item: AnyRecord, bucketName: string, issueTe
       item.observation,
       item.evidence,
       item.title,
-      issueText,
     ]
       .map((value) => sanitizeDisplayText(value))
       .find((value) => value && !isPlaceholderText(value)) || "";
   const candidate = stripBucketPrefix(title);
-  if (candidate && !isWeakQuickWinText(candidate) && !isPromptLikeText(candidate, item.question)) {
+  if (candidate && !isWeakQuickWinRecommendationText(candidate) && !isPromptLikeText(candidate, item.question)) {
     return candidate;
   }
-  if (summary && !isWeakQuickWinText(summary)) return summary;
+  if (summary && !isWeakQuickWinRecommendationText(summary)) return summary;
 
   const cue = stripBucketPrefix(
     sanitizeDisplayText(issueText || item.question || item.observation || bucketName),
@@ -1925,17 +1942,6 @@ function bestAvailableAnswer(report: AnyRecord, item: AnyRecord) {
   const bucketName =
     asString(item.bucket) || asString(item.bucket_name) || asString(item.section) || "";
   const questionLabel = asString(question.question);
-  const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
-  if (selectedText && !isPlaceholderText(selectedText)) return selectedText;
-
-  const selectedMark = asNumber(question.selected_option ?? question.mark);
-  if (selectedMark !== null) {
-    const option = lookupQuestionOptions(bucketName, asString(question.id)).find(
-      (option) => option.mark === selectedMark,
-    );
-    if (option?.text) return option.text.trim();
-  }
-
   const observation = asString(question?.observation);
   if (
     observation &&
@@ -1951,6 +1957,17 @@ function bestAvailableAnswer(report: AnyRecord, item: AnyRecord) {
     !isPromptLikeText(recommendation, questionLabel)
   )
     return recommendation;
+
+  const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  if (selectedText && !isPlaceholderText(selectedText)) return selectedText;
+
+  const selectedMark = asNumber(question.selected_option ?? question.mark);
+  if (selectedMark !== null) {
+    const option = lookupQuestionOptions(bucketName, asString(question.id)).find(
+      (option) => option.mark === selectedMark,
+    );
+    if (option?.text) return option.text.trim();
+  }
 
   return questionLabel;
 }
@@ -2075,23 +2092,29 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
   const answerText = bestAvailableAnswer(report, rec);
   const mark = asNumber(rec.mark ?? rec.selected_option ?? question?.mark ?? question?.selected_option);
   const isLowScore = mark !== null && mark <= 3;
-  const foundText =
-    sanitizeDisplayText(rec.what_we_found) &&
-    !isPromptLikeText(rec.what_we_found, questionLabel)
-      ? sanitizeDisplayText(rec.what_we_found)
-      : "";
+  const foundText = [
+    rec.what_we_found,
+    rec.observation,
+    rec.evidence,
+  ]
+    .map((value) => sanitizeDisplayText(value))
+    .find((value) => value && !isPlaceholderText(value) && !isPromptLikeText(value, questionLabel)) || "";
   const whyText =
     sanitizeDisplayText(rec.why_it_matters) &&
     !isPromptLikeText(rec.why_it_matters, questionLabel)
       ? sanitizeDisplayText(rec.why_it_matters)
-      : sanitizeDisplayText(rec.impact) &&
+    : sanitizeDisplayText(rec.impact) &&
+          !/^(low|med|medium|high|critical|moderate)$/i.test(sanitizeDisplayText(rec.impact)) &&
           !isPromptLikeText(rec.impact, questionLabel)
         ? sanitizeDisplayText(rec.impact)
         : "";
   const recommendationText =
-    recommendation || sanitizeDisplayText(rec.action) || sanitizeDisplayText(rec.fix) || sanitizeDisplayText(rec.title);
+    recommendation || sanitizeDisplayText(rec.action) || sanitizeDisplayText(rec.fix);
   const cleanNarrativeText = (value: unknown) => {
-    const text = stripBucketPrefix(sanitizeDisplayText(value));
+    const text = stripBucketPrefix(sanitizeDisplayText(value))
+      .replace(/^best available answer:\s*/i, "")
+      .replace(/\s+\.+$/, ".")
+      .trim();
     if (!text) return "";
     return text.charAt(0).toUpperCase() + text.slice(1);
   };
@@ -2104,12 +2127,7 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
       asString(rec.question_id) ||
       `F${index + 1}`,
     rank: asNumber(rec.rank) ?? index + 1,
-    context:
-      [bucketLabel, compactQuestionCue(questionLabel)]
-        .map((value) => stripBucketPrefix(value))
-        .filter(Boolean)
-        .filter((value, idx, arr) => arr.indexOf(value) === idx)
-        .join(" • "),
+    context: "",
     what_we_found:
       foundText && !isPlaceholderText(foundText)
         ? isGenericFindingText(foundText)
@@ -2119,12 +2137,11 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
           ? isGenericFindingText(answerText)
             ? fallbackIssueText(questionLabel, answerText, bucketLabel)
             : `${cleanNarrativeText(answerText)}.`
-          : questionLabel ||
-            sanitizeDisplayText(rec.what) ||
+          : sanitizeDisplayText(rec.what) ||
             (sanitizeDisplayText(rec.evidence) && !isPromptLikeText(rec.evidence, questionLabel)
               ? sanitizeDisplayText(rec.evidence)
               : "") ||
-            sanitizeDisplayText(rec.title),
+            fallbackIssueText(questionLabel, answerText, bucketLabel),
     why_it_matters:
       whyText && !isPlaceholderText(whyText)
         ? isGenericFindingText(whyText)

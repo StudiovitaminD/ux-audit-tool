@@ -819,7 +819,6 @@ function buildQuickWinsTableFromImprovements(improvements: unknown[]) {
       const rec = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
       const effort = normalizeRoadmapEffort(rec.effort);
       const finding = [
-        rec.question,
         rec.observation,
         rec.evidence,
         rec.title,
