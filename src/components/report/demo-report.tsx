@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { calculateBusinessImpactMetrics, displayBucketName } from "@/lib/report-model";
+import { useRouter, useSearchParams } from "next/navigation";
+import { calculateBusinessImpactMetrics, displayBucketName, asString, type AnyRecord } from "@/lib/report-model";
+import { QUESTION_BANK } from "@/lib/question-bank";
 import { IntroPageSection } from "./sections/IntroPageSection";
 import { OverviewSection } from "./sections/OverviewSection";
 import { buildNarrativeSummaryPages } from "./sections/NarrativeSummarySection";
 import { buildCompetitorAnalysisPages } from "./sections/CompetitorAnalysisSection";
 import { buildCriticalFindingsPages } from "./sections/FindingsSection";
 import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
+import { AIBucketAnswersView } from "./sections/AIBucketAnswersView";
 import { ThankYouPageSection } from "./sections/ThankYouPageSection";
 import type { ReportPage } from "./sections/shared";
 
@@ -275,6 +278,56 @@ function summaryBucketDetails(bucketName: string) {
       ],
     }
   );
+}
+
+function demoMarkFromScore(value: unknown) {
+  const match = asString(value).match(/(\d+(?:\.\d+)?)/);
+  const score = match ? Number(match[1]) : Number.NaN;
+  if (!Number.isFinite(score)) return 3;
+  if (score <= 50) return 2;
+  if (score <= 65) return 3;
+  if (score <= 80) return 4;
+  return 5;
+}
+
+function buildDemoBucketAnswerSections(scorecard: ScorecardRow[]) {
+  return scorecard
+    .map((row) => {
+      const questions = QUESTION_BANK[row.section] || [];
+      if (!questions.length) return null;
+
+      const mark = demoMarkFromScore(row.score);
+      const score = asString(row.score).replace(/[^\d.]/g, "");
+      return {
+        bucket_name: row.section,
+        pillar: row.pillar,
+        priority: row.priority,
+        score,
+        questions: questions.map((question, index) => {
+          const selectedOption =
+            question.options.find((option) => option.mark === mark) ??
+            question.options[Math.max(0, Math.min(question.options.length - 1, mark - 1))];
+          const selectedMark = selectedOption?.mark ?? mark;
+          return {
+            id: question.id,
+            question: question.question,
+            answer_status: "answered",
+            mark: selectedMark,
+            selected_option: selectedMark,
+            selected_option_text: selectedOption
+              ? `${selectedOption.mark}. ${selectedOption.text}`
+              : `${selectedMark}. ${question.options[0]?.text || "Partially met — usable but inconsistent or incomplete"}`,
+            observation: `${displayBucketName(row.section)} is shown as a ${asString(row.health).toLowerCase()} result in the demo preview.`,
+            evidence: `Demo evidence captured for ${displayBucketName(row.section)}.`,
+            user_reason: `Demo reasoning for ${displayBucketName(row.section)} question ${index + 1}.`,
+            user_evidence: `Representative demo evidence for ${displayBucketName(row.section)}.`,
+          };
+        }),
+        findings: [],
+        improvements: [],
+      };
+    })
+    .filter(Boolean) as AnyRecord[];
 }
 
 const DEMO = {
@@ -720,6 +773,9 @@ function formatDate(iso: string) {
 }
 
 export function DemoReport() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const view = searchParams.get("view");
   const [hydratedCompetitors, setHydratedCompetitors] = useState<DemoCompetitor[]>(
     DEMO.competitor_analysis as DemoCompetitor[],
   );
@@ -874,12 +930,28 @@ export function DemoReport() {
       },
     ];
   }, [coverVm, hydratedCompetitors]);
+  const aiBucketAnswerSections = useMemo(
+    () => buildDemoBucketAnswerSections(DEMO.scorecard),
+    [],
+  );
   const [page, setPage] = useState(0);
   const current = pages[page]!;
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [page]);
+
+  if (view === "ai-answers") {
+    return (
+      <AIBucketAnswersView
+        bucketAnswerSections={aiBucketAnswerSections}
+        onBack={() => router.push("/report?demo=1")}
+        backLabel="Back to demo report"
+        title="AI Bucket Answers"
+        subtitle="Review the question-level answers that power the demo report preview."
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
@@ -943,8 +1015,8 @@ export function DemoReport() {
         </div>
       </div>
 
-      <div className="no-print fixed inset-x-16 bottom-6 z-30 mx-auto w-[min(460px,calc(100%-8rem))] rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur">
-        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+      <div className="no-print fixed inset-x-16 bottom-6 z-30 mx-auto w-[min(560px,calc(100%-8rem))] rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur">
+        <div className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-3">
           <button
             type="button"
             className="floatingBarSecondary"
@@ -953,6 +1025,13 @@ export function DemoReport() {
             style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
           >
             Prev
+          </button>
+          <button
+            type="button"
+            className="floatingBarSecondary"
+            onClick={() => router.push("/report?demo=1&view=ai-answers")}
+          >
+            AI Answers
           </button>
           <div className="text-center text-sm text-white/70">{`${page + 1} / ${pages.length}`}</div>
           <button

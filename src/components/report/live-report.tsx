@@ -6,7 +6,7 @@ import { asString, buildReportViewModel, type AnyRecord } from "@/lib/report-mod
 import { buildReportPages } from "@/components/report/report-pages";
 import { recalculateEditedReport, updateReportAnswer } from "@/lib/report-editing";
 import { ReportAccessPanel } from "@/components/account/access-panels";
-import { AIBucketAnswersSection } from "@/components/report/sections/AIBucketAnswersSection";
+import { AIBucketAnswersView } from "@/components/report/sections/AIBucketAnswersView";
 
 export function LiveReport({
   report,
@@ -35,7 +35,7 @@ export function LiveReport({
   const [editableReport, setEditableReport] = useState(() => recalculateEditedReport(report));
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [aiAnswersOpen, setAiAnswersOpen] = useState(false);
+  const [showAiAnswersPage, setShowAiAnswersPage] = useState(false);
   const vm = useMemo(() => buildReportViewModel(editableReport), [editableReport]);
   const [page, setPage] = useState(0);
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
@@ -57,6 +57,7 @@ export function LiveReport({
     const next = recalculateEditedReport(report);
     setBaseReport(next);
     setEditableReport(next);
+    setShowAiAnswersPage(false);
   }, [report]);
 
   useEffect(() => {
@@ -212,6 +213,31 @@ export function LiveReport({
     };
   }, [pages.length]);
 
+  if (showAiAnswersPage) {
+    return (
+      <AIBucketAnswersView
+        bucketAnswerSections={Array.isArray(vm.bucketResults) ? vm.bucketResults : []}
+        onAnswerChange={(bucketName, questionId, selectedOption, userReason, userEvidence) =>
+          setEditableReport((current) =>
+            updateReportAnswer(
+              current,
+              bucketName,
+              questionId,
+              selectedOption,
+              userReason,
+              userEvidence,
+            ),
+          )
+        }
+        onResetAnswers={resetAnswers}
+        onBack={() => setShowAiAnswersPage(false)}
+        onSave={() => void saveChanges()}
+        saving={saving}
+        canSave={isDirty}
+      />
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col px-6 pt-6 pb-40" data-report-live-root>
       <div className="no-print fixed left-16 top-24 z-30">
@@ -329,9 +355,9 @@ export function LiveReport({
               <button
                 type="button"
                 className="floatingBarSecondary"
-                onClick={() => setAiAnswersOpen((open) => !open)}
+                onClick={() => setShowAiAnswersPage(true)}
               >
-                {aiAnswersOpen ? "Close AI Answers" : "AI Answers"}
+                AI Answers
               </button>
               {onDownloadPdf ? (
                 <button
@@ -390,50 +416,6 @@ export function LiveReport({
           </div>
         </div>
       </div>
-
-      {aiAnswersOpen ? (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
-          role="presentation"
-          onClick={() => setAiAnswersOpen(false)}
-        >
-          <div className="absolute inset-x-6 bottom-28 top-24 flex flex-col overflow-hidden rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-[color:var(--white)] shadow-2xl shadow-black/20">
-            <div className="flex items-start justify-between gap-4 border-b border-black/5 px-6 py-5">
-              <div>
-                <div className="text-lg font-semibold text-[color:var(--ink)]">AI Bucket Answers</div>
-                <div className="mt-1 text-sm text-[color:var(--ink-muted)]">
-                  Edit the question-level answers here, then save to update the report.
-                </div>
-              </div>
-              <button
-                type="button"
-                className="rounded-full border border-black/10 px-4 py-2 text-sm font-medium transition hover:bg-black hover:text-white dark:border-white/10 dark:hover:bg-white dark:hover:text-black"
-                onClick={() => setAiAnswersOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-              <AIBucketAnswersSection
-                bucketAnswerSections={Array.isArray(vm.bucketResults) ? vm.bucketResults : []}
-                onAnswerChange={(bucketName, questionId, selectedOption, userReason, userEvidence) =>
-                  setEditableReport((current) =>
-                    updateReportAnswer(
-                      current,
-                      bucketName,
-                      questionId,
-                      selectedOption,
-                      userReason,
-                      userEvidence,
-                    ),
-                  )
-                }
-                onResetAnswers={resetAnswers}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {downloadError ? (
         <div className="mt-5 rounded-[var(--radius)] border border-red-300 bg-red-50 p-4 text-sm text-red-700">
