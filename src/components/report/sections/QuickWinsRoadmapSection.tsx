@@ -66,7 +66,7 @@ function QuickWinsRoadmapBody({
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="text-xs uppercase tracking-wider text-[color:var(--muted)]">
               <tr>
-                <th className="py-2 pr-4">Finding</th>
+                <th className="py-2 pr-4">Issue</th>
                 <th className="py-2 pr-4">Recommendation</th>
               </tr>
             </thead>
