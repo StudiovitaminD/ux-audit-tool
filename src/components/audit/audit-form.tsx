@@ -1986,7 +1986,7 @@ export function AuditForm() {
                           onChange={(e) =>
                             updatePersonaCard(index, { userGeography: e.target.value })
                           }
-                          placeholder=""
+                          placeholder="India, Pune"
                         />
                       </Field>
                     </div>
