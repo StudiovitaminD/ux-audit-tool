@@ -304,26 +304,6 @@ export function LiveReport({
         >
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2" data-report-pagination-controls>
-              {reportId ? (
-                <button
-                  type="button"
-                  className="floatingBarSecondary"
-                  onClick={() => void saveChanges()}
-                  disabled={!isDirty || saving}
-                  style={!isDirty || saving ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-                >
-                  {saving ? "Saving…" : "Save Changes"}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="floatingBarSecondary"
-                onClick={resetAnswers}
-                disabled={saving || !isDirty}
-                style={saving || !isDirty ? { opacity: 0.5, pointerEvents: "none" } : undefined}
-              >
-                Reset Answers
-              </button>
               <Link
                 href={`/report/ai-answers${reportId ? `?rid=${encodeURIComponent(reportId)}` : ""}`}
                 className="floatingBarSecondary"

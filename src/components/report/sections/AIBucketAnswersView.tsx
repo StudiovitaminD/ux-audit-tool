@@ -54,6 +54,28 @@ export function AIBucketAnswersView({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {extraActions}
+            {onResetAnswers ? (
+              <button
+                type="button"
+                className="btnSecondary"
+                onClick={onResetAnswers}
+                disabled={!canReset}
+                style={!canReset ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+              >
+                Reset Answers
+              </button>
+            ) : null}
+            {onSave ? (
+              <button
+                type="button"
+                className="btnPrimary"
+                onClick={() => void onSave()}
+                disabled={!canSave || saving}
+                style={!canSave || saving ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+              >
+                {saving ? `${saveLabel}…` : saveLabel}
+              </button>
+            ) : null}
             <button type="button" className="btnSecondary" onClick={onBack}>
               {backLabel}
             </button>
