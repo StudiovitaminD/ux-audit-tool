@@ -299,7 +299,7 @@ export function LiveReport({
         </div>
 
         <div
-          className="no-print fixed inset-x-16 bottom-6 z-30 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
+          className="no-print fixed bottom-6 left-1/2 z-30 w-[794px] max-w-[calc(100%-3rem)] -translate-x-1/2 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
           data-report-pagination
         >
           <div className="flex flex-wrap items-center justify-between gap-4">

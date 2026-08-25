@@ -291,14 +291,10 @@ const allProductTypes: AuditSelectOption[] = [
 function productContextsFor(type: AuditPayload["product"]["type"]): AuditSelectOption[] {
   if (type === "marketing_website") {
     return [
-      { label: "Landing page", value: "landing_page" },
-      { label: "Marketing website", value: "marketing_website" },
-      { label: "Educational website", value: "educational_website" },
-      { label: "Healthcare website", value: "healthcare_website" },
-      { label: "Agency / portfolio", value: "agency_portfolio" },
-      { label: "Documentation", value: "documentation" },
-      { label: "Blog / content", value: "blog_content" },
-      { label: "Other", value: "other" },
+      { label: "Improve User Experience", value: "improve_user_experience" },
+      { label: "Make Content Clearer", value: "make_content_clearer" },
+      { label: "Make Navigation Simpler", value: "make_navigation_simpler" },
+      { label: "Improve the Overall Look & Feel", value: "improve_look_feel" },
     ];
   }
 
@@ -1857,7 +1853,7 @@ export function AuditForm() {
 
               <div className="space-y-4">
                 <Field
-                  label="Business differentiation"
+                  label="Business USPs"
                   error={showErrorsForStep ? validation.differentiation : undefined}
                 >
                   <Textarea

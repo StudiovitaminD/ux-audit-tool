@@ -50,15 +50,8 @@ export function Callout({
   children: ReactNode;
   tone?: CalloutTone;
 }) {
-  const styles =
-    tone === "effect"
-      ? "border-[#d7e7ff] bg-transparent text-[color:var(--ink)]"
-      : tone === "solution"
-        ? "border-[#cdeed8] bg-transparent text-[color:var(--ink)]"
-        : "border-[#ffd2ae] bg-transparent text-[color:var(--ink)]";
-
   return (
-    <div className={`rounded-xl border px-3 py-2 text-sm font-medium ${styles}`}>
+    <div className="text-sm font-medium leading-7 text-[color:var(--ink)]">
       {children}
     </div>
   );
