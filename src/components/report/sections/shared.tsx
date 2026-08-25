@@ -52,10 +52,10 @@ export function Callout({
 }) {
   const styles =
     tone === "effect"
-      ? "border-[#d7e7ff] bg-[#f4f8ff] text-[color:var(--ink)]"
+      ? "border-[#d7e7ff] bg-transparent text-[color:var(--ink)]"
       : tone === "solution"
-        ? "border-[#cdeed8] bg-[#f3fbf5] text-[color:var(--ink)]"
-        : "border-[#ffd2ae] bg-[#fff7ef] text-[color:var(--ink)]";
+        ? "border-[#cdeed8] bg-transparent text-[color:var(--ink)]"
+        : "border-[#ffd2ae] bg-transparent text-[color:var(--ink)]";
 
   return (
     <div className={`rounded-xl border px-3 py-2 text-sm font-medium ${styles}`}>

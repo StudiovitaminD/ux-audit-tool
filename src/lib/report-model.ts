@@ -1877,7 +1877,7 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
       foundText && !isPlaceholderText(foundText)
         ? foundText
         : answerText
-          ? `${findingLabel || questionLabel || "This finding"}: ${answerText}.`
+          ? `${answerText}.`
           : questionLabel ||
             sanitizeDisplayText(rec.what) ||
             (sanitizeDisplayText(rec.evidence) && !isPromptLikeText(rec.evidence, questionLabel)
