@@ -11,6 +11,7 @@ export function AIBucketAnswersView({
   saveLabel = "Save Changes",
   saving = false,
   canSave = true,
+  canReset = true,
   title = "AI Bucket Answers",
   subtitle = "Edit the question-level answers here, then save to update the report.",
   backLabel = "Back to report",
@@ -30,6 +31,7 @@ export function AIBucketAnswersView({
   saveLabel?: string;
   saving?: boolean;
   canSave?: boolean;
+  canReset?: boolean;
   title?: string;
   subtitle?: string;
   backLabel?: string;
@@ -57,6 +59,8 @@ export function AIBucketAnswersView({
                 type="button"
                 className="btnSecondary"
                 onClick={onResetAnswers}
+                disabled={!canReset}
+                style={!canReset ? { opacity: 0.5, pointerEvents: "none" } : undefined}
               >
                 Reset Answers
               </button>

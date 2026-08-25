@@ -261,7 +261,7 @@ export function AIBucketAnswersRoute() {
       return;
     }
     setEditableReport(baseReport);
-    setSaveMessage("Answers reset");
+    setSaveMessage(null);
   }
 
   if (!isDemo && !accountReady) {
@@ -322,25 +322,13 @@ export function AIBucketAnswersRoute() {
         onSave={isDemo ? undefined : saveChanges}
         saving={saving}
         canSave={isDemo ? true : isDirty}
+        canReset={isDemo ? false : isDirty}
         backLabel={isDemo ? "Back to demo report" : "Back to report"}
         title="AI Bucket Answers"
         subtitle={
           isDemo
             ? "Review the question-level answers that power the demo report preview."
             : "Edit the question-level answers here, then save to update the report."
-        }
-        extraActions={
-          saveMessage ? (
-            <div
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                saveMessage === "Changes saved"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-red-200 bg-red-50 text-red-700"
-              }`}
-            >
-              {saveMessage}
-            </div>
-          ) : undefined
         }
       />
     </div>
