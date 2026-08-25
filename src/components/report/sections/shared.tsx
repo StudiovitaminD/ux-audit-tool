@@ -431,9 +431,6 @@ export function FindingCard({ finding }: { finding: Record<string, unknown> }) {
         <div className="text-sm font-semibold">
           {asString(finding.rank) || "—"}. {asString(finding.bucket) || "Finding"}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {asString(finding.priority_tier) ? <Pill>{asString(finding.priority_tier)}</Pill> : null}
-        </div>
       </div>
 
       <div className="mt-3 grid gap-3">
