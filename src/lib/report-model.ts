@@ -451,6 +451,7 @@ function quickWinText(item: unknown): string {
 function stripBucketPrefix(value: string) {
   return sanitizeDisplayText(value)
     .replace(/^[^:]{2,80}:\s*/, "")
+    .replace(/^\s*\d+\s+(?=[A-Za-z])/g, "")
     .replace(/^\s*\d+\s*[\.\-:)]\s*/, "")
     .trim();
 }
@@ -458,8 +459,11 @@ function stripBucketPrefix(value: string) {
 function isWeakQuickWinText(value: string) {
   const text = stripBucketPrefix(value).toLowerCase();
   if (!text) return true;
+  const words = text.split(/\s+/).filter(Boolean);
   return (
     isPlaceholderText(text) ||
+    words.length > 8 ||
+    /[,;]|(?:\bwhile\b|\bthis\b|\bsome\b|\bmost\b|\bbut\b|\bwith\b)/i.test(text) ||
     /^(does|do|is|are|can|could|should|would|will|did|has|have|had|how|what|when|where|why|which)\b/.test(text) ||
     /^(finding|recommendation|quick win|issue|action)\b/.test(text) ||
     /major issues\s*[—-]|large gaps or significant friction remain|update this flow so the selected answer is supported/i.test(
