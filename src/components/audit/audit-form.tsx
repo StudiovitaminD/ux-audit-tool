@@ -20,6 +20,7 @@ import {
   toWebhookPayload,
 } from "@/lib/audit-types";
 import { clearLastReport } from "@/lib/report-store";
+import { AUDIT_DRAFT_KEY, AUDIT_DRAFT_VERSION, hasMeaningfulAuditDraft } from "@/lib/audit-draft";
 import { prefillAuditPayload } from "@/lib/audit-prefill";
 import { getErrorMessage } from "@/lib/error-utils";
 import { canCreateReport, canAccessProductType, getAllowedProductTypes } from "@/lib/access-control";
@@ -32,10 +33,6 @@ import {
   type AppSession,
   writeAppSession,
 } from "@/lib/app-session";
-
-// ADDED: autosave draft so users don’t need to re-fill the whole form
-const DRAFT_KEY = "ux_audit:draft_v1";
-const DRAFT_VERSION = 2;
 
 function sanitizeDraftPayload(value: unknown): AuditPayload {
   if (!value || typeof value !== "object") return AUDIT_DEFAULTS;
@@ -891,16 +888,20 @@ export function AuditForm() {
   useEffect(() => {
     try {
       if (sourceReport) return;
-      const raw = localStorage.getItem(DRAFT_KEY);
+      const raw = localStorage.getItem(AUDIT_DRAFT_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== "object") return;
       const sanitized = sanitizeDraftPayload(parsed);
+      if (!hasMeaningfulAuditDraft(sanitized)) {
+        localStorage.removeItem(AUDIT_DRAFT_KEY);
+        return;
+      }
       setPayload(sanitized);
       setPersonaCards(personaCardsFromPayload(sanitized));
       localStorage.setItem(
-        DRAFT_KEY,
-        JSON.stringify({ ...sanitized, draftVersion: DRAFT_VERSION }),
+        AUDIT_DRAFT_KEY,
+        JSON.stringify({ ...sanitized, draftVersion: AUDIT_DRAFT_VERSION }),
       );
     } catch {
       // ignore
@@ -927,8 +928,8 @@ export function AuditForm() {
         setAttemptedSteps([]);
         try {
           localStorage.setItem(
-            DRAFT_KEY,
-            JSON.stringify({ ...nextPayload, draftVersion: DRAFT_VERSION }),
+            AUDIT_DRAFT_KEY,
+            JSON.stringify({ ...nextPayload, draftVersion: AUDIT_DRAFT_VERSION }),
           );
         } catch {
           // ignore
@@ -953,9 +954,13 @@ export function AuditForm() {
   useEffect(() => {
     const t = window.setTimeout(() => {
       try {
+        if (!hasMeaningfulAuditDraft(payload)) {
+          localStorage.removeItem(AUDIT_DRAFT_KEY);
+          return;
+        }
         localStorage.setItem(
-          DRAFT_KEY,
-          JSON.stringify({ ...payload, draftVersion: DRAFT_VERSION }),
+          AUDIT_DRAFT_KEY,
+          JSON.stringify({ ...payload, draftVersion: AUDIT_DRAFT_VERSION }),
         );
       } catch {
         // ignore
@@ -1038,7 +1043,7 @@ export function AuditForm() {
     setAttemptedSteps([]);
     // ADDED
     try {
-      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(AUDIT_DRAFT_KEY);
     } catch {
       // ignore
     }

@@ -399,7 +399,11 @@ export function ReportView() {
           return;
         }
         const parsed = JSON.parse(raw) as unknown;
-        setHasAuditDraft(hasMeaningfulAuditDraft(parsed));
+        const meaningful = hasMeaningfulAuditDraft(parsed);
+        if (!meaningful) {
+          window.localStorage.removeItem(AUDIT_DRAFT_KEY);
+        }
+        setHasAuditDraft(meaningful);
       } catch {
         setHasAuditDraft(false);
       }
