@@ -16,6 +16,7 @@ import { loadLastReport } from "@/lib/report-store";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { DemoReport } from "@/components/report/demo-report";
 import { LiveReport } from "@/components/report/live-report";
+import { AUDIT_DRAFT_KEY, hasMeaningfulAuditDraft } from "@/lib/audit-draft";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object") return null;
@@ -330,6 +331,7 @@ export function ReportView() {
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [retryingReport, setRetryingReport] = useState(false);
   const [reportSearch, setReportSearch] = useState("");
+  const [hasAuditDraft, setHasAuditDraft] = useState(false);
   const [reportHistory, setReportHistory] = useState<
     Array<{
       id: string;
@@ -355,6 +357,7 @@ export function ReportView() {
     if (!query) return reportHistory;
     return reportHistory.filter((item) => item.productName.toLowerCase().includes(query));
   }, [reportHistory, reportSearch]);
+  const auditCtaLabel = hasAuditDraft ? "Continue audit" : "Start Audit";
   const processInFlightRef = useRef(false);
   const lastProcessKickMsRef = useRef(0);
   const sessionHeaders = useMemo(() => getAppSessionRequestHeaders(), []);
@@ -385,6 +388,26 @@ export function ReportView() {
       window.removeEventListener("storage", syncSession);
       window.removeEventListener(SESSION_CHANGE_EVENT, syncSession);
     };
+  }, []);
+
+  useEffect(() => {
+    const syncDraft = () => {
+      try {
+        const raw = window.localStorage.getItem(AUDIT_DRAFT_KEY);
+        if (!raw) {
+          setHasAuditDraft(false);
+          return;
+        }
+        const parsed = JSON.parse(raw) as unknown;
+        setHasAuditDraft(hasMeaningfulAuditDraft(parsed));
+      } catch {
+        setHasAuditDraft(false);
+      }
+    };
+
+    syncDraft();
+    window.addEventListener("storage", syncDraft);
+    return () => window.removeEventListener("storage", syncDraft);
   }, []);
 
   useEffect(() => {
@@ -799,7 +822,7 @@ export function ReportView() {
                   View sample report
               </Link>
               <Link className="btnPrimary shrink-0" href="/audit">
-                Start Audit
+                {auditCtaLabel}
               </Link>
             </div>
           </div>
@@ -830,7 +853,7 @@ export function ReportView() {
                 View sample report
               </Link>
               <Link className="btnPrimary" href="/audit">
-                Start Audit
+                {auditCtaLabel}
               </Link>
             </div>
           </div>
