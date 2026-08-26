@@ -1645,23 +1645,6 @@ export function AuditForm() {
 
             {/* ADDED: moved from previous “Primary goal of audit” step */}
             <div className="mt-5 space-y-5">
-              <Field label="Product context (optional)">
-                <MultiSelect
-                  options={productContextsFor(primaryType)}
-                  values={payload.product.context}
-                  onChange={(values) =>
-                    setPayload((p) => ({
-                      ...p,
-                      product: {
-                        ...p.product,
-                        context: values as AuditPayload["product"]["context"],
-                      },
-                    }))
-                  }
-                  placeholder=""
-                />
-              </Field>
-
               <Field
                 label="Primary audit goal(s)"
                 error={showErrorsForStep ? validation.auditGoals : undefined}
@@ -1672,7 +1655,7 @@ export function AuditForm() {
                   onChange={(values) =>
                     setPayload((p) => ({ ...p, auditGoals: values }))
                   }
-                  placeholder=""
+                  placeholder="Choose one or more audit goals"
                 />
               </Field>
 
@@ -1746,13 +1729,13 @@ export function AuditForm() {
               </div>
 
               {/* UPDATED: Reason for Audit (free text) */}
-              <Field label="Reason for Audit">
+              <Field label="About the product">
                 <Textarea
                   value={payload.knownProblem}
                   onChange={(e) =>
                     setPayload((p) => ({ ...p, knownProblem: e.target.value }))
                   }
-                  placeholder=""
+                  placeholder="e.g. Users are dropping off on the signup form"
                 />
               </Field>
 
@@ -1843,7 +1826,7 @@ export function AuditForm() {
                     onChange={(e) =>
                       setPayload((p) => ({ ...p, differentiation: e.target.value }))
                     }
-                    placeholder=""
+                    placeholder="e.g. Fast onboarding, intuitive UI, trusted by teams"
                   />
                 </Field>
 
@@ -1856,7 +1839,7 @@ export function AuditForm() {
                         primaryBusinessObjective: e.target.value,
                       }))
                     }
-                    placeholder=""
+                    placeholder="e.g. Increase conversions, reduce drop-off, improve retention"
                   />
                 </Field>
               </div>
@@ -1870,7 +1853,7 @@ export function AuditForm() {
                       businessFutureGoals: e.target.value,
                     }))
                   }
-                  placeholder=""
+                  placeholder="e.g. Launch mobile app, expand to enterprise, improve activation"
                 />
               </Field>
             </div>
@@ -1935,14 +1918,14 @@ export function AuditForm() {
                           onChange={(e) =>
                             updatePersonaCard(index, { primaryUser: e.target.value })
                           }
-                          placeholder=""
+                          placeholder="e.g. Marketing manager, student, buyer"
                         />
                       </Field>
                       <Field label="Age group">
                         <TextInput
                           value={persona.userAge}
                           onChange={(e) => updatePersonaCard(index, { userAge: e.target.value })}
-                          placeholder=""
+                          placeholder="e.g. 18-24, 25-34"
                         />
                       </Field>
                       <Field label="User gender">
@@ -1964,7 +1947,7 @@ export function AuditForm() {
                           onChange={(e) =>
                             updatePersonaCard(index, { userLanguage: e.target.value })
                           }
-                          placeholder=""
+                          placeholder="e.g. English, Hindi"
                         />
                       </Field>
                       <Field label="User preferred Platform">
@@ -2002,7 +1985,7 @@ export function AuditForm() {
                           onChange={(e) =>
                             updatePersonaCard(index, { primaryUserGoal: e.target.value })
                           }
-                          placeholder=""
+                          placeholder="e.g. Complete a task quickly without confusion"
                         />
                       </Field>
                     </div>
@@ -2105,7 +2088,7 @@ export function AuditForm() {
                             return { ...p, businessCompetitors: next };
                           })
                         }
-                        placeholder=""
+                        placeholder="e.g. Design, speed, navigation"
                       />
                     </Field>
                   </div>
