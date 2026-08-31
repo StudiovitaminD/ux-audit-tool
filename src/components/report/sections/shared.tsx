@@ -184,6 +184,36 @@ function lookupQuestionOptions(bucketName: string, questionId: string) {
   return [];
 }
 
+function normalizeAnswerStateValue(value: unknown) {
+  const raw = asString(value).trim().toLowerCase();
+  if (!raw) return "";
+  if (raw === "p" || raw === "pass" || raw === "1") return "pass";
+  if (raw === "partial" || raw === "partially" || raw === "0.5") return "partial";
+  if (raw === "fail" || raw === "failed" || raw === "0") return "fail";
+  if (raw === "not tested" || raw === "not_tested" || raw === "untested") return "not_tested";
+  if (raw === "n/a" || raw === "na" || raw === "n_a" || raw === "not applicable") return "n_a";
+  return raw.replace(/\s+/g, "_").replace(/-/g, "_");
+}
+
+function selectedOptionValueForQuestion(question: Record<string, unknown>, options: Array<Record<string, unknown>>) {
+  const selectedState = normalizeAnswerStateValue(question.selected_option_state || question.answer_state);
+  const selectedMark = asString(question.selected_option || question.mark);
+  const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+
+  const byState = options.find((option) => normalizeAnswerStateValue(option.state) === selectedState);
+  if (byState?.state) return asString(byState.state);
+
+  const byMark = options.find((option) => asString(option.mark) === selectedMark);
+  if (byMark?.state) return asString(byMark.state);
+
+  if (selectedText) {
+    const byText = options.find((option) => asString(option.text).trim() === selectedText);
+    if (byText?.state) return asString(byText.state);
+  }
+
+  return selectedState || selectedMark || "";
+}
+
 function normalizeBucketQuestionsForDisplay(bucketName: string, bucket: Record<string, unknown>): Array<Record<string, unknown>> {
   const rawQuestions = bucket && Array.isArray(bucket.questions)
     ? bucket.questions
@@ -305,7 +335,7 @@ export function BucketAnswersCard({
                         </div>
                         <select
                           className="w-full rounded-lg border-2 border-emerald-600 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 shadow-[0_0_0_2px_rgba(16,185,129,0.08)]"
-                          value={selectedState || selectedMark || selectedOption || ""}
+                          value={selectedOptionValueForQuestion(question, options)}
                           onChange={(event) =>
                             event.target.value
                               ? onAnswerChange(
