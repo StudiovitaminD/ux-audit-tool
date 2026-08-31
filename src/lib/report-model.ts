@@ -424,6 +424,74 @@ function selectedBucketList(report: AnyRecord, intake: AnyRecord) {
   );
 }
 
+function selectionKey(value: unknown) {
+  return normalizeBucketName(displayBucketName(value) || asString(value)).toLowerCase().trim();
+}
+
+function selectedBucketRows(
+  rows: AnyRecord[],
+  selectedBuckets: string[],
+) {
+  if (!selectedBuckets.length) return rows;
+
+  const rowMap = new Map<string, AnyRecord>();
+  for (const row of rows) {
+    const key = selectionKey(row.section || row.bucket_name || row.bucket || row.name);
+    if (!rowMap.has(key)) {
+      rowMap.set(key, row);
+    }
+  }
+
+  return selectedBuckets.map((bucket) => {
+    const key = selectionKey(bucket);
+    const existing = rowMap.get(key);
+    if (existing) return existing;
+    return {
+      section: bucket,
+      bucket_name: bucket,
+      bucket: bucket,
+      pillar: bucketPillarFromName(bucket, "Impact"),
+      score: null,
+      bucket_status: "not_tested",
+      health: "Not tested",
+      risk: "Evidence missing",
+      priority: "P0",
+      questions: [],
+      findings: [],
+      improvements: [],
+    } as AnyRecord;
+  });
+}
+
+function averageBucketScore(rows: AnyRecord[]) {
+  if (!rows.length) return null;
+  const total = rows.reduce((sum, row) => sum + (asNumber(row.score) ?? 0), 0);
+  return Math.round(total / rows.length);
+}
+
+function pillarScoresFromRows(rows: AnyRecord[]) {
+  const pillarForRow = (row: AnyRecord) =>
+    bucketPillarFromName(
+      asString(row.section) || asString(row.bucket_name) || asString(row.bucket),
+      asString(row.pillar),
+    );
+
+  return {
+    Accessibility: {
+      score: averageBucketScore(rows.filter((row) => pillarForRow(row) === "Accessibility")),
+      evaluated: rows.some((row) => pillarForRow(row) === "Accessibility"),
+    },
+    Impact: {
+      score: averageBucketScore(rows.filter((row) => pillarForRow(row) === "Impact")),
+      evaluated: rows.some((row) => pillarForRow(row) === "Impact"),
+    },
+    Delight: {
+      score: averageBucketScore(rows.filter((row) => pillarForRow(row) === "Delight")),
+      evaluated: rows.some((row) => pillarForRow(row) === "Delight"),
+    },
+  } as const;
+}
+
 function semanticKey(value: string) {
   return value
     .toLowerCase()
@@ -2487,7 +2555,6 @@ function buildCaptureCoverage(report: AnyRecord) {
 
 export function buildReportViewModel(input: unknown): ReportViewModel {
   const report = normalizeReportCollections(asRecord(input) ?? {});
-  const derivedScoring = deriveQuestionScoringStats(report);
   const captureCoverage = buildCaptureCoverage(report);
   const intake = getNestedRecord(report, "intake");
   const rawExecutiveSummary = getNestedRecord(report, "executive_summary");
@@ -2502,6 +2569,15 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
     intake.competitors,
   );
   const selectedBuckets = selectedBucketList(report, intake);
+  const rawBucketRows = asRecordArray(report.bucket_results).filter(isRealBucket);
+  const selectedBucketRowsForDisplay = selectedBucketRows(rawBucketRows, selectedBuckets);
+  const scoringReport = selectedBuckets.length
+    ? { ...report, bucket_results: selectedBucketRowsForDisplay }
+    : report;
+  const derivedScoring = deriveQuestionScoringStats(scoringReport);
+  const selectedScoredBuckets = selectedBuckets.length
+    ? derivedScoring.bucketResults
+    : derivedScoring.bucketResults;
 
   const productName =
     asString(report.product_name) || asString(intake.product_name) || "UX Audit Report";
@@ -2537,11 +2613,17 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
   const storedScorecard = asArray(report.scorecard)
     .filter(isRealBucket)
     .map((item) => asRecord(item) ?? {});
+  const selectedScorecardRows = selectedBuckets.length
+    ? selectedBucketRows(
+        storedScorecard.length ? storedScorecard : selectedScoredBuckets,
+        selectedBuckets,
+      )
+    : (storedScorecard.length ? storedScorecard : selectedScoredBuckets);
   const hasLegacyGenericContentScorecardRow = storedScorecard.some((item) => {
     const section = asString(item.section) || asString(item.bucket_name) || asString(item.bucket);
     return section.trim().toLowerCase() === "content";
   });
-  const derivedScorecard = derivedScoring.bucketResults.map((bucket) => ({
+  const derivedScorecard = selectedScoredBuckets.map((bucket) => ({
     section:
       asString(bucket.section) ||
       asString(bucket.bucket_name) ||
@@ -2625,7 +2707,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
         return storedLooksNotScored !== derivedLooksNotScored;
       }));
   const resolvedScorecardSource =
-    shouldUseDerivedScorecard || !storedScorecard.length ? derivedScorecard : storedScorecard;
+    shouldUseDerivedScorecard || !selectedScorecardRows.length ? derivedScorecard : selectedScorecardRows;
   const resolvedScorecard = hasLegacyGenericContentScorecardRow
     ? resolvedScorecardSource.flatMap((row) => {
         const bucketRow = asRecord(row) ?? {};
@@ -2933,6 +3015,8 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
     ...competitorAnalysis,
     competitors: deriveCompetitorOpportunities(report),
   };
+  const selectedOverallScore = selectedBuckets.length ? averageBucketScore(selectedScoredBuckets) : null;
+  const selectedPillarScores = selectedBuckets.length ? pillarScoresFromRows(selectedScoredBuckets) : null;
 
   return {
     reportId:
@@ -2950,15 +3034,17 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
     isScoringUnavailable,
     hasPartialScoring,
     overallScore:
-      asNumber(report.overall_score) !== null
-        ? asNumber(report.overall_score)
-        : hasPartialScoring
+      selectedBuckets.length
+        ? selectedOverallScore ?? asNumber(report.overall_score)
+        : asNumber(report.overall_score) !== null
+          ? asNumber(report.overall_score)
+          : hasPartialScoring
             ? Math.round(
-              derivedScoring.bucketResults
-                .filter((bucket) => asNumber(bucket?.score) !== null)
-                .reduce((sum, bucket, _, arr) => sum + (asNumber(bucket?.score) ?? 0) / Math.max(1, arr.length), 0),
-            )
-          : null,
+                derivedScoring.bucketResults
+                  .filter((bucket) => asNumber(bucket?.score) !== null)
+                  .reduce((sum, bucket, _, arr) => sum + (asNumber(bucket?.score) ?? 0) / Math.max(1, arr.length), 0),
+              )
+            : null,
     overallHealth: isLimitedCoverage
       ? "Not scored"
       : isScoringUnavailable
@@ -2977,7 +3063,9 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
     selectedBuckets,
     captureCoverage,
     pillarScores:
-      isLimitedCoverage || (isScoringUnavailable && !hasPartialScoring)
+      selectedBuckets.length && selectedPillarScores
+        ? selectedPillarScores
+        : isLimitedCoverage || (isScoringUnavailable && !hasPartialScoring)
         ? {
             Delight: { score: null, evaluated: false },
             Impact: { score: null, evaluated: false },
@@ -2996,7 +3084,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
             }),
           ),
     scorecard: resolvedScorecard.map((row) => normalizeScorecardRow(asRecord(row) ?? {})),
-    bucketResults: derivedScoring.bucketResults,
+    bucketResults: selectedBuckets.length ? selectedScoredBuckets : derivedScoring.bucketResults,
     executiveSummary,
     sectionNarrative: {
       delight_narrative:

@@ -179,18 +179,18 @@ export function OverviewSection({ vm }: SharedSectionProps) {
     ? scoreRows.filter((row) => selectedBucketKeys.has(normalizeKey(displayBucketName(bucketNameFromRow(row)))))
     : scoreRows;
   const scoreRowsForDisplay = visibleScoreRows.length ? visibleScoreRows : scoreRows;
-  const displayedOverallScore = averageScore(scoreRowsForDisplay) ?? vm.overallScore;
-  const pillarScores = vm.pillarScores ?? { Accessibility: null, Impact: null, Delight: null };
-  const displayedPillarScores = Object.fromEntries(
-    pillarOrder.map((pillar) => {
-      const relevantRows = scoreRowsForDisplay.filter((row) => bucketPillarFromRow(row) === pillar);
-      const score = averageScore(relevantRows);
-      return [pillar, { score, evaluated: score !== null }];
-    }),
-  ) as Record<string, { score: number | null; evaluated: boolean }>;
-  const businessMetrics = calculateBusinessImpactMetrics(
-    selectedBucketKeys.size ? displayedPillarScores : pillarScores,
-  );
+  const displayedOverallScore = vm.overallScore ?? averageScore(scoreRowsForDisplay);
+  const selectedPillarScores = vm.pillarScores ?? { Accessibility: { score: null, evaluated: false }, Impact: { score: null, evaluated: false }, Delight: { score: null, evaluated: false } };
+  const displayedPillarScores = selectedBucketKeys.size
+    ? selectedPillarScores
+    : (Object.fromEntries(
+        pillarOrder.map((pillar) => {
+          const relevantRows = scoreRowsForDisplay.filter((row) => bucketPillarFromRow(row) === pillar);
+          const score = averageScore(relevantRows);
+          return [pillar, { score, evaluated: score !== null }];
+        }),
+      ) as Record<string, { score: number | null; evaluated: boolean }>);
+  const businessMetrics = calculateBusinessImpactMetrics(displayedPillarScores);
   const scoreRowLookup = new Map<string, AnyRecord>();
   for (const row of scoreRowsForDisplay) {
     const pillar = bucketPillarFromRow(row);
@@ -294,7 +294,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
           <div className="flex w-full min-w-0 flex-col items-start space-y-4 self-stretch">
             <div className="flex w-full min-w-0 items-start gap-3 self-stretch">
               {scoreCardOrder.map((name) => {
-                const p = (selectedBucketKeys.size ? displayedPillarScores : pillarScores)[name] ?? {
+                const p = displayedPillarScores[name] ?? {
                   score: null,
                 };
                 const tone = scoreToneClasses(p.score);

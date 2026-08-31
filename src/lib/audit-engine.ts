@@ -2822,6 +2822,7 @@ export async function finalizeAudit(args: {
   const derivedRoadmap = buildRoadmapFromQuickWins(quickWinsTable);
   const sectionNarrativeFallback = deriveSectionNarrativeFromBuckets(onlyResults);
   const competitors = parseCompetitorsFromIntakeText(args.intake.competitors);
+  const selectedBuckets = getSelectedBuckets(args.intake);
 
   const byPriority = (p: string) =>
     onlyResults.filter((b) => b.priority === p).map((b) => b.bucket_name);
@@ -2862,6 +2863,8 @@ export async function finalizeAudit(args: {
         : "",
     ).filter(Boolean),
     bucket_results: onlyResults,
+    selected_buckets: selectedBuckets,
+    selectedBuckets,
     audit_mode: hasCoverageShortfall
       ? "Limited Coverage Report"
       : hasScoringFailure
@@ -3200,6 +3203,8 @@ export async function finalizeAudit(args: {
       overall_health: "Scoring unavailable",
       overall_risk: message,
       scorecard,
+      selected_buckets: getSelectedBuckets(args.intake),
+      selectedBuckets: getSelectedBuckets(args.intake),
       p1_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P1").map((bucket) => bucket.bucket_name),
       p2_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P2").map((bucket) => bucket.bucket_name),
       p3_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P3").map((bucket) => bucket.bucket_name),

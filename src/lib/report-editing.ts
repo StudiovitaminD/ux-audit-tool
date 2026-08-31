@@ -655,6 +655,9 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
       .filter((bucket) => asString(bucket.priority) === priority)
       .map((bucket) => asString(bucket.bucket_name))
       .filter(Boolean);
+  const selectedBuckets = asArray(report.selected_buckets).length
+    ? asArray(report.selected_buckets).map((item) => asString(item)).filter(Boolean)
+    : asArray(report.selectedBuckets).map((item) => asString(item)).filter(Boolean);
 
   const nextReport: AnyRecord = {
     ...report,
@@ -675,6 +678,8 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
     pillar_scores: pillarScores,
     scorecard,
     bucket_results: bucketResults,
+    selected_buckets: selectedBuckets,
+    selectedBuckets,
     findings_detailed: findings,
     top_5_findings: findings.slice(0, 5),
     all_findings: findings,
