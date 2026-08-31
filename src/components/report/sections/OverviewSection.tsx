@@ -241,6 +241,22 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                 {experienceLabelFromScore(vm.overallScore)}
               </span>
             </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] leading-none text-[color:var(--report-grey-font)]">
+              <span className="font-semibold uppercase tracking-[0.14em]">Audit Confidence</span>
+              <span
+                className={`rounded-full px-2 py-1 text-[12px] font-semibold ${
+                  vm.auditConfidence === null
+                    ? "bg-[rgba(189,189,189,0.18)] text-[color:var(--report-grey-font)]"
+                    : vm.auditConfidence >= 80
+                      ? "bg-[rgba(34,197,94,0.14)] text-[color:var(--report-green-font)]"
+                      : vm.auditConfidence >= 50
+                        ? "bg-[rgba(251,146,60,0.14)] text-[color:var(--report-orange)]"
+                        : "bg-[rgba(239,68,68,0.14)] text-[color:var(--report-red)]"
+                }`}
+              >
+                {vm.auditConfidence === null ? "—" : `${Math.round(vm.auditConfidence)}% verified`}
+              </span>
+            </div>
             <div
             className="mt-1 text-[14px] font-medium leading-[20px] text-[color:var(--report-grey-font)]"
             style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}

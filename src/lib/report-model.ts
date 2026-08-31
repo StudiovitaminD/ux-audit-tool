@@ -1,4 +1,5 @@
 import { QUESTION_BANK } from "@/lib/question-bank";
+import { normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
 
 export type AnyRecord = Record<string, unknown>;
 
@@ -18,6 +19,7 @@ export type ReportViewModel = {
   overallScore: number | null;
   overallHealth: string;
   overallRisk: string;
+  auditConfidence: number | null;
   captureCoverage: {
     status: string;
     summary: string;
@@ -363,11 +365,14 @@ function isNotScoredBucketRow(item: AnyRecord) {
 
   return (
     bucketStatus === "insufficient_evidence" ||
+    bucketStatus === "not_tested" ||
     bucketStatus === "scoring_unavailable" ||
     health === "not scored" ||
+    health === "not tested" ||
     risk === "evidence missing" ||
     risk === "scoring unavailable" ||
     scoreText === "not scored" ||
+    scoreText === "not tested" ||
     scoreNumber === null ||
     scoreNumber <= 0
   );
@@ -739,9 +744,10 @@ function questionSummaryText(bucketName: string, question: AnyRecord | null | un
   const rec = asRecord(question) ?? {};
   const displayName = displayBucketName(bucketName) || bucketName;
   const selectedText = bestSummaryText(rec.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  const selectedState = asString(rec.selected_option_state || rec.answer_state);
   const selectedMark = asNumber(rec.selected_option ?? rec.mark);
   const options = lookupQuestionOptions(bucketName, asString(rec.id));
-  const matched = options.find((option) => option.mark === selectedMark);
+  const matched = options.find((option) => option.state === selectedState || option.mark === selectedMark);
   const questionLabel = bestSummaryText(rec.question);
   const selectedAnswer =
     (selectedText && !isPlaceholderText(selectedText) ? selectedText : "") ||
@@ -1676,60 +1682,42 @@ function isRealBucket(item: unknown) {
 
 function normalizeBucketForScoring(item: AnyRecord) {
   const questions = asArray(item.questions).map((question) => {
-    const rec = asRecord(question) ?? {};
+    const rawQuestion = asRecord(question) ?? {};
+    const rec = normalizeQuestionAnswer({
+      id: asString(rawQuestion.id) || "Q",
+      ...(rawQuestion as AnyRecord),
+    });
     const answerStatus = asString(rec.answer_status);
-    const mark = asNumber(rec.mark);
-    const selectedOption = asNumber(rec.selected_option);
-    const hasAnswer = mark !== null || selectedOption !== null;
+    const hasAnswer =
+      asString(rec.answer_state).length > 0 ||
+      asNumber(rec.mark) !== null ||
+      asNumber(rec.selected_option) !== null;
     return {
       ...rec,
       answer_status: answerStatus || (hasAnswer ? "answered" : "insufficient_evidence"),
-      mark: mark !== null ? mark : selectedOption,
-      selected_option: selectedOption,
+      answer_state: asString(rec.answer_state) || "not_tested",
+      mark: asNumber(rec.mark),
+      selected_option: asNumber(rec.selected_option),
+      selected_option_state: asString(rec.selected_option_state) || asString(rec.answer_state),
     };
   });
   const totalQuestions = questions.length;
-  const scoreableQuestions = questions.filter((question) => {
-    const questionMark = asNumber(question.mark);
-    const selectedOption = asNumber(question.selected_option);
-    return (
-      asString(question.answer_status) === "answered" &&
-      (questionMark !== null || selectedOption !== null)
-    );
-  }).length;
-  const derivedMarks = questions
-    .map((question) => asNumber(question.mark) ?? asNumber(question.selected_option))
-    .filter((mark): mark is number => mark !== null);
+  const scoring = scoreQuestions(questions);
   const bucketStatus = asString(item.bucket_status);
   const isScoringUnavailable = bucketStatus === "scoring_unavailable";
   const existingScore = asNumber(item?.score);
-  const derivedScore =
-    derivedMarks.length > 0
-      ? Math.round(
-          (derivedMarks.reduce((sum, mark) => sum + mark, 0) / (derivedMarks.length * 5)) * 100,
-        )
-      : null;
+  const scoreableQuestions = scoring.scoredCount;
   const shouldBeUnscored =
     bucketStatus === "insufficient_evidence" ||
     isScoringUnavailable ||
-    existingScore === 0 ||
     scoreableQuestions === 0;
 
   if (!shouldBeUnscored) {
     return {
       ...item,
-      total_marks:
-        asNumber(item.total_marks) !== null
-          ? asNumber(item.total_marks)
-          : derivedMarks.reduce((sum, mark) => sum + mark, 0),
-      max_marks:
-        asNumber(item.max_marks) !== null ? asNumber(item.max_marks) : derivedMarks.length * 5,
-      score:
-        existingScore !== null && existingScore > 0
-          ? existingScore
-          : derivedScore !== null && derivedScore > 0
-            ? derivedScore
-            : null,
+      total_marks: asNumber(item.total_marks) !== null ? asNumber(item.total_marks) : scoring.total_marks,
+      max_marks: asNumber(item.max_marks) !== null ? asNumber(item.max_marks) : scoring.max_marks,
+      score: existingScore !== null && existingScore > 0 ? existingScore : scoring.score,
       bucket_status: "scored",
       health:
         asString(item.health) || "Scored",
@@ -1745,8 +1733,8 @@ function normalizeBucketForScoring(item: AnyRecord) {
     total_marks: null,
     max_marks: null,
     score: null,
-    bucket_status: isScoringUnavailable ? "scoring_unavailable" : "insufficient_evidence",
-    health: "Not scored",
+    bucket_status: isScoringUnavailable ? "scoring_unavailable" : "not_tested",
+    health: "Not tested",
     risk: isScoringUnavailable ? "Scoring unavailable" : "Evidence missing",
     priority: asString(item.priority) || "P0",
     __totalQuestions: totalQuestions,
@@ -1760,22 +1748,24 @@ function normalizeScorecardRow(row: AnyRecord) {
   const bucketStatus = asString(row.bucket_status).toLowerCase();
   const isUnscored =
     bucketStatus === "insufficient_evidence" ||
+    bucketStatus === "not_tested" ||
     bucketStatus === "scoring_unavailable" ||
     scoreNumber === null ||
     scoreNumber <= 0 ||
     scoreText === "0/100" ||
-    scoreText === "0";
+    scoreText === "0" ||
+    scoreText === "not tested";
 
   if (!isUnscored) return row;
 
   return {
     ...row,
-    score: bucketStatus === "scoring_unavailable" ? "Scoring unavailable" : "Insufficient evidence",
-    health: "Not scored",
+    score: bucketStatus === "scoring_unavailable" ? "Scoring unavailable" : "Not Tested",
+    health: "Not tested",
     risk:
       bucketStatus === "scoring_unavailable" ? "Scoring unavailable" : "Evidence missing",
     bucket_status:
-      bucketStatus === "scoring_unavailable" ? "scoring_unavailable" : "insufficient_evidence",
+      bucketStatus === "scoring_unavailable" ? "scoring_unavailable" : "not_tested",
   } as AnyRecord;
 }
 
@@ -1987,10 +1977,11 @@ function bestAvailableAnswer(report: AnyRecord, item: AnyRecord) {
   const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
   if (selectedText && !isPlaceholderText(selectedText)) return selectedText;
 
+  const selectedState = asString(question.selected_option_state || question.answer_state);
   const selectedMark = asNumber(question.selected_option ?? question.mark);
   if (selectedMark !== null) {
     const option = lookupQuestionOptions(bucketName, asString(question.id)).find(
-      (option) => option.mark === selectedMark,
+      (option) => option.state === selectedState || option.mark === selectedMark,
     );
     if (option?.text) return option.text.trim();
   }
@@ -2964,6 +2955,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
           ? asString(report.overall_risk) || "Partial coverage"
           : "Scoring unavailable"
         : asString(report.overall_risk),
+    auditConfidence: asNumber(report.audit_confidence),
     captureCoverage,
     pillarScores:
       isLimitedCoverage || (isScoringUnavailable && !hasPartialScoring)

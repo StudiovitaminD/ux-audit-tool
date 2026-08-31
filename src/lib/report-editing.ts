@@ -1,5 +1,6 @@
 import { QUESTION_BANK } from "@/lib/question-bank";
 import { bucketPillarFromName, type AnyRecord } from "@/lib/report-model";
+import { scoreQuestions } from "../../shared/ux-audit-scoring";
 
 function asRecord(value: unknown): AnyRecord | null {
   return value && typeof value === "object" ? (value as AnyRecord) : null;
@@ -208,7 +209,11 @@ function bestQuestionText(bucketName: string, question: AnyRecord | null | undef
   if (selectedText) return selectedText;
 
   const selectedMark = asNumber(rec.selected_option ?? rec.mark);
-  const option = questionOptions(bucketName, asString(rec.id)).find((item) => item.mark === selectedMark);
+  const selectedState = asString(rec.selected_option_state || rec.answer_state);
+  const option = questionOptions(bucketName, asString(rec.id)).find((item) => {
+    if (selectedState && item.state === selectedState) return true;
+    return item.mark === selectedMark;
+  });
   if (option?.text) return option.text.trim();
 
   const observation = asString(rec.observation);
@@ -230,6 +235,7 @@ function deriveQuestionInsights(bucketResults: AnyRecord[]) {
         bucketName,
         mark: asNumber(question.mark ?? question.selected_option),
         answerStatus: asString(question.answer_status),
+        answerState: asString(question.answer_state ?? question.selected_option_state),
         observation: bestQuestionText(bucketName, question),
         recommendation: asString(question.recommendation) || bestQuestionText(bucketName, question),
         impact: asString(question.impact),
@@ -241,7 +247,7 @@ function deriveQuestionInsights(bucketResults: AnyRecord[]) {
   return {
     topProblems: uniqueList(
       questions
-        .filter((question) => (question.mark ?? 99) <= 3)
+        .filter((question) => question.mark !== null && question.mark <= 0.5)
         .sort((left, right) => {
           if ((left.mark ?? 99) !== (right.mark ?? 99)) return (left.mark ?? 99) - (right.mark ?? 99);
           return impactRank(right.impact) - impactRank(left.impact);
@@ -251,14 +257,14 @@ function deriveQuestionInsights(bucketResults: AnyRecord[]) {
     ),
     whatsWorking: uniqueList(
       questions
-        .filter((question) => (question.mark ?? 0) >= 4)
+        .filter((question) => (question.mark ?? 0) >= 1)
         .sort((left, right) => (right.mark ?? 0) - (left.mark ?? 0))
         .map((question) => `${question.bucketName}: ${question.observation}`),
       10,
     ),
     firstPriority: uniqueList(
       questions
-        .filter((question) => (question.mark ?? 99) <= 2)
+        .filter((question) => question.mark !== null && question.mark <= 0.5)
         .sort((left, right) => {
           if (impactRank(left.impact) !== impactRank(right.impact)) {
             return impactRank(right.impact) - impactRank(left.impact);
@@ -273,7 +279,7 @@ function deriveQuestionInsights(bucketResults: AnyRecord[]) {
     ),
     quickWins: uniqueList(
       questions
-        .filter((question) => (question.mark ?? 99) <= 3)
+        .filter((question) => question.mark !== null && question.mark > 0 && question.mark < 1)
         .filter((question) => effortRank(question.effort) <= 2 && impactRank(question.impact) >= 2)
         .sort((left, right) => {
           if (effortRank(left.effort) !== effortRank(right.effort)) {
@@ -408,6 +414,7 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
     const questions = asArray(bucket.questions).map((item) => {
       const question = { ...(asRecord(item) ?? {}) };
       const answerStatus = asString(question.answer_status);
+      const answerState = asString(question.answer_state || question.selected_option_state);
       const isScoringUnavailable = answerStatus === "scoring_unavailable";
       const isInsufficient =
         answerStatus === "insufficient_evidence" ||
@@ -416,78 +423,72 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
           asNumber(question.mark) === null) ||
         (asNumber(question.selected_option) === null &&
           asNumber(question.mark) === null &&
+          !answerState &&
           !asString(question.recommendation) &&
           !asString(question.effort) &&
           !asString(question.impact));
       if (isScoringUnavailable) {
         return {
           ...question,
+          id: asString(question.id),
           answer_status: "scoring_unavailable",
           selected_option: null,
           selected_option_text: "",
           mark: null,
+          answer_state: "not_tested",
         };
       }
       if (isInsufficient) {
         return {
           ...question,
+          id: asString(question.id),
           answer_status: "insufficient_evidence",
           selected_option: null,
           selected_option_text: "",
           mark: null,
-        };
-      }
-      const rawSelected = asNumber(question.selected_option ?? question.mark);
-      if (rawSelected === null) {
-        return {
-          ...question,
-          answer_status: "scoring_unavailable",
-          selected_option: null,
-          selected_option_text: "",
-          mark: null,
+          answer_state: "not_tested",
         };
       }
       const options = lookupQuestionOptions(bucketName, asString(question.id));
-      const selected = Math.min(5, Math.max(1, rawSelected));
-      const optionText = options.find((option) => option.mark === selected)?.text || "";
+      const normalizedState = answerState || options.find((option) => option.score === asNumber(question.mark ?? question.selected_option))?.state || "not_tested";
+      const selected = asNumber(question.mark ?? question.selected_option);
+      const optionText =
+        options.find((option) => option.state === normalizedState)?.text ||
+        options.find((option) => option.mark === selected)?.text ||
+        "";
       return {
         ...question,
+        id: asString(question.id),
         selected_option: selected,
+        selected_option_state: normalizedState,
         selected_option_text: optionText,
         mark: selected,
         answer_status: "answered",
+        answer_state: normalizedState,
       };
     });
 
     const scoringUnavailable = asString(bucket.bucket_status) === "scoring_unavailable";
-    const scoredQuestions = questions.filter(
-      (question) =>
-        asString(question.answer_status) === "answered" && asNumber(question.mark) !== null,
-    );
-    const enoughEvidence =
-      !scoringUnavailable &&
-      questions.length > 0 &&
-      scoredQuestions.length / Math.max(1, questions.length) >= 0.6;
-    const totalMarks = enoughEvidence
-      ? scoredQuestions.reduce((sum, question) => sum + (asNumber(question.mark) ?? 0), 0)
-      : 0;
-    const maxMarks = enoughEvidence ? Math.max(scoredQuestions.length * 5, 0) : 0;
-    const score = enoughEvidence && maxMarks > 0 ? Math.round((totalMarks / maxMarks) * 100) : null;
+    const scoring = scoreQuestions(questions);
+    const score = scoring.score;
+    const enoughEvidence = !scoringUnavailable && score !== null;
+    const totalMarks = score !== null ? scoring.total_marks : null;
+    const maxMarks = score !== null ? scoring.max_marks : null;
     const health = score === null ? null : getHealth(score);
 
-    const findings = enoughEvidence
-      ? questions
-      .filter((question) => (asNumber(question.mark) ?? 3) <= 2)
+    const findings = questions
+      .filter((question) => asString(question.answer_state) === "fail" || asString(question.answer_state) === "partial")
       .map((question) =>
-        buildFinding(question, bucketName, (asNumber(question.mark) ?? 3) === 1 ? "Critical" : "High"),
-      )
-      : [];
+        buildFinding(
+          question,
+          bucketName,
+          asString(question.answer_state) === "fail" ? "Critical" : "High",
+        ),
+      );
 
-    const improvements = enoughEvidence
-      ? questions
-      .filter((question) => (asNumber(question.mark) ?? 3) === 3)
-      .map((question) => buildFinding(question, bucketName, "Moderate"))
-      : [];
+    const improvements = questions
+      .filter((question) => asString(question.answer_state) === "not_tested" || asString(question.answer_state) === "n_a")
+      .map((question) => buildFinding(question, bucketName, "Moderate"));
 
     return {
       ...bucket,
@@ -501,7 +502,7 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
         ? "scored"
         : scoringUnavailable
           ? "scoring_unavailable"
-          : "insufficient_evidence",
+          : "not_tested",
       health: health ? health.label : "Not scored",
       risk: health ? health.risk : scoringUnavailable ? "Scoring unavailable" : "Evidence missing",
       priority: health ? health.priority : asString(bucket.priority) || "P0",
@@ -673,7 +674,7 @@ export function updateReportAnswer(
   reportInput: unknown,
   bucketName: string,
   questionId: string,
-  selectedOption: number,
+  selectedOption: number | string,
   userReason?: string,
   userEvidence?: string,
 ): AnyRecord {
@@ -692,11 +693,24 @@ export function updateReportAnswer(
       const existingEvidence = asString(question.user_evidence) || asString(question.evidence);
       const normalizedEvidence =
         typeof userEvidence === "string" ? userEvidence.trim() : existingEvidence;
+      const answerState =
+        typeof selectedOption === "string"
+          ? selectedOption
+          : selectedOption === 1
+            ? "pass"
+            : selectedOption === 0.5
+              ? "partial"
+              : selectedOption === 0
+                ? "fail"
+                : "";
+      const numericSelected = typeof selectedOption === "number" ? selectedOption : null;
       return {
         ...question,
         answer_status: "answered",
-        selected_option: selectedOption,
-        mark: selectedOption,
+        answer_state: answerState || asString(question.answer_state) || "not_tested",
+        selected_option: numericSelected,
+        selected_option_state: answerState || asString(question.selected_option_state) || "not_tested",
+        mark: numericSelected,
         user_reason: normalizedReason,
         user_evidence: normalizedEvidence,
         observation: normalizedReason || asString(question?.observation),

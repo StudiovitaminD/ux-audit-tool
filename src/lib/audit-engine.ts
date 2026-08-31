@@ -8,6 +8,7 @@ import {
 } from "@/lib/evidence-collector";
 import { getErrorMessage } from "@/lib/error-utils";
 import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../shared/audit-framework";
+import { normalizeAnswerState, normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
 
 const DEFAULT_OPENROUTER_MODEL = "openrouter/owl-alpha";
 
@@ -415,13 +416,15 @@ function bucketPrompt(intake: Intake, bucket: string, questions: BucketQuestion[
   const bucketBrief = buildBucketFrameworkBrief(bucket);
   const selectedBucketQuestions = questions
     .map((q) => {
-      const opts = q.options.map((o) => `${o.mark}: ${trimText(o.text, 90)}`).join("\n");
+      const opts = q.options
+        .map((o) => `${o.label} (${o.score === null ? "excluded from score" : o.score}) - ${trimText(o.text, 90)}`)
+        .join("\n");
       const sectionLine = q.section ? `Section: ${q.section}\n` : "";
       return `ID: ${q.id}\n${sectionLine}Question: ${q.question}\nHow to evaluate: ${q.navigate}\nOptions:\n${opts}`;
     })
     .join("\n\n---\n\n");
 
-  return `You are a principal UX auditor producing a client-ready evaluation.\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nCompact product context:\n${JSON.stringify(intakeSummary, null, 2)}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nBucket-specific guidance:\n${bucketSpecificGuidance(bucket)}\n\nScoring rubric:\n- 5 = best-in-class and clearly supported by evidence.\n- 4 = strong with minor gaps.\n- 3 = mixed but still scoreable from the captured evidence.\n- 2 = clear friction.\n- 1 = severe blocker.\n\nHard rules:\n- Use only captured evidence.\n- Cite visible details from the capture for every answer.\n- Do not invent screens, features, or problems.\n- If the evidence is missing for a question, do not guess and do not force a low score.\n- For insufficient evidence, return mark as null and explain what was missing.\n- \"what_is_working\" must describe genuine strengths, stable patterns, or helpful UX behavior; do not restate problems or recommendations there.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON in this shape:\n{\n  \"bucket\": \"${bucket}\",\n  \"pillar\": \"${PILLAR_MAP[bucket] || "Impact"}\",\n  \"score_rationale\": {\n    \"summary\": \"1-2 sentences\",\n    \"what_is_working\": [\"...\"],\n    \"what_is_risky\": [\"...\"],\n    \"why_now\": \"...\"\n  },\n  \"questions\": [\n    {\n      \"id\": \"N01\",\n      \"question\": \"...\",\n      \"mark\": 3,\n      \"evidence\": \"...\",\n      \"observation\": \"...\",\n      \"recommendation\": \"...\",\n      \"effort\": \"S|M|L\",\n      \"impact\": \"Low|Med|High\",\n      \"confidence\": 0.0\n    }\n  ]\n}\n\nQuestions:\n${selectedBucketQuestions}\n`;
+  return `You are a principal UX auditor producing a client-ready evaluation.\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nCompact product context:\n${JSON.stringify(intakeSummary, null, 2)}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nBucket-specific guidance:\n${bucketSpecificGuidance(bucket)}\n\nScoring rubric:\n- PASS = clearly satisfied and scores 1.\n- PARTIAL = partially satisfied and scores 0.5.\n- FAIL = not satisfied and scores 0.\n- NOT_TESTED = insufficient evidence. Exclude from the bucket denominator.\n- N/A = does not apply. Exclude from the bucket denominator.\n\nHard rules:\n- Use only captured evidence.\n- Cite visible details from the capture for every answer.\n- Do not invent screens, features, or problems.\n- If the evidence is missing for a question, do not guess and do not force a low score.\n- For insufficient evidence, return mark as null and explain what was missing.\n- \"what_is_working\" must describe genuine strengths, stable patterns, or helpful UX behavior; do not restate problems or recommendations there.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON in this shape:\n{\n  \"bucket\": \"${bucket}\",\n  \"pillar\": \"${PILLAR_MAP[bucket] || "Impact"}\",\n  \"score_rationale\": {\n    \"summary\": \"1-2 sentences\",\n    \"what_is_working\": [\"...\"],\n    \"what_is_risky\": [\"...\"],\n    \"why_now\": \"...\"\n  },\n  \"questions\": [\n    {\n      \"id\": \"N01\",\n      \"question\": \"...\",\n      \"answer_state\": \"pass|partial|fail|not_tested|n_a\",\n      \"mark\": 1,\n      \"evidence\": \"...\",\n      \"observation\": \"...\",\n      \"recommendation\": \"...\",\n      \"effort\": \"S|M|L\",\n      \"impact\": \"Low|Med|High\",\n      \"confidence\": 0.0\n    }\n  ]\n}\n\nQuestions:\n${selectedBucketQuestions}\n`;
 }
 
 function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
@@ -679,7 +682,8 @@ async function completeMissingQuestions(args: {
   const missingQuestionChunks = chunkArray(missingQuestions, 2);
 
   for (const questionChunk of missingQuestionChunks) {
-    const missingPrompt = `You are completing missing UX audit answers for one bucket.\n\nBucket: ${args.bucket}\nProduct type: ${productTypeLabel(args.intake.product_type)}\nContext instructions: ${productTypeInstructions(args.intake.product_type)}\nBucket guidance: ${bucketSpecificGuidance(args.bucket)}\n\nRules:\n- Answer every missing question below.\n- Use only the provided evidence.\n- Return ONLY valid JSON.\n- If a question truly cannot be scored, set mark to null and answer_status to "insufficient_evidence".\n- Do not omit any question.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n\nReturn ONLY this JSON shape:\n{\n  "bucket":"${args.bucket}",\n  "questions":[\n    {\n      "id":"N01",\n      "question":"...",\n      "mark":3,\n      "answer_status":"answered",\n      "evidence":"...",\n      "observation":"...",\n      "recommendation":"...",\n      "effort":"S|M|L",\n      "impact":"Low|Med|High",\n      "confidence":0.0\n    }\n  ]\n}\n\nMissing questions:\n${questionChunk
+    const missingPrompt = `You are completing missing UX audit answers for one bucket.\n\nBucket: ${args.bucket}\nProduct type: ${productTypeLabel(args.intake.product_type)}\nContext instructions: ${productTypeInstructions(args.intake.product_type)}\nBucket guidance: ${bucketSpecificGuidance(args.bucket)}\n\nRules:\n- Answer every missing question below.\n- Use only the provided evidence.\n- Return ONLY valid JSON.\n- If a question truly cannot be scored, set mark to null and answer_status to "insufficient_evidence".\n- Do not omit any question.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n\nReturn ONLY this JSON shape:\n{\n  "bucket":"${args.bucket}",\n  "questions":[\n    {\n      "id":"N01",\n      "question":"...",\n      "answer_state": "pass|partial|fail|not_tested|n_a",
+      "mark": 1,\n      "answer_status":"answered",\n      "evidence":"...",\n      "observation":"...",\n      "recommendation":"...",\n      "effort":"S|M|L",\n      "impact":"Low|Med|High",\n      "confidence":0.0\n    }\n  ]\n}\n\nMissing questions:\n${questionChunk
       .map((question) => {
         const options = question.options.map((option) => `${option.mark}: ${trimText(option.text, 90)}`).join("\n");
         return `ID: ${question.id}\nQuestion: ${question.question}\nOptions:\n${options}`;
@@ -1621,9 +1625,14 @@ function hasRichEvidence(evidence: EvidenceBundle | null) {
 
 function parseOptionalMark(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
+  const text = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (["pass", "partial", "fail", "not_tested", "n_a", "na", "n/a"].includes(text)) return null;
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return null;
-  return Math.min(5, Math.max(1, numeric));
+  if (numeric === 1 || numeric === 0.5 || numeric === 0) return numeric;
+  if (numeric >= 4) return 1;
+  if (numeric >= 3) return 0.5;
+  return 0;
 }
 
 export type BucketResult = {

@@ -57,24 +57,29 @@ export type EvidenceBundle = {
 export type BucketResult = {
   bucket_name: string;
   pillar: string;
-  total_marks: number;
-  max_marks: number;
-  score: number;
+  total_marks: number | null;
+  max_marks: number | null;
+  score: number | null;
+  bucket_status?: "scored" | "not_tested" | "insufficient_evidence" | "scoring_unavailable";
+  audit_confidence?: number | null;
   health: string;
   risk: string;
   priority: string;
   questions: Array<{
     id: string;
     question: string;
-    mark: number;
+    mark: number | null;
+    selected_option?: number | string | null;
+    selected_option_state?: string | null;
     evidence: string;
     observation: string;
     recommendation?: string;
     effort?: string;
     impact?: string;
     confidence?: number;
+    answer_state?: string | null;
+    answer_status?: string | null;
   }>;
   findings: Array<Record<string, unknown>>;
   improvements: Array<Record<string, unknown>>;
 };
-

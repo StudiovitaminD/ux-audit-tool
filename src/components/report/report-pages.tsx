@@ -17,7 +17,7 @@ export type BuildReportPagesOptions = {
   onAnswerChange?: (
     bucketName: string,
     questionId: string,
-    selectedOption: number,
+    selectedOption: number | string,
     userReason?: string,
     userEvidence?: string,
   ) => void;

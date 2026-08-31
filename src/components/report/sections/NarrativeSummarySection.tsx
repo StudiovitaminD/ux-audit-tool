@@ -220,8 +220,11 @@ function synthesizeQuestionTakeaway(
   const selected = cleanNarrativeText(asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, ""));
   if (selected && !placeholderText(selected)) return selected;
 
+  const selectedState = cleanNarrativeText(asString(question.selected_option_state || question.answer_state));
   const selectedMark = Number(asString(question.selected_option || question.mark));
-  const option = lookupQuestionOptions(bucketNameValue, questionId).find((item) => Number(item.mark) === selectedMark);
+  const option = lookupQuestionOptions(bucketNameValue, questionId).find(
+    (item) => item.state === selectedState || Number(item.mark) === selectedMark,
+  );
   if (option?.text) {
     const optionText = cleanNarrativeText(option.text);
     if (optionText && !looksEllipsizedText(optionText)) return optionText;
@@ -241,8 +244,10 @@ function synthesizeQuestionTakeaway(
 }
 
 function synthesizeWorkingQuestionTakeaway(bucketNameValue: string, question: Record<string, unknown>) {
+  const selectedState = cleanNarrativeText(asString(question.selected_option_state || question.answer_state));
   const selectedMark = Number(asString(question.selected_option || question.mark));
-  if (Number.isFinite(selectedMark) && selectedMark < 4) return "";
+  if (selectedState === "fail" || selectedState === "partial") return "";
+  if (Number.isFinite(selectedMark) && selectedMark < 1) return "";
 
   const observation = cleanNarrativeText(asString(question.observation).replace(/^\s*\d+\.\s*/, ""));
   if (observation && !placeholderText(observation) && !looksLikeRecommendation(observation) && !looksLikeWeakStatus(observation)) {
@@ -260,7 +265,7 @@ function synthesizeWorkingQuestionTakeaway(bucketNameValue: string, question: Re
   }
 
   const selectedOption = lookupQuestionOptions(bucketNameValue, asString(question.id)).find(
-    (item) => Number(item.mark) === selectedMark,
+    (item) => item.state === selectedState || Number(item.mark) === selectedMark,
   );
   const optionText = cleanNarrativeText(selectedOption?.text);
   if (optionText && !looksLikeRecommendation(optionText) && !looksLikeWeakStatus(optionText)) {

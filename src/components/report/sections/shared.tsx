@@ -89,9 +89,12 @@ function selectedOptionTextForQuestion(bucketName: string, question: Record<stri
   const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
   if (selectedText && !placeholderText(selectedText)) return selectedText;
 
+  const selectedState = asString(question.selected_option_state || question.answer_state);
   const selectedMark = Number(asString(question.selected_option || question.mark));
   const options = lookupQuestionOptions(bucketName, questionId);
-  const matched = options.find((option) => Number(option.mark) === selectedMark);
+  const matched = options.find(
+    (option) => option.state === selectedState || Number(option.mark) === selectedMark,
+  );
   if (matched?.text) return matched.text.trim();
   const observation = asString(question.observation);
   if (observation && !placeholderText(observation) && !promptLikeText(observation, questionLabel)) {
@@ -189,7 +192,7 @@ export function BucketAnswersCard({
   onAnswerChange?: (
     bucketName: string,
     questionId: string,
-    selectedOption: number,
+    selectedOption: string | number,
     userReason?: string,
     userEvidence?: string,
   ) => void;
@@ -229,6 +232,7 @@ export function BucketAnswersCard({
             const answerStatus = asString(question.answer_status);
             const selectedOption = asString(question.selected_option);
             const selectedMark = asString(question.mark || question.selected_option);
+            const selectedState = asString(question.selected_option_state || question.answer_state);
             const options = lookupQuestionOptions(bucketName, questionId);
             const selectedOptionText =
               selectedOptionTextForQuestion(bucketName, question) ||
@@ -274,13 +278,13 @@ export function BucketAnswersCard({
                         </div>
                         <select
                           className="w-full rounded-lg border-2 border-emerald-600 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 shadow-[0_0_0_2px_rgba(16,185,129,0.08)]"
-                          value={selectedMark || selectedOption || ""}
+                          value={selectedState || selectedMark || selectedOption || ""}
                           onChange={(event) =>
                             event.target.value
                               ? onAnswerChange(
                                   bucketName,
                                   questionId,
-                                  Number(event.target.value),
+                                  event.target.value,
                                   asString(question.user_reason) || asString(question.observation),
                                   asString(question.user_evidence) || asString(question.evidence),
                                 )
@@ -291,8 +295,8 @@ export function BucketAnswersCard({
                             Select an answer
                           </option>
                           {options.map((option) => (
-                            <option key={`${questionId}-select-${option.mark}`} value={option.mark}>
-                              {option.mark}. {option.text}
+                            <option key={`${questionId}-select-${option.state}`} value={option.state}>
+                              {option.label}. {option.text}
                             </option>
                           ))}
                         </select>
@@ -302,10 +306,11 @@ export function BucketAnswersCard({
                         {(() => {
                           const active = options.find(
                             (option) =>
+                              option.state === selectedState ||
                               String(option.mark) === selectedOption ||
                               String(option.mark) === selectedMark,
                           );
-                          return active ? `${active.mark}. ${active.text}` : "No selected option";
+                          return active ? `${active.label}. ${active.text}` : "No selected option";
                         })()}
                       </div>
                     ) : null}
@@ -469,6 +474,7 @@ export type SharedSectionProps = {
     overallScore: number | null;
     overallHealth: string;
     overallRisk: string;
+    auditConfidence: number | null;
     captureCoverage: {
       status: string;
       summary: string;

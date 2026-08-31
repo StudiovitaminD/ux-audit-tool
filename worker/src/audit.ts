@@ -3,6 +3,7 @@ import type { WorkerEnv } from "./env.js";
 import { QUESTION_BANK } from "./question-bank.js";
 import { openRouterChat } from "./openrouter.js";
 import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../shared/audit-framework";
+import { normalizeAnswerState, normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
 
 const PILLAR_MAP: Record<string, string> = {
   "Visual Feedback": "Accessibility",
@@ -13,7 +14,7 @@ const PILLAR_MAP: Record<string, string> = {
   "Navigation & Findability": "Impact",
   "Consistency & UI Patterns": "Impact",
   "Content (Impact)": "Impact",
-  "Performance": "Impact",
+  Performance: "Impact",
   "Visual Consistency": "Delight",
   "Motion & Microinteractions": "Delight",
   "Content (Delight)": "Delight",
@@ -39,13 +40,13 @@ function evidenceBlock(evidence: EvidenceBundle | null) {
     const ctaLine = ctas ? `\nPrimary CTAs: ${ctas}` : "";
     return `Page ${idx + 1}: ${p.url}\nTitle: ${p.title}${meta}\nH1: ${p.h1.join(" | ")}\nH2: ${p.h2.slice(0, 8).join(" | ")}\nNav: ${nav}${ctaLine}${shots}\nText snippet: ${p.textSnippet}`;
   }).join("\n\n---\n\n");
-  const warns = evidence.warnings.length ? `\n\nWarnings:\n- ${evidence.warnings.slice(0,5).join("\n- ")}` : "";
+  const warns = evidence.warnings.length ? `\n\nWarnings:\n- ${evidence.warnings.slice(0, 5).join("\n- ")}` : "";
   return `Evidence bundle (rendered + screenshots):\n${pages}${warns}`;
 }
 
 function normalizeType(type: Intake["product_type"]) {
   const v = String(type).toLowerCase().trim();
-  if (v === "saas" || v === "saas / platform" || v === "saas") return "saas";
+  if (v === "saas" || v === "saas / platform") return "saas";
   if (v === "e-commerce" || v === "ecommerce") return "ecommerce";
   if (v === "website" || v === "marketing website" || v === "marketing_website") return "marketing_website";
   return "marketing_website";
@@ -68,13 +69,13 @@ function buildBucketPrompt(intake: Intake, bucket: string, evidence: EvidenceBun
   const bucketBrief = buildBucketFrameworkBrief(bucket);
   const selectedBucketQuestions = qs
     .map((q) => {
-      const opts = q.options.map((o) => `${o.mark}: ${o.text}`).join("\n");
+      const opts = q.options.map((o) => `${o.label} (${o.score === null ? "excluded from score" : o.score}) - ${o.text}`).join("\n");
       const sectionLine = q.section ? `Section: ${q.section}\n` : "";
       return `ID: ${q.id}\n${sectionLine}Question: ${q.question}\nHow to evaluate: ${q.navigate}\nOptions:\n${opts}`;
     })
     .join("\n\n---\n\n");
 
-  return `You are a senior UX auditor. Evaluate ONLY using the evidence provided below (do not claim you browsed the site).\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nProduct:\n- Name: ${intake.product_name}\n- URL: ${intake.product_url}\n- Type: ${String(intake.product_type)}\n- Platform: ${intake.primary_platform}\n- Goals: ${goals}\n- Key flows: ${flows}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nHard rules:\n- If evidence is insufficient to verify, you MUST use mark 3 and say \"Not verifiable from evidence\".\n- Do NOT assign 1 or 2 unless you quote specific evidence from the bundle.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n- Output ONLY valid JSON.\n\nReturn JSON:\n{ \"bucket\": \"${bucket}\", \"questions\": [ {\"id\":\"N01\",\"question\":\"...\",\"mark\":3,\"evidence\":\"...\",\"observation\":\"...\",\"recommendation\":\"...\"} ] }\n\nQuestions:\n${selectedBucketQuestions}\n\n${evidenceBlock(evidence)}\n`;
+  return `You are a senior UX auditor. Evaluate ONLY using the evidence provided below (do not claim you browsed the site).\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nProduct:\n- Name: ${intake.product_name}\n- URL: ${intake.product_url}\n- Type: ${String(intake.product_type)}\n- Platform: ${intake.primary_platform}\n- Goals: ${goals}\n- Key flows: ${flows}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nHard rules:\n- Use answer_state = \"pass\", \"partial\" or \"fail\" when the evidence is sufficient to judge the criterion.\n- Use answer_state = \"not_tested\" when evidence is missing and you cannot verify the criterion.\n- Use answer_state = \"n_a\" when the criterion does not apply to this product.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n- Output ONLY valid JSON.\n\nReturn JSON:\n{ \"bucket\": \"${bucket}\", \"questions\": [ {\"id\":\"N01\",\"question\":\"...\",\"answer_state\":\"pass|partial|fail|not_tested|n_a\",\"mark\":1,\"evidence\":\"...\",\"observation\":\"...\",\"recommendation\":\"...\"} ] }\n\nQuestions:\n${selectedBucketQuestions}\n\n${evidenceBlock(evidence)}\n`;
 }
 
 function safeJsonParse(raw: string): any | null {
@@ -95,32 +96,46 @@ function validateBucket(parsed: any, expectedCount: number) {
   return true;
 }
 
+function inferAnswerState(raw: any) {
+  const explicit = normalizeAnswerState(raw.answer_state ?? raw.answerState);
+  if (explicit) return explicit;
+  const mark = raw.mark === null || raw.mark === undefined || raw.mark === "" ? null : Number(raw.mark);
+  if (mark === 1) return "pass";
+  if (mark === 0.5) return "partial";
+  if (mark === 0) return "fail";
+  const selected = normalizeAnswerState(raw.selected_option_state ?? raw.selectedOptionState);
+  if (selected) return selected;
+  return null;
+}
+
 function makeFallbackBucket(intake: Intake, bucket: string, reason: string): BucketResult {
   const qs = QUESTION_BANK[bucket] || [];
   const questions = qs.map((q) => ({
     id: q.id,
     question: q.question,
-    mark: 3,
+    mark: null,
+    selected_option: null,
+    selected_option_state: "not_tested",
     evidence: `Not verifiable due to processing error: ${reason}`,
     observation: "",
     recommendation: "",
     effort: "",
     impact: "",
     confidence: 0,
+    answer_state: "not_tested",
+    answer_status: "scoring_unavailable",
   }));
-  const totalMarks = questions.reduce((sum, q) => sum + q.mark, 0);
-  const maxMarks = questions.length * 5;
-  const score = maxMarks > 0 ? Math.round((totalMarks / maxMarks) * 100) : 60;
-  const h = getHealth(score);
   return {
     bucket_name: bucket,
     pillar: PILLAR_MAP[bucket] || "Impact",
-    total_marks: totalMarks,
-    max_marks: maxMarks,
-    score,
-    health: h.label,
-    risk: h.risk,
-    priority: h.priority,
+    total_marks: null,
+    max_marks: null,
+    score: null,
+    bucket_status: "scoring_unavailable",
+    audit_confidence: 0,
+    health: "Not tested",
+    risk: "Scoring unavailable",
+    priority: "P0",
     questions,
     findings: [],
     improvements: [],
@@ -135,26 +150,38 @@ export async function auditOneBucket(env: WorkerEnv, args: { intake: Intake; buc
   if (!validateBucket(parsed, qs.length)) {
     return makeFallbackBucket(args.intake, args.bucket, "Invalid JSON or incomplete questions");
   }
+
   const questions = parsed.questions.map((q: any) => {
-    const mark = Math.min(5, Math.max(1, Number(q.mark) || Number(q.selected_option) || 3));
-    return {
+    const answerState = inferAnswerState(q);
+    const normalized = normalizeQuestionAnswer({
       id: String(q.id || "Q"),
       question: String(q.question || ""),
-      mark,
+      answer_status: "answered",
+      answer_state: answerState,
+      mark: q.mark === null || q.mark === undefined || q.mark === "" ? null : Number(q.mark),
+      selected_option:
+        q.selected_option === null || q.selected_option === undefined || q.selected_option === ""
+          ? null
+          : Number(q.selected_option),
+      selected_option_state: answerState,
       evidence: String(q.evidence || ""),
       observation: String(q.observation || ""),
       recommendation: String(q.recommendation || ""),
       effort: String(q.effort || ""),
       impact: String(q.impact || ""),
       confidence: Number(q.confidence) || 0,
+    });
+    return {
+      ...normalized,
+      answer_state: answerState ?? normalized.answer_state,
+      answer_status: "answered",
     };
   });
-  const totalMarks = questions.reduce((sum: number, q: any) => sum + q.mark, 0);
-  const maxMarks = questions.length * 5;
-  const score = maxMarks > 0 ? Math.round((totalMarks / maxMarks) * 100) : 60;
-  const h = getHealth(score);
+
+  const scored = scoreQuestions(questions);
+  const health = scored.score === null ? null : getHealth(scored.score);
   const findings = questions
-    .filter((q: any) => q.mark <= 2)
+    .filter((q: any) => q.answer_state === "fail" || q.answer_state === "partial")
     .map((q: any) => ({
       bucket: args.bucket,
       question_id: q.id,
@@ -166,10 +193,10 @@ export async function auditOneBucket(env: WorkerEnv, args: { intake: Intake; buc
       effort: q.effort,
       impact: q.impact,
       confidence: q.confidence,
-      severity: q.mark === 1 ? "Critical" : "High",
+      severity: q.answer_state === "fail" ? "Critical" : "High",
     }));
   const improvements = questions
-    .filter((q: any) => q.mark === 3)
+    .filter((q: any) => q.answer_state === "not_tested" || q.answer_state === "n_a")
     .map((q: any) => ({
       bucket: args.bucket,
       question_id: q.id,
@@ -186,12 +213,14 @@ export async function auditOneBucket(env: WorkerEnv, args: { intake: Intake; buc
   return {
     bucket_name: args.bucket,
     pillar: PILLAR_MAP[args.bucket] || "Impact",
-    total_marks: totalMarks,
-    max_marks: maxMarks,
-    score,
-    health: h.label,
-    risk: h.risk,
-    priority: h.priority,
+    total_marks: scored.total_marks,
+    max_marks: scored.max_marks,
+    score: scored.score,
+    bucket_status: scored.status === "scored" ? "scored" : "not_tested",
+    audit_confidence: scored.confidence,
+    health: scored.score === null ? "Not tested" : health!.label,
+    risk: scored.score === null ? "Evidence missing" : health!.risk,
+    priority: scored.score === null ? "P0" : health!.priority,
     questions,
     findings,
     improvements,
@@ -203,14 +232,16 @@ export function aggregateScores(scored: {
   bucketResults: BucketResult[];
 }) {
   const bucketResults = scored.bucketResults;
-  const totalScore = Math.round(
-    bucketResults.reduce((sum, b) => sum + b.score, 0) / Math.max(1, bucketResults.length),
-  );
-  const overall = getHealth(totalScore);
+  const validBuckets = bucketResults.filter((bucket) => typeof bucket.score === "number");
+  const totalScore =
+    validBuckets.length > 0
+      ? Math.round(validBuckets.reduce((sum, b) => sum + Number(b.score || 0), 0) / validBuckets.length)
+      : null;
+  const overall = totalScore === null ? null : getHealth(totalScore);
 
   const pillars: Record<string, number[]> = { Delight: [], Impact: [], Accessibility: [] };
   for (const b of bucketResults) {
-    if (pillars[b.pillar]) pillars[b.pillar]!.push(b.score);
+    if (pillars[b.pillar] && typeof b.score === "number") pillars[b.pillar]!.push(b.score);
   }
   const pillar_scores: Record<string, any> = {};
   for (const p of Object.keys(pillars)) {
@@ -225,10 +256,8 @@ export function aggregateScores(scored: {
   const all_improvements = bucketResults.flatMap((b) => (b.improvements || []) as any[]);
   const top_5_findings = all_findings.slice(0, 5);
 
-  const smallEffortBuckets = ["Content & UX Writing", "Feedback & System States"];
-  const quick_wins = all_findings.filter((f) => smallEffortBuckets.includes(String(f.bucket)));
-
-  const p1Buckets = bucketResults.filter((b) => b.priority === "P1").sort((a, b) => a.score - b.score);
+  const quick_wins = all_improvements;
+  const p1Buckets = bucketResults.filter((b) => b.priority === "P1").sort((a, b) => Number(a.score || 0) - Number(b.score || 0));
   const p2Buckets = bucketResults.filter((b) => b.priority === "P2");
   const p3Buckets = bucketResults.filter((b) => b.priority === "P3");
   const p4Buckets = bucketResults.filter((b) => b.priority === "P4");
@@ -241,9 +270,9 @@ export function aggregateScores(scored: {
 
   const scorecard = bucketResults.map((b) => ({
     section: b.bucket_name,
-    score: `${b.score}/100`,
-    health: b.health,
-    risk_level: b.risk,
+    score: b.score === null ? "Not Tested" : `${b.score}/100`,
+    health: b.score === null ? "Not Tested" : b.health,
+    risk_level: b.score === null ? "Evidence missing" : b.risk,
     priority: b.priority,
     pillar: b.pillar,
   }));
@@ -251,8 +280,16 @@ export function aggregateScores(scored: {
   return {
     ...scored.meta,
     overall_score: totalScore,
-    overall_health: overall.label,
-    overall_risk: overall.risk,
+    overall_health: overall ? overall.label : "Not Tested",
+    overall_risk: overall ? overall.risk : "Evidence missing",
+    audit_confidence:
+      bucketResults.length > 0
+        ? Math.round(
+            (bucketResults.reduce((sum, bucket) => sum + Number(bucket.audit_confidence || 0), 0) /
+              bucketResults.length) *
+              100,
+          ) / 100
+        : null,
     pillar_scores,
     scorecard,
     bucket_results: bucketResults,
@@ -269,7 +306,6 @@ export function aggregateScores(scored: {
 }
 
 export async function writeNarrative(env: WorkerEnv, scored: any, modelOverride?: string) {
-  // Keep it lightweight (mini only). Uses the same shape you used in n8n, but without forcing hallucinated "browsing".
   const systemPrompt =
     "You are a senior UX lead writing a client-ready audit report. Be specific and actionable. Output ONLY valid JSON.";
 
