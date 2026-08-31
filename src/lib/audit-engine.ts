@@ -2823,6 +2823,14 @@ export async function finalizeAudit(args: {
   const sectionNarrativeFallback = deriveSectionNarrativeFromBuckets(onlyResults);
   const competitors = parseCompetitorsFromIntakeText(args.intake.competitors);
   const selectedBuckets = getSelectedBuckets(args.intake);
+  const auditConfidence = onlyResults.length
+    ? Math.round(
+        onlyResults.reduce(
+          (sum, bucket) => sum + (scoreQuestions(bucket.questions).confidence ?? 0),
+          0,
+        ) / onlyResults.length,
+      )
+    : null;
 
   const byPriority = (p: string) =>
     onlyResults.filter((b) => b.priority === p).map((b) => b.bucket_name);
@@ -2865,6 +2873,7 @@ export async function finalizeAudit(args: {
     bucket_results: onlyResults,
     selected_buckets: selectedBuckets,
     selectedBuckets,
+    audit_confidence: auditConfidence,
     audit_mode: hasCoverageShortfall
       ? "Limited Coverage Report"
       : hasScoringFailure
@@ -3198,6 +3207,14 @@ export async function finalizeAudit(args: {
       overallScore: null,
       productName: args.intake.product_name,
     });
+    const auditConfidence = safeBucketResults.length
+      ? Math.round(
+          safeBucketResults.reduce(
+            (sum, bucket) => sum + (scoreQuestions(bucket.questions).confidence ?? 0),
+            0,
+          ) / safeBucketResults.length,
+        )
+      : null;
     return {
       overall_score: null,
       overall_health: "Scoring unavailable",
@@ -3205,6 +3222,7 @@ export async function finalizeAudit(args: {
       scorecard,
       selected_buckets: getSelectedBuckets(args.intake),
       selectedBuckets: getSelectedBuckets(args.intake),
+      audit_confidence: auditConfidence,
       p1_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P1").map((bucket) => bucket.bucket_name),
       p2_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P2").map((bucket) => bucket.bucket_name),
       p3_buckets: safeBucketResults.filter((bucket) => bucket.priority === "P3").map((bucket) => bucket.bucket_name),

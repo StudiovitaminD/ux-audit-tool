@@ -1792,6 +1792,7 @@ function normalizeBucketForScoring(item: AnyRecord) {
   const isScoringUnavailable = bucketStatus === "scoring_unavailable";
   const existingScore = asNumber(item?.score);
   const scoreableQuestions = scoring.scoredCount;
+  const confidence = asNumber(scoring.confidence) ?? null;
   const shouldBeUnscored =
     bucketStatus === "insufficient_evidence" ||
     isScoringUnavailable ||
@@ -1810,6 +1811,7 @@ function normalizeBucketForScoring(item: AnyRecord) {
         asString(item.risk) || "",
       __totalQuestions: totalQuestions,
       __scoreableQuestions: scoreableQuestions,
+      __confidence: confidence,
     } as AnyRecord;
   }
 
@@ -1824,6 +1826,7 @@ function normalizeBucketForScoring(item: AnyRecord) {
     priority: asString(item.priority) || "P0",
     __totalQuestions: totalQuestions,
     __scoreableQuestions: scoreableQuestions,
+    __confidence: confidence,
   } as AnyRecord;
 }
 
@@ -1866,6 +1869,12 @@ function deriveQuestionScoringStats(report: AnyRecord) {
     (sum, bucket) => sum + (asNumber(bucket.__scoreableQuestions) ?? 0),
     0,
   );
+  const derivedAuditConfidence = bucketResults.length
+    ? Math.round(
+        bucketResults.reduce((sum, bucket) => sum + (asNumber(bucket.__confidence) ?? 0), 0) /
+          bucketResults.length,
+      )
+    : null;
   const derivedScoredBuckets = bucketResults.filter((bucket) => {
     const status = asString(bucket.bucket_status);
     if (status === "scored") return true;
@@ -1910,6 +1919,7 @@ function deriveQuestionScoringStats(report: AnyRecord) {
     questionsScoreable,
     hasScoringFailure,
     scoreEligible: effectiveScoreEligible,
+    auditConfidence: derivedAuditConfidence,
   };
 }
 
@@ -3059,7 +3069,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
           ? asString(report.overall_risk) || "Partial coverage"
           : "Scoring unavailable"
         : asString(report.overall_risk),
-    auditConfidence: asNumber(report.audit_confidence),
+    auditConfidence: asNumber(report.audit_confidence) ?? asNumber(derivedScoring.auditConfidence),
     selectedBuckets,
     captureCoverage,
     pillarScores:
