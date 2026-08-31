@@ -441,7 +441,10 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                 return rows.map(({ bucketName: displayName, row }, index) => {
                   const bucketName = displayBucketName(displayName) || "Bucket";
                   const rawScore = row ? asString(row?.score) : "";
-                  const score = rawScore.toLowerCase() === "insufficient evidence" ? "No score" : rawScore || "No score";
+                  const score =
+                    rawScore.toLowerCase() === "insufficient evidence"
+                      ? "Not Tested"
+                      : rawScore || "Not Tested";
                   const experience = row ? experienceLabelFromScore(scoreFromText(row?.score)) : "—";
                   const priority = row ? formatPriority(row.priority) : "—";
                   const healthColors =
