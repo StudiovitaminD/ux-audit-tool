@@ -269,7 +269,7 @@ function compactBucketResultForStorage(bucket: BucketResult) {
     risk: bucket.risk,
     priority: bucket.priority,
     questions: Array.isArray(bucket.questions)
-      ? bucket.questions.slice(0, 4).map((question) => {
+        ? bucket.questions.slice(0, 10).map((question) => {
           const q = asRecord(question) ?? {};
           return {
             id: q.id,
