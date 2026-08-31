@@ -37,7 +37,7 @@ export function answerStateToScore(state: UXAuditAnswerState | null | undefined)
 }
 
 export function isScoreableAnswerState(state: UXAuditAnswerState | null | undefined) {
-  return state === "pass" || state === "partial" || state === "fail";
+  return state === "pass" || state === "partial" || state === "fail" || state === "not_tested" || state === "n_a";
 }
 
 export function isApplicableAnswerState(state: UXAuditAnswerState | null | undefined) {
@@ -77,20 +77,28 @@ export function scoreQuestions(questions: Array<ScoredAuditQuestion | null | und
   const normalized = questions
     .filter(Boolean)
     .map((question) => normalizeQuestionAnswer(question as ScoredAuditQuestion));
-  const applicable = normalized.filter((question) => isApplicableAnswerState(question.answer_state as UXAuditAnswerState | null));
-  const scoreable = normalized.filter((question) =>
-    isScoreableAnswerState(question.answer_state as UXAuditAnswerState | null),
-  );
-  const scoredCount = scoreable.length;
-  const applicableCount = applicable.length;
-  if (!scoredCount) {
+  const scoreable = normalized.filter((question) => {
+    const state = question.answer_state as UXAuditAnswerState | null;
+    const record = state ? getAnswerStateRecord(state) : null;
+    return Boolean(record?.countsTowardBucketScore);
+  });
+  const confidenceCount = normalized.filter((question) => {
+    const state = question.answer_state as UXAuditAnswerState | null;
+    const record = state ? getAnswerStateRecord(state) : null;
+    return Boolean(record?.countsTowardConfidence);
+  }).length;
+  const scoredCount = normalized.filter((question) => {
+    const state = question.answer_state as UXAuditAnswerState | null;
+    return state === "pass" || state === "partial" || state === "fail";
+  }).length;
+  if (!scoreable.length) {
     return {
       score: null as number | null,
       total_marks: 0,
       max_marks: 0,
       scoredCount,
-      applicableCount,
-      confidence: applicableCount > 0 ? 0 : null,
+      applicableCount: confidenceCount,
+      confidence: confidenceCount > 0 ? 0 : null,
       status: "not_tested" as const,
     };
   }
@@ -98,14 +106,14 @@ export function scoreQuestions(questions: Array<ScoredAuditQuestion | null | und
   const totalMarks = scoreable.reduce((sum, question) => sum + (question.mark ?? 0), 0);
   const maxMarks = scoreable.length;
   const score = Math.round((totalMarks / maxMarks) * 100);
-  const confidence = applicableCount > 0 ? Math.round((scoredCount / applicableCount) * 100) : null;
+  const confidence = confidenceCount > 0 ? Math.round((scoredCount / confidenceCount) * 100) : null;
 
   return {
     score,
     total_marks: totalMarks,
     max_marks: maxMarks,
     scoredCount,
-    applicableCount,
+    applicableCount: confidenceCount,
     confidence,
     status: "scored" as const,
   };
