@@ -182,6 +182,13 @@ function uniqueList(items: string[], limit = 10) {
   return output;
 }
 
+function normalizeInsightText(value: string) {
+  return asString(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 function isPlaceholderText(value: unknown) {
   const text = asString(value).trim().toLowerCase();
   if (!text) return true;
@@ -261,7 +268,16 @@ function deriveQuestionInsights(bucketResults: AnyRecord[]) {
         .sort((left, right) => (right.mark ?? 0) - (left.mark ?? 0))
         .map((question) => `${question.bucketName}: ${question.observation}`),
       10,
-    ),
+    ).filter((item) => !uniqueList(
+      questions
+        .filter((question) => question.mark !== null && question.mark <= 0.5)
+        .sort((left, right) => {
+          if ((left.mark ?? 99) !== (right.mark ?? 99)) return (left.mark ?? 99) - (right.mark ?? 99);
+          return impactRank(right.impact) - impactRank(left.impact);
+        })
+        .map((question) => `${question.bucketName}: ${question.observation}`),
+      10,
+    ).some((problem) => normalizeInsightText(problem) === normalizeInsightText(item))),
     firstPriority: uniqueList(
       questions
         .filter((question) => question.mark !== null && question.mark <= 0.5)

@@ -810,6 +810,8 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
     10,
   );
 
+  const topProblemKeys = new Set(topProblems.map((item) => semanticKey(item) || item.toLowerCase()));
+
   const whatsWorking = uniqueSemanticList(
     scoredQuestions
       .filter((item) => (item.mark ?? 0) >= 4)
@@ -820,7 +822,7 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
       .map((item) => questionSummaryText(item.bucketName, item.question).strength)
       .filter(Boolean),
     10,
-  );
+  ).filter((item) => !topProblemKeys.has(semanticKey(item) || item.toLowerCase()));
 
   const firstPriority = uniqueSemanticList(
     scoredQuestions
