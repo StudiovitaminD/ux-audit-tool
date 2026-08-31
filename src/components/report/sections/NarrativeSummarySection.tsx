@@ -85,7 +85,10 @@ function isWorkingStrengthText(text: unknown) {
     Boolean(text) &&
     !placeholderText(text) &&
     !looksLikeRecommendation(text) &&
-    !looksLikeWeakStatus(text)
+    !looksLikeWeakStatus(text) &&
+    !/^\s*(no|not|without|lack|lacks|missing|fails|cannot|can't|won't|does not|do not|may not|might not)\b/i.test(
+      normalizeKey(text),
+    )
   );
 }
 
@@ -289,12 +292,17 @@ function renderBucketContent(
       : bucket
         ? bucketRationaleItems(bucket, "what_is_risky")
         : [];
+  const topProblemKeys = new Set(topProblems.map((item) => normalizeKey(cleanNarrativeText(item))));
   const whatsWorkingFromBucket = bucket ? bucketRationaleItems(bucket, "what_is_working") : [];
   const whatsWorking =
     hasRenderableStrengths(bucketData?.whatsWorking)
-      ? (bucketData?.whatsWorking as readonly string[])
+      ? (bucketData?.whatsWorking as readonly string[]).filter(
+          (item) => !topProblemKeys.has(normalizeKey(cleanNarrativeText(item))),
+        )
       : whatsWorkingFromBucket.length
-        ? whatsWorkingFromBucket
+        ? whatsWorkingFromBucket.filter(
+            (item) => !topProblemKeys.has(normalizeKey(cleanNarrativeText(item))),
+          )
         : [];
   return { topProblems, whatsWorking };
 }

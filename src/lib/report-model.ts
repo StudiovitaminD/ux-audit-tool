@@ -769,7 +769,7 @@ function questionSummaryText(bucketName: string, question: AnyRecord | null | un
   return {
     problem: observation ? `${displayName}: ${observation}` : "",
     action: recommendation ? `${displayName}: ${recommendation}` : "",
-    strength: selectedAnswer ? `${displayName}: ${selectedAnswer}` : observation ? `${displayName}: ${observation}` : "",
+    strength: selectedAnswer ? `${displayName}: ${selectedAnswer}` : "",
   };
 }
 

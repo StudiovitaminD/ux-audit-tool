@@ -232,6 +232,22 @@ function bestQuestionText(bucketName: string, question: AnyRecord | null | undef
   return asString(rec.evidence) || asString(rec.question);
 }
 
+function bestWorkingText(bucketName: string, question: AnyRecord | null | undefined) {
+  const rec = asRecord(question) ?? {};
+  const selectedText = asString(rec.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
+  if (selectedText && !isPlaceholderText(selectedText)) return selectedText;
+
+  const selectedMark = asNumber(rec.selected_option ?? rec.mark);
+  const selectedState = asString(rec.selected_option_state || rec.answer_state);
+  const option = questionOptions(bucketName, asString(rec.id)).find((item) => {
+    if (selectedState && item.state === selectedState) return true;
+    return item.mark === selectedMark;
+  });
+  if (option?.text) return option.text.trim();
+
+  return "";
+}
+
 function deriveQuestionInsights(bucketResults: AnyRecord[]) {
   const questions = bucketResults.flatMap((bucket) => {
     const bucketName = asString(bucket.bucket_name);
@@ -244,6 +260,7 @@ function deriveQuestionInsights(bucketResults: AnyRecord[]) {
         answerStatus: asString(question.answer_status),
         answerState: asString(question.answer_state ?? question.selected_option_state),
         observation: bestQuestionText(bucketName, question),
+        working: bestWorkingText(bucketName, question),
         recommendation: asString(question.recommendation) || bestQuestionText(bucketName, question),
         impact: asString(question.impact),
         effort: asString(question.effort),
@@ -251,33 +268,28 @@ function deriveQuestionInsights(bucketResults: AnyRecord[]) {
       .filter((question) => question.mark !== null || Boolean(question.observation || question.recommendation));
   });
 
+  const topProblems = uniqueList(
+    questions
+      .filter((question) => question.mark !== null && question.mark <= 0.5)
+      .sort((left, right) => {
+        if ((left.mark ?? 99) !== (right.mark ?? 99)) return (left.mark ?? 99) - (right.mark ?? 99);
+        return impactRank(right.impact) - impactRank(left.impact);
+      })
+      .map((question) => `${question.bucketName}: ${question.observation}`),
+    10,
+  );
+
+  const problemKeys = new Set(topProblems.map((item) => normalizeInsightText(item)));
+
   return {
-    topProblems: uniqueList(
-      questions
-        .filter((question) => question.mark !== null && question.mark <= 0.5)
-        .sort((left, right) => {
-          if ((left.mark ?? 99) !== (right.mark ?? 99)) return (left.mark ?? 99) - (right.mark ?? 99);
-          return impactRank(right.impact) - impactRank(left.impact);
-        })
-        .map((question) => `${question.bucketName}: ${question.observation}`),
-      10,
-    ),
+    topProblems,
     whatsWorking: uniqueList(
       questions
         .filter((question) => (question.mark ?? 0) >= 1)
         .sort((left, right) => (right.mark ?? 0) - (left.mark ?? 0))
-        .map((question) => `${question.bucketName}: ${question.observation}`),
+        .map((question) => `${question.bucketName}: ${question.working}`),
       10,
-    ).filter((item) => !uniqueList(
-      questions
-        .filter((question) => question.mark !== null && question.mark <= 0.5)
-        .sort((left, right) => {
-          if ((left.mark ?? 99) !== (right.mark ?? 99)) return (left.mark ?? 99) - (right.mark ?? 99);
-          return impactRank(right.impact) - impactRank(left.impact);
-        })
-        .map((question) => `${question.bucketName}: ${question.observation}`),
-      10,
-    ).some((problem) => normalizeInsightText(problem) === normalizeInsightText(item))),
+    ).filter((item) => !problemKeys.has(normalizeInsightText(item))),
     firstPriority: uniqueList(
       questions
         .filter((question) => question.mark !== null && question.mark <= 0.5)
