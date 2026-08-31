@@ -184,6 +184,37 @@ function lookupQuestionOptions(bucketName: string, questionId: string) {
   return [];
 }
 
+function normalizeBucketQuestionsForDisplay(bucketName: string, bucket: Record<string, unknown>): Array<Record<string, unknown>> {
+  const rawQuestions = bucket && Array.isArray(bucket.questions)
+    ? bucket.questions
+        .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>) : null))
+        .filter(Boolean) as Array<Record<string, unknown>>
+    : [];
+  const canonicalQuestions = QUESTION_BANK[bucketName] || [];
+  if (!canonicalQuestions.length) return rawQuestions;
+
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const question of rawQuestions) {
+    const questionId = asString(question.id);
+    if (questionId && !byId.has(questionId)) {
+      byId.set(questionId, question);
+    }
+  }
+
+  return canonicalQuestions.map((canonical): Record<string, unknown> => {
+    const stored = byId.get(canonical.id) ?? {};
+    return {
+      ...canonical,
+      ...stored,
+      id: canonical.id,
+      question: asString(stored.question) || canonical.question,
+      navigate: asString(stored.navigate) || canonical.navigate,
+      options: Array.isArray(stored.options) && stored.options.length ? stored.options : canonical.options,
+      answer_states: Array.isArray(stored.answer_states) && stored.answer_states.length ? stored.answer_states : canonical.answer_states,
+    };
+  });
+}
+
 export function BucketAnswersCard({
   bucket,
   onAnswerChange,
@@ -199,11 +230,7 @@ export function BucketAnswersCard({
 }) {
   const bucketName =
     asString(bucket?.bucket_name) || asString(bucket?.section) || asString(bucket?.bucket) || "Bucket";
-  const questions = bucket && Array.isArray(bucket.questions)
-    ? bucket.questions
-        .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>) : null))
-        .filter(Boolean) as Array<Record<string, unknown>>
-    : [];
+  const questions = normalizeBucketQuestionsForDisplay(bucketName, bucket);
   return (
     <div
       className="print-avoid-break rounded-2xl border border-[color:var(--card-border)] bg-white/5 p-5"

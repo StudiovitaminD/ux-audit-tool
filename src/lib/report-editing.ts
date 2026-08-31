@@ -135,8 +135,6 @@ function splitLegacyContentBucket(bucket: AnyRecord) {
 
   if (splitBuckets.length === 1 && unassignedQuestions.length) {
     splitBuckets[0].questions = [...(splitBuckets[0].questions as AnyRecord[]), ...unassignedQuestions];
-  } else if (splitBuckets.length === 2 && unassignedQuestions.length) {
-    splitBuckets[0].questions = [...(splitBuckets[0].questions as AnyRecord[]), ...unassignedQuestions];
   }
 
   return splitBuckets.length ? splitBuckets : [bucket];
