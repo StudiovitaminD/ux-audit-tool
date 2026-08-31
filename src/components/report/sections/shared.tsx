@@ -502,6 +502,7 @@ export type SharedSectionProps = {
     overallHealth: string;
     overallRisk: string;
     auditConfidence: number | null;
+    selectedBuckets: string[];
     captureCoverage: {
       status: string;
       summary: string;

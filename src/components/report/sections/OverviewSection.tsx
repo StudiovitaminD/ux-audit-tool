@@ -148,8 +148,13 @@ function scoreFromRow(row: AnyRecord) {
   return match ? Number(match[1]) : null;
 }
 
+function averageScore(rows: AnyRecord[]) {
+  const values = rows.map((row) => scoreFromRow(row)).filter((value): value is number => value !== null);
+  if (!values.length) return null;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
 export function OverviewSection({ vm }: SharedSectionProps) {
-  const overallTone = scoreToneClasses(vm.overallScore);
   const scoreRows = dedupeScoreRows([
     ...(vm.scorecard.length ? vm.scorecard : vm.bucketResults),
   ]).sort((left, right) => {
@@ -165,13 +170,29 @@ export function OverviewSection({ vm }: SharedSectionProps) {
       asString(right.section || right.bucket_name || right.bucket || right.name),
     );
   });
-  const overallScore = clampPercent(vm.overallScore ?? null);
-  const pillarScores = vm.pillarScores ?? { Accessibility: null, Impact: null, Delight: null };
-  const businessMetrics = calculateBusinessImpactMetrics(pillarScores);
   const pillarOrder = ["Accessibility", "Impact", "Delight"];
   const scoreCardOrder = ["Accessibility", "Impact", "Delight"];
+  const selectedBucketKeys = new Set(
+    (vm.selectedBuckets ?? []).map((bucket) => normalizeKey(displayBucketName(bucket))),
+  );
+  const visibleScoreRows = selectedBucketKeys.size
+    ? scoreRows.filter((row) => selectedBucketKeys.has(normalizeKey(displayBucketName(bucketNameFromRow(row)))))
+    : scoreRows;
+  const scoreRowsForDisplay = visibleScoreRows.length ? visibleScoreRows : scoreRows;
+  const displayedOverallScore = averageScore(scoreRowsForDisplay) ?? vm.overallScore;
+  const pillarScores = vm.pillarScores ?? { Accessibility: null, Impact: null, Delight: null };
+  const displayedPillarScores = Object.fromEntries(
+    pillarOrder.map((pillar) => {
+      const relevantRows = scoreRowsForDisplay.filter((row) => bucketPillarFromRow(row) === pillar);
+      const score = averageScore(relevantRows);
+      return [pillar, { score, evaluated: score !== null }];
+    }),
+  ) as Record<string, { score: number | null; evaluated: boolean }>;
+  const businessMetrics = calculateBusinessImpactMetrics(
+    selectedBucketKeys.size ? displayedPillarScores : pillarScores,
+  );
   const scoreRowLookup = new Map<string, AnyRecord>();
-  for (const row of scoreRows) {
+  for (const row of scoreRowsForDisplay) {
     const pillar = bucketPillarFromRow(row);
     const bucketName = displayBucketName(bucketNameFromRow(row)) || "Bucket";
     const key = `${pillar}::${normalizeKey(bucketName)}`;
@@ -185,7 +206,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
       bucketName,
       row: scoreRowLookup.get(`${pillar}::${normalizeKey(bucketName)}`) ?? null,
     })),
-  }));
+  })).filter((group) => group.rows.some((item) => item.row));
 
   return (
     <div className="flex w-full flex-col items-start bg-[color:var(--report-white)]">
@@ -211,18 +232,18 @@ export function OverviewSection({ vm }: SharedSectionProps) {
             <div className="mt-2 flex flex-wrap items-end gap-x-2 gap-y-1">
               <span
                 className={`text-[16px] font-bold leading-none ${
-                  scoreToneFromValue(vm.overallScore) === "critical"
+                  scoreToneFromValue(displayedOverallScore) === "critical"
                     ? "text-[color:var(--report-red)]"
                     : "text-[#FC6D27]"
                 }`}
                 style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
               >
-                {vm.overallScore ?? "—"}/100
+                {displayedOverallScore ?? "—"}/100
               </span>
               <span
                 aria-hidden="true"
                 className={`text-[16px] font-normal leading-none ${
-                  scoreToneFromValue(vm.overallScore) === "critical"
+                  scoreToneFromValue(displayedOverallScore) === "critical"
                     ? "text-[color:var(--report-red)]"
                     : "text-[#BDBDBD]"
                 }`}
@@ -232,13 +253,13 @@ export function OverviewSection({ vm }: SharedSectionProps) {
               </span>
               <span
                 className={`text-[16px] font-bold leading-none ${
-                  scoreToneFromValue(vm.overallScore) === "critical"
+                  scoreToneFromValue(displayedOverallScore) === "critical"
                     ? "text-[color:var(--report-red)]"
                     : "text-[#FC6D27]"
                 }`}
                 style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
               >
-                {experienceLabelFromScore(vm.overallScore)}
+                {experienceLabelFromScore(displayedOverallScore)}
               </span>
               <span
                 aria-hidden="true"
@@ -273,7 +294,9 @@ export function OverviewSection({ vm }: SharedSectionProps) {
           <div className="flex w-full min-w-0 flex-col items-start space-y-4 self-stretch">
             <div className="flex w-full min-w-0 items-start gap-3 self-stretch">
               {scoreCardOrder.map((name) => {
-                const p = pillarScores[name] ?? { score: null };
+                const p = (selectedBucketKeys.size ? displayedPillarScores : pillarScores)[name] ?? {
+                  score: null,
+                };
                 const tone = scoreToneClasses(p.score);
                 return (
                   <div

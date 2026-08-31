@@ -1,4 +1,4 @@
-import { QUESTION_BANK } from "@/lib/question-bank";
+import { QUESTION_BANK, normalizeBucketName } from "@/lib/question-bank";
 import { normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
 
 export type AnyRecord = Record<string, unknown>;
@@ -20,6 +20,7 @@ export type ReportViewModel = {
   overallHealth: string;
   overallRisk: string;
   auditConfidence: number | null;
+  selectedBuckets: string[];
   captureCoverage: {
     status: string;
     summary: string;
@@ -407,6 +408,14 @@ function uniqueStringList(values: string[]) {
     seen.add(key);
     return true;
   });
+}
+
+function selectedBucketList(report: AnyRecord, intake: AnyRecord) {
+  return uniqueStringList(
+    [...asArray(intake.selected_buckets), ...asArray(report.selected_buckets)]
+      .map((item) => normalizeBucketName(asString(item)))
+      .filter(Boolean),
+  );
 }
 
 function semanticKey(value: string) {
@@ -2486,6 +2495,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
     report.competitors,
     intake.competitors,
   );
+  const selectedBuckets = selectedBucketList(report, intake);
 
   const productName =
     asString(report.product_name) || asString(intake.product_name) || "UX Audit Report";
@@ -2958,6 +2968,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
           : "Scoring unavailable"
         : asString(report.overall_risk),
     auditConfidence: asNumber(report.audit_confidence),
+    selectedBuckets,
     captureCoverage,
     pillarScores:
       isLimitedCoverage || (isScoringUnavailable && !hasPartialScoring)
