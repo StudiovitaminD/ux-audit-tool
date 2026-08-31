@@ -411,8 +411,14 @@ function uniqueStringList(values: string[]) {
 }
 
 function selectedBucketList(report: AnyRecord, intake: AnyRecord) {
+  const intakeSelectedBuckets = asArray(intake.selected_buckets).length
+    ? asArray(intake.selected_buckets)
+    : asArray(intake.selectedBuckets);
+  const reportSelectedBuckets = asArray(report.selected_buckets).length
+    ? asArray(report.selected_buckets)
+    : asArray(report.selectedBuckets);
   return uniqueStringList(
-    [...asArray(intake.selected_buckets), ...asArray(report.selected_buckets)]
+    [...intakeSelectedBuckets, ...reportSelectedBuckets]
       .map((item) => normalizeBucketName(asString(item)))
       .filter(Boolean),
   );
