@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { QUESTION_BANK } from "../../../../worker/src/question-bank";
+import { QUESTION_BANK, formatBucketOption } from "../../../../worker/src/question-bank";
 import { asString, displayBucketName, stringifyValue, type AnyRecord } from "@/lib/report-model";
 
 export function normalizeList(value: unknown, limit = 8) {
@@ -95,7 +95,7 @@ function selectedOptionTextForQuestion(bucketName: string, question: Record<stri
   const matched = options.find(
     (option) => option.state === selectedState || Number(option.mark) === selectedMark,
   );
-  if (matched?.text) return matched.text.trim();
+  if (matched) return formatBucketOption(matched);
   const observation = asString(question.observation);
   if (observation && !placeholderText(observation) && !promptLikeText(observation, questionLabel)) {
     return observation.trim();
@@ -323,7 +323,7 @@ export function BucketAnswersCard({
                           </option>
                           {options.map((option) => (
                             <option key={`${questionId}-select-${option.state}`} value={option.state}>
-                              {option.label}. {option.text}
+                              {formatBucketOption(option)}
                             </option>
                           ))}
                         </select>
@@ -337,7 +337,7 @@ export function BucketAnswersCard({
                               String(option.mark) === selectedOption ||
                               String(option.mark) === selectedMark,
                           );
-                          return active ? `${active.label}. ${active.text}` : "No selected option";
+                          return active ? formatBucketOption(active) : "No selected option";
                         })()}
                       </div>
                     ) : null}

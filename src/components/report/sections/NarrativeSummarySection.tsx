@@ -1,7 +1,7 @@
 import type { ReportPage, SharedSectionProps } from "./shared";
 import { normalizeList, placeholderText } from "./shared";
 import { asArray, asNumber, asRecord, asString, displayBucketName } from "@/lib/report-model";
-import { QUESTION_BANK } from "../../../../worker/src/question-bank";
+import { QUESTION_BANK, formatBucketOption } from "../../../../worker/src/question-bank";
 
 const SUMMARY_PILLARS = {
   Accessibility: [
@@ -228,8 +228,8 @@ function synthesizeQuestionTakeaway(
   const option = lookupQuestionOptions(bucketNameValue, questionId).find(
     (item) => item.state === selectedState || Number(item.mark) === selectedMark,
   );
-  if (option?.text) {
-    const optionText = cleanNarrativeText(option.text);
+  if (option) {
+    const optionText = cleanNarrativeText(formatBucketOption(option));
     if (optionText && !looksEllipsizedText(optionText)) return optionText;
   }
 
@@ -270,7 +270,7 @@ function synthesizeWorkingQuestionTakeaway(bucketNameValue: string, question: Re
   const selectedOption = lookupQuestionOptions(bucketNameValue, asString(question.id)).find(
     (item) => item.state === selectedState || Number(item.mark) === selectedMark,
   );
-  const optionText = cleanNarrativeText(selectedOption?.text);
+  const optionText = cleanNarrativeText(selectedOption ? formatBucketOption(selectedOption) : "");
   if (optionText && !looksLikeRecommendation(optionText) && !looksLikeWeakStatus(optionText)) {
     return optionText;
   }

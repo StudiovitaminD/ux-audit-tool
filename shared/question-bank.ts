@@ -23,6 +23,10 @@ export type BucketQuestion = {
   answer_states: UXAuditAnswerState[];
 };
 
+export function formatBucketOption(option: BucketOption) {
+  return `${option.label} — ${option.text}`;
+}
+
 const QUESTION_OPTIONS: BucketOption[] = UX_AUDIT_ANSWER_STATES.map((option) => ({
   state: option.state,
   label: option.label,
@@ -30,14 +34,14 @@ const QUESTION_OPTIONS: BucketOption[] = UX_AUDIT_ANSWER_STATES.map((option) => 
   mark: option.score,
   text:
     option.state === "pass"
-      ? "Pass. Criterion is clearly satisfied."
+      ? "Criterion is clearly satisfied"
       : option.state === "partial"
-        ? "Partial. Criterion is partially satisfied or has meaningful issues."
+        ? "Criterion is partly satisfied or has meaningful issues"
         : option.state === "fail"
-          ? "Fail. Clear evidence shows the criterion is not satisfied."
+          ? "Clear evidence shows the criterion is not satisfied"
           : option.state === "not_tested"
-            ? "Not tested. There is not enough evidence to determine the answer."
-            : "N/A. The criterion does not apply to this website.",
+            ? "Not enough evidence to evaluate"
+            : "Criterion does not apply",
 }));
 
 function bucketPrefix(bucketName: string) {

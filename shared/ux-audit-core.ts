@@ -266,28 +266,28 @@ export const UX_AUDIT_ANSWER_STATES: Array<{
 }> = [
   {
     state: "pass",
-    label: "PASS",
+    label: "Pass",
     score: 1,
     countsTowardBucketScore: true,
     countsTowardConfidence: true,
   },
   {
     state: "partial",
-    label: "PARTIAL",
+    label: "Partial",
     score: 0.5,
     countsTowardBucketScore: true,
     countsTowardConfidence: true,
   },
   {
     state: "fail",
-    label: "FAIL",
+    label: "Fail",
     score: 0,
     countsTowardBucketScore: true,
     countsTowardConfidence: true,
   },
   {
     state: "not_tested",
-    label: "NOT_TESTED",
+    label: "Not Tested",
     score: null,
     countsTowardBucketScore: false,
     countsTowardConfidence: true,

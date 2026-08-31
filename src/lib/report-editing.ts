@@ -1,4 +1,4 @@
-import { QUESTION_BANK } from "@/lib/question-bank";
+import { QUESTION_BANK, formatBucketOption } from "@/lib/question-bank";
 import { bucketPillarFromName, type AnyRecord } from "@/lib/report-model";
 import { scoreQuestions } from "../../shared/ux-audit-scoring";
 
@@ -479,9 +479,11 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
       const normalizedState = answerState || options.find((option) => option.score === asNumber(question.mark ?? question.selected_option))?.state || "not_tested";
       const selected = asNumber(question.mark ?? question.selected_option);
       const optionText =
-        options.find((option) => option.state === normalizedState)?.text ||
-        options.find((option) => option.mark === selected)?.text ||
-        "";
+        options.find((option) => option.state === normalizedState)
+          ? formatBucketOption(options.find((option) => option.state === normalizedState) as NonNullable<typeof options[number]>)
+          : options.find((option) => option.mark === selected)
+            ? formatBucketOption(options.find((option) => option.mark === selected) as NonNullable<typeof options[number]>)
+            : "";
       return {
         ...question,
         id: asString(question.id),
