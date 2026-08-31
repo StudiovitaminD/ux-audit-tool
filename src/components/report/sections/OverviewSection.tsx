@@ -208,7 +208,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
             >
               Overall Score
             </div>
-            <div className="mt-2 flex items-end gap-2">
+            <div className="mt-2 flex flex-wrap items-end gap-x-2 gap-y-1">
               <span
                 className={`text-[16px] font-bold leading-none ${
                   scoreToneFromValue(vm.overallScore) === "critical"
@@ -240,29 +240,34 @@ export function OverviewSection({ vm }: SharedSectionProps) {
               >
                 {experienceLabelFromScore(vm.overallScore)}
               </span>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] leading-none text-[color:var(--report-grey-font)]">
-              <span className="font-semibold uppercase tracking-[0.14em]">Audit Confidence</span>
               <span
-                className={`rounded-full px-2 py-1 text-[12px] font-semibold ${
-                  vm.auditConfidence === null
-                    ? "bg-[rgba(189,189,189,0.18)] text-[color:var(--report-grey-font)]"
-                    : vm.auditConfidence >= 80
-                      ? "bg-[rgba(34,197,94,0.14)] text-[color:var(--report-green-font)]"
-                      : vm.auditConfidence >= 50
-                        ? "bg-[rgba(251,146,60,0.14)] text-[color:var(--report-orange)]"
-                        : "bg-[rgba(239,68,68,0.14)] text-[color:var(--report-red)]"
+                aria-hidden="true"
+                className={`text-[16px] font-normal leading-none ${
+                  scoreToneFromValue(vm.overallScore) === "critical"
+                    ? "text-[color:var(--report-red)]"
+                    : "text-[#BDBDBD]"
                 }`}
+                style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
               >
-                {vm.auditConfidence === null ? "—" : `${Math.round(vm.auditConfidence)}% verified`}
+                |
+              </span>
+              <span
+                className={`text-[16px] font-bold leading-none ${
+                  scoreToneFromValue(vm.overallScore) === "critical"
+                    ? "text-[color:var(--report-red)]"
+                    : "text-[#FC6D27]"
+                }`}
+                style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+              >
+                Audit Confidence {vm.auditConfidence === null ? "—" : `${Math.round(vm.auditConfidence)}%`}
               </span>
             </div>
             <div
-            className="mt-1 text-[14px] font-medium leading-[20px] text-[color:var(--report-grey-font)]"
-            style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
-          >
-            Composite score across key UX audit buckets
-          </div>
+              className="mt-1 text-[14px] font-medium leading-[20px] text-[color:var(--report-grey-font)]"
+              style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
+            >
+              Composite score across key UX audit buckets
+            </div>
           </div>
 
           <div className="flex w-full min-w-0 flex-col items-start space-y-4 self-stretch">
