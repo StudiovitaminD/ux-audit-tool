@@ -53,8 +53,14 @@ function scoreToneClasses(value: unknown) {
   };
 }
 
-function metricToneClass(value: number | null | undefined) {
+function metricToneClass(value: number | null | undefined, label?: string) {
   const tone = scoreToneFromValue(value);
+  const isLowerBetter = label === "Drop-off Rate";
+  if (isLowerBetter) {
+    if (tone === "good") return "text-[color:var(--report-red)]";
+    if (tone === "warning") return "text-[color:var(--report-orange)]";
+    return "text-[color:var(--report-green-font)]";
+  }
   if (tone === "critical") return "text-[color:var(--report-red)]";
   if (tone === "warning") return "text-[color:var(--report-orange)]";
   return "text-[color:var(--report-green-font)]";
@@ -234,7 +240,9 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                 className={`text-[16px] font-bold leading-none ${
                   scoreToneFromValue(displayedOverallScore) === "critical"
                     ? "text-[color:var(--report-red)]"
-                    : "text-[#FC6D27]"
+                    : scoreToneFromValue(displayedOverallScore) === "warning"
+                      ? "text-[color:var(--report-orange)]"
+                      : "text-[color:var(--report-green-font)]"
                 }`}
                 style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
               >
@@ -255,7 +263,9 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                 className={`text-[16px] font-bold leading-none ${
                   scoreToneFromValue(displayedOverallScore) === "critical"
                     ? "text-[color:var(--report-red)]"
-                    : "text-[#FC6D27]"
+                    : scoreToneFromValue(displayedOverallScore) === "warning"
+                      ? "text-[color:var(--report-orange)]"
+                      : "text-[color:var(--report-green-font)]"
                 }`}
                 style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
               >
@@ -276,7 +286,9 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                 className={`text-[16px] font-bold leading-none ${
                   scoreToneFromValue(vm.overallScore) === "critical"
                     ? "text-[color:var(--report-red)]"
-                    : "text-[#FC6D27]"
+                    : scoreToneFromValue(vm.overallScore) === "warning"
+                      ? "text-[color:var(--report-orange)]"
+                      : "text-[color:var(--report-green-font)]"
                 }`}
                 style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
               >
@@ -373,13 +385,13 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                   </div>
                   <div className="mt-1 flex items-end gap-0.5">
                     <div
-                      className={`text-[24px] font-bold leading-none ${metricToneClass(metric.value)}`}
+                      className={`text-[24px] font-bold leading-none ${metricToneClass(metric.value, metric.label)}`}
                       style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
                     >
                       {metric.value === null ? "—" : metric.value}
                     </div>
                     <div
-                      className={`text-[16px] font-bold leading-none ${metricToneClass(metric.value)}`}
+                      className={`text-[16px] font-bold leading-none ${metricToneClass(metric.value, metric.label)}`}
                       style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
                     >
                       {metric.value === null ? "" : "%"}

@@ -153,6 +153,7 @@ export type BusinessImpactMetric = {
   label: BusinessImpactMetricLabel;
   value: number | null;
   weights: Record<BusinessImpactPillar, number>;
+  direction: "direct" | "inverse";
 };
 
 export type BusinessImpactPillarScores = Partial<
@@ -163,18 +164,22 @@ export const BUSINESS_IMPACT_MATRIX = [
   {
     label: "Drop-off Rate",
     weights: { Accessibility: 40, Impact: 45, Delight: 15 },
+    direction: "inverse",
   },
   {
     label: "Task Completion Rate",
     weights: { Accessibility: 35, Impact: 50, Delight: 15 },
+    direction: "direct",
   },
   {
     label: "Customer Satisfaction",
     weights: { Accessibility: 25, Impact: 35, Delight: 40 },
+    direction: "direct",
   },
 ] as const satisfies ReadonlyArray<{
   label: BusinessImpactMetricLabel;
   weights: Record<BusinessImpactPillar, number>;
+  direction: "direct" | "inverse";
 }>;
 
 function scoreFromPillarValue(value: BusinessImpactPillarScores[BusinessImpactPillar]) {
@@ -200,10 +205,19 @@ export function calculateBusinessImpactMetrics(
       total += (score * weight) / 100;
     });
 
+    const rawValue = missing ? null : Math.round(total);
+    const value =
+      rawValue === null
+        ? null
+        : metric.direction === "inverse"
+          ? Math.max(0, Math.min(100, 100 - rawValue))
+          : rawValue;
+
     return {
       label: metric.label,
-      value: missing ? null : Math.round(total),
+      value,
       weights: metric.weights,
+      direction: metric.direction,
     };
   });
 }
@@ -2620,6 +2634,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
   const effectiveCoverageStatus =
     asString(captureCoverage.status) || rawCoverageStatus || "unknown";
   const scoreEligible = derivedScoring.scoreEligible;
+  const fullScoring = selectedBuckets.length ? deriveQuestionScoringStats(report) : derivedScoring;
   const storedScorecard = asArray(report.scorecard)
     .filter(isRealBucket)
     .map((item) => asRecord(item) ?? {});
@@ -3045,7 +3060,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
     hasPartialScoring,
     overallScore:
       selectedBuckets.length
-        ? selectedOverallScore ?? asNumber(report.overall_score)
+        ? selectedOverallScore ?? averageBucketScore(fullScoring.bucketResults) ?? asNumber(report.overall_score)
         : asNumber(report.overall_score) !== null
           ? asNumber(report.overall_score)
           : hasPartialScoring
