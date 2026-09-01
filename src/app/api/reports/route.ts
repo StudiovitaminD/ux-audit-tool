@@ -157,6 +157,9 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
         overall_score: null,
       };
       const vm = buildReportViewModel(listViewReport);
+      const storedOverallScore = safeNumber(merged.overall_score);
+      const storedOverallHealth = safeString(merged.overall_health);
+      const storedOverallRisk = safeString(merged.overall_risk);
       reports.push({
         id: doc.id,
         reportId: safeString(merged.reportId || doc.id),
@@ -166,9 +169,9 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
         productUrl: safeString(merged.product_url || intake.product_url),
         productType: safeString(merged.product_type || intake.product_type),
         primaryPlatform: safeString(merged.primary_platform || intake.primary_platform),
-        overallScore: vm.overallScore ?? safeNumber(merged.overall_score),
-        overallHealth: vm.overallHealth || safeString(merged.overall_health),
-        overallRisk: vm.overallRisk || safeString(merged.overall_risk),
+        overallScore: storedOverallScore ?? vm.overallScore,
+        overallHealth: storedOverallHealth || vm.overallHealth,
+        overallRisk: storedOverallRisk || vm.overallRisk,
       });
     }),
   );
