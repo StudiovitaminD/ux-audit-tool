@@ -149,6 +149,7 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
         ...merged,
         selected_buckets: [],
         selectedBuckets: [],
+        overall_score: null,
       };
       const vm = buildReportViewModel(listViewReport);
       reports.push({
