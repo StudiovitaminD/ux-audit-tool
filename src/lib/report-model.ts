@@ -756,6 +756,15 @@ function isNeutralProblemCandidate(value: string) {
     /^(the )?audit did not /i.test(text) ||
     /^(the )?site primarily presents /i.test(text) ||
     /^(the )?pages audited /i.test(text) ||
+    /not possible to (assess|evaluate|confirm|verify)/i.test(text) ||
+    /without visible (error messages|forms|required fields|focus outlines|forms or required fields|feedback|success messages|success states|modal dialogs|screen reader output)/i.test(
+      text,
+    ) ||
+    /no semantic or aria attribute data was available/i.test(text) ||
+    /without semantic or aria attribute data/i.test(text) ||
+    /the audit captures form labels and placeholders but lacks/i.test(text) ||
+    /no visible evidence or testing results were provided/i.test(text) ||
+    /this leaves uncertainty/i.test(text) ||
     text.includes("the site looks mostly like a product/marketing page") ||
     text.includes("it is marketing page") ||
     text.includes("the page does not have any form") ||
@@ -769,6 +778,38 @@ function isNeutralProblemCandidate(value: string) {
     text.includes("immediate visible feedback after a user action") && text.includes("do not") ||
     text.includes("clickable elements result in immediate visual changes") ||
     text.includes("visual states are consistently applied and easily distinguishable")
+  );
+}
+
+function isMixedStrengthCandidate(value: string) {
+  const text = asString(value).trim().toLowerCase();
+  if (!text || isNeutralProblemCandidate(text)) return true;
+  if (/^(while|but|however|although|though|yet|despite)\b/.test(text)) return true;
+  if (/\b(while|but|however|although|though|yet|despite)\b/.test(text) &&
+    /\b(no|not|lack|lacks|missing|uncertain|uncertainty|cannot|can't|could not|may|might|slow|confuse|reduce|break|inconsisten|deviat|leave[s]? uncertainty)\b/.test(text)
+  ) {
+    return true;
+  }
+  return (
+    /no visible evidence/i.test(text) ||
+    /no visible testing results/i.test(text) ||
+    /no visible forms/i.test(text) ||
+    /no modal dialogs/i.test(text) ||
+    /leaves uncertainty/i.test(text) ||
+    /reduces clarity/i.test(text) ||
+    /may confuse/i.test(text) ||
+    /may slow scanning/i.test(text) ||
+    /focus can be lost/i.test(text) ||
+    /breaks down/i.test(text)
+  );
+}
+
+function isPositiveStrengthCandidate(value: string) {
+  const text = asString(value).trim();
+  if (!text) return false;
+  if (isNeutralProblemCandidate(text) || isMixedStrengthCandidate(text)) return false;
+  return !/^\s*(pass|partial|fail|not tested|n\/a|na|good|average|critical|scoring unavailable|not scored)\b/i.test(
+    text,
   );
 }
 
@@ -833,12 +874,12 @@ function deriveWhatsWorkingFromBuckets(report: AnyRecord) {
         const strengthText = [
           ...findings.map((item) => questionSummaryText(bucketName, item).strength),
           ...improvements.map((item) => questionSummaryText(bucketName, item).strength),
-        ].find((item) => Boolean(item) && !isPlaceholderText(item));
+        ].find((item) => Boolean(item) && !isPlaceholderText(item) && isPositiveStrengthCandidate(item));
         const summaryText = sanitizeDisplayText(
           bucket.health || bucket.summary || bucket.note || bucket.rationale,
         );
-        const text = strengthText || summaryText;
-        return text ? `${bucketName}: ${text}` : bucketName;
+        const text = strengthText || (summaryText && isPositiveStrengthCandidate(summaryText) ? summaryText : "");
+        return text ? `${bucketName}: ${text}` : "";
       })
       .filter(Boolean),
     4,
@@ -889,7 +930,8 @@ function questionSummaryText(bucketName: string, question: AnyRecord | null | un
     !isNeutralProblemCandidate(recommendationRaw)
       ? recommendationRaw
       : selectedAnswer || observation;
-  const cleanSelectedAnswer = selectedAnswer && !isNeutralProblemCandidate(selectedAnswer) ? selectedAnswer : "";
+  const cleanSelectedAnswer =
+    selectedAnswer && isPositiveStrengthCandidate(selectedAnswer) ? selectedAnswer : "";
   return {
     problem: observation && !isNeutralProblemCandidate(observation) ? `${displayName}: ${observation}` : "",
     action: recommendation && !isNeutralProblemCandidate(recommendation) ? `${displayName}: ${recommendation}` : "",
@@ -1062,7 +1104,7 @@ function derivePillarNarrativeSummary(report: AnyRecord, pillarName: string) {
       .filter((question) => (question.mark ?? 0) >= 4)
       .sort((left, right) => (right.mark ?? 0) - (left.mark ?? 0))
       .map((question) => `${question.bucketName}: ${question.observation}`)
-      .filter(Boolean),
+      .filter((item) => Boolean(item) && !isNeutralProblemCandidate(item) && !isMixedStrengthCandidate(item)),
     3,
   );
 
@@ -1071,7 +1113,7 @@ function derivePillarNarrativeSummary(report: AnyRecord, pillarName: string) {
       .filter((question) => (question.mark ?? 99) <= 3)
       .sort((left, right) => (left.mark ?? 99) - (right.mark ?? 99))
       .map((question) => `${question.bucketName}: ${question.observation}`)
-      .filter(Boolean),
+      .filter((item) => Boolean(item) && !isNeutralProblemCandidate(item) && !isMixedStrengthCandidate(item)),
     4,
   );
 
@@ -1080,7 +1122,7 @@ function derivePillarNarrativeSummary(report: AnyRecord, pillarName: string) {
       .filter((question) => (question.mark ?? 99) <= 3)
       .sort((left, right) => (left.mark ?? 99) - (right.mark ?? 99))
       .map((question) => `${question.bucketName}: ${question.recommendation}`)
-      .filter(Boolean),
+      .filter((item) => Boolean(item) && !isNeutralProblemCandidate(item) && !isMixedStrengthCandidate(item)),
     3,
   );
 
@@ -2339,7 +2381,7 @@ function genericNarrativeForPillar(report: AnyRecord, pillarName: string) {
     .flatMap((bucket) => asArray(bucket.improvements))
     .map((item) => asRecord(item) ?? {})
     .map((item) => asString(item.recommendation) || asString(item.observation) || asString(item.question))
-    .find(Boolean);
+    .find((item) => Boolean(item) && !isNeutralProblemCandidate(item) && !isMixedStrengthCandidate(item));
 
   return firstRecommendation
     ? `${pillarName} review covers ${bucketSummary}. Priority focus: ${firstRecommendation}.`
@@ -2368,7 +2410,9 @@ function narrativeFromBuckets(report: AnyRecord, pillarName: string) {
       topImprovement
         ? `Next step for ${bucketName}: ${asString(topImprovement?.recommendation) || asString(topImprovement?.observation) || asString(topImprovement?.question)}`
         : "",
-    ].filter(Boolean);
+    ]
+      .filter(Boolean)
+      .filter((item) => !isNeutralProblemCandidate(item) && !isMixedStrengthCandidate(item));
   });
 
   return insights.slice(0, 4).join("\n");
