@@ -1,6 +1,7 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { getAccountSessionFromRequest } from "@/lib/account-server";
 import { asRecord, mergeReportWithDoc, unwrapReportPayload } from "@/lib/report-record";
+import { buildReportViewModel } from "@/lib/report-model";
 
 const BAD_REPORT_STATUSES = new Set([
   "error",
@@ -144,6 +145,7 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
       if (!shouldIncludeReport(data, merged)) return;
 
       const intake = asRecord(merged.intake) ?? {};
+      const vm = buildReportViewModel(merged);
       reports.push({
         id: doc.id,
         reportId: safeString(merged.reportId || doc.id),
@@ -153,9 +155,9 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
         productUrl: safeString(merged.product_url || intake.product_url),
         productType: safeString(merged.product_type || intake.product_type),
         primaryPlatform: safeString(merged.primary_platform || intake.primary_platform),
-        overallScore: safeNumber(merged.overall_score),
-        overallHealth: safeString(merged.overall_health),
-        overallRisk: safeString(merged.overall_risk),
+        overallScore: vm.overallScore ?? safeNumber(merged.overall_score),
+        overallHealth: vm.overallHealth || safeString(merged.overall_health),
+        overallRisk: vm.overallRisk || safeString(merged.overall_risk),
       });
     }),
   );
