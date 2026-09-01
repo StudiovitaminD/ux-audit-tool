@@ -1,6 +1,7 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { getAccountSessionFromRequest } from "@/lib/account-server";
 import { asRecord, mergeReportWithDoc, unwrapReportPayload } from "@/lib/report-record";
+import { recalculateEditedReport } from "@/lib/report-editing";
 import { buildReportViewModel } from "@/lib/report-model";
 
 const BAD_REPORT_STATUSES = new Set([
@@ -145,6 +146,7 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
       if (!shouldIncludeReport(data, merged)) return;
 
       const intake = asRecord(merged.intake) ?? {};
+      const recalculatedReport = recalculateEditedReport(merged);
       const listViewReport = {
         ...merged,
         selected_buckets: [],
@@ -156,10 +158,7 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
         },
         overall_score: null,
       };
-      const vm = buildReportViewModel(listViewReport);
-      const storedOverallScore = safeNumber(merged.overall_score);
-      const storedOverallHealth = safeString(merged.overall_health);
-      const storedOverallRisk = safeString(merged.overall_risk);
+      const vm = buildReportViewModel({ ...listViewReport, ...recalculatedReport });
       reports.push({
         id: doc.id,
         reportId: safeString(merged.reportId || doc.id),
@@ -169,9 +168,9 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
         productUrl: safeString(merged.product_url || intake.product_url),
         productType: safeString(merged.product_type || intake.product_type),
         primaryPlatform: safeString(merged.primary_platform || intake.primary_platform),
-        overallScore: storedOverallScore ?? vm.overallScore,
-        overallHealth: storedOverallHealth || vm.overallHealth,
-        overallRisk: storedOverallRisk || vm.overallRisk,
+        overallScore: vm.overallScore ?? safeNumber(merged.overall_score),
+        overallHealth: vm.overallHealth || safeString(merged.overall_health),
+        overallRisk: vm.overallRisk || safeString(merged.overall_risk),
       });
     }),
   );
