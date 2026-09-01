@@ -145,7 +145,12 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
       if (!shouldIncludeReport(data, merged)) return;
 
       const intake = asRecord(merged.intake) ?? {};
-      const vm = buildReportViewModel(merged);
+      const listViewReport = {
+        ...merged,
+        selected_buckets: [],
+        selectedBuckets: [],
+      };
+      const vm = buildReportViewModel(listViewReport);
       reports.push({
         id: doc.id,
         reportId: safeString(merged.reportId || doc.id),
