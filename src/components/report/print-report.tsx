@@ -1,77 +1,14 @@
- "use client";
-
-import { useEffect, useMemo, useState } from "react";
 import { buildReportViewModel, type AnyRecord } from "@/lib/report-model";
 import { buildReportPages } from "@/components/report/report-pages";
 
-export function PrintReport({ report }: { report: unknown }) {
+export function PrintReport({
+  report,
+  hydratedCompetitors,
+}: {
+  report: unknown;
+  hydratedCompetitors: AnyRecord[];
+}) {
   const vm = buildReportViewModel(report);
-  const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
-    Array.isArray(vm.competitorAnalysis.competitors)
-      ? (vm.competitorAnalysis.competitors as AnyRecord[])
-      : [],
-  );
-  const [printReady, setPrintReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function hydrateCompetitors() {
-      const current = Array.isArray(vm.competitorAnalysis.competitors)
-        ? (vm.competitorAnalysis.competitors as AnyRecord[])
-        : [];
-      const missing = current.filter(
-        (competitor) => !String(competitor?.screenshot || "").trim() && String(competitor?.url || "").trim(),
-      );
-
-      if (!missing.length) {
-        if (!cancelled) {
-          setHydratedCompetitors(current);
-          setPrintReady(true);
-        }
-        return;
-      }
-
-      const resolved = await Promise.all(
-        current.map(async (competitor) => {
-          if (String(competitor?.screenshot || "").trim() || !String(competitor?.url || "").trim()) {
-            return competitor;
-          }
-          try {
-            const res = await fetch("/api/competitor-screenshot", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: String(competitor?.name || ""),
-                url: String(competitor?.url || ""),
-                compare_focus: String(competitor?.compare_focus || ""),
-              }),
-            });
-            if (!res.ok) return competitor;
-            const data = (await res.json()) as { screenshot_url?: string; screenshot?: string };
-            return {
-              ...competitor,
-              screenshot: data.screenshot_url || data.screenshot || String(competitor?.screenshot || ""),
-            };
-          } catch {
-            return competitor;
-          }
-        }),
-      );
-
-      if (!cancelled) {
-        setHydratedCompetitors(resolved);
-        setPrintReady(true);
-      }
-    }
-
-    setPrintReady(false);
-    void hydrateCompetitors();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [vm.competitorAnalysis.competitors]);
 
   const pages = buildReportPages({
     vm,
@@ -82,7 +19,7 @@ export function PrintReport({ report }: { report: unknown }) {
   return (
     <div
       className="print-report-root min-h-screen bg-[color:var(--background)] p-0"
-      data-report-print-ready={printReady ? "true" : "false"}
+      data-report-print-ready="true"
     >
       <div className="report-a4-stage mx-auto space-y-6">
         {pages.map((page, index) => (
