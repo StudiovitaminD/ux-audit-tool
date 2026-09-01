@@ -748,12 +748,28 @@ function executiveListLooksWeak(items: string[]) {
   );
 }
 
+function isNeutralProblemCandidate(value: string) {
+  const text = asString(value).trim().toLowerCase();
+  if (!text) return true;
+  return (
+    text.includes("the site looks mostly like a product/marketing page") ||
+    text.includes("it is marketing page") ||
+    text.includes("the page does not have any form") ||
+    text.includes("do not show forms or submission actions") ||
+    text.includes("did not capture any success states or confirmation feedback") ||
+    text.includes("did not find any visible success messages or explanations after user actions") ||
+    text.includes("simple navigation without visible multi-step processes requiring progress indicators") ||
+    text.includes("the audit did not find any visible success messages or explanations after user actions") ||
+    text.includes("the audit did not capture any success states or confirmation feedback")
+  );
+}
+
 function deriveTopProblemsFromBuckets(report: AnyRecord) {
   const directFindings = uniqueSemanticList(
     asArray(report.all_findings)
       .map((item) => asRecord(item) ?? {})
       .map((item) => questionSummaryText(asString(item.bucket || item.bucket_name || item.section || "Bucket"), item).problem || questionSummaryText(asString(item.bucket || item.bucket_name || item.section || "Bucket"), item).action)
-      .filter((item) => Boolean(item) && !isPlaceholderText(item)),
+      .filter((item) => Boolean(item) && !isPlaceholderText(item) && !isNeutralProblemCandidate(item)),
     6,
   );
   if (directFindings.length) return directFindings;
@@ -766,21 +782,21 @@ function deriveTopProblemsFromBuckets(report: AnyRecord) {
         const findings = asArray(bucket.findings)
           .map((item) => asRecord(item) ?? {})
           .map((item) => questionSummaryText(bucketName, item).problem || questionSummaryText(bucketName, item).action)
-          .filter((item) => Boolean(item) && !isPlaceholderText(item))
+          .filter((item) => Boolean(item) && !isPlaceholderText(item) && !isNeutralProblemCandidate(item))
           .map((text) => `${bucketName}: ${text}`);
         if (findings.length) return findings;
 
         const questions = asArray(bucket.questions)
           .map((item) => asRecord(item) ?? {})
           .map((item) => questionSummaryText(bucketName, item).problem || questionSummaryText(bucketName, item).action)
-          .filter((item) => Boolean(item) && !isPlaceholderText(item))
+          .filter((item) => Boolean(item) && !isPlaceholderText(item) && !isNeutralProblemCandidate(item))
           .map((text) => `${bucketName}: ${text}`);
         if (questions.length) return questions;
 
         const summary = sanitizeDisplayText(
           bucket.summary || bucket.note || bucket.rationale || bucket.health,
         );
-        return summary ? [`${bucketName}: ${summary}`] : [];
+        return summary && !isNeutralProblemCandidate(summary) ? [`${bucketName}: ${summary}`] : [];
       }),
     6,
   );
