@@ -769,6 +769,8 @@ function isNeutralProblemCandidate(value: string) {
     text.includes("it is marketing page") ||
     text.includes("the page does not have any form") ||
     text.includes("do not show forms or submission actions") ||
+    text.includes("without evidence of form submissions or interactive actions") ||
+    text.includes("success confirmations are provided") ||
     text.includes("did not capture any success states or confirmation feedback") ||
     text.includes("did not find any visible success messages or explanations after user actions") ||
     text.includes("simple navigation without visible multi-step processes requiring progress indicators") ||
@@ -2180,7 +2182,7 @@ function compactQuestionCue(questionLabel: string) {
 function isGenericFindingText(value: string) {
   const text = asString(value).toLowerCase();
   if (!text) return true;
-  return /major issues\s*[—-]|large gaps or significant friction remain|missing or severe issues\s*[—-]\s*this requirement is not met|this can create confusion and add friction|this can increase confusion and make the task harder to complete|update this flow so the selected answer is supported with clearer guidance, stronger hierarchy, or better feedback|maintain this pattern and verify it stays consistent across related screens|this appears to work reasonably well/i.test(
+  return /major issues\s*[—-]|large gaps or significant friction remain|missing or severe issues\s*[—-]\s*this requirement is not met|this can create confusion and add friction|this can increase confusion and make the task harder to complete|update this flow so the selected answer is supported with clearer guidance, stronger hierarchy, or better feedback|maintain this pattern and verify it stays consistent across related screens|this appears to work reasonably well|without evidence of form submissions or interactive actions|success confirmations are provided/i.test(
     text,
   );
 }
@@ -2203,10 +2205,10 @@ function fallbackIssueText(questionLabel: string, answerText: string, bucketLabe
     return "The visual hierarchy is not strong enough to guide attention cleanly.";
   }
   if (/validation|error|input|form/i.test(cue)) {
-    return "Form validation feedback is not clear enough during input.";
+    return "Interactive feedback is not clear enough during input.";
   }
   if (/loading|success|empty|state/i.test(cue)) {
-    return "System states are not communicated clearly enough.";
+    return "Button and link actions do not clearly confirm what happened next.";
   }
   if (cue) {
     return `${cue} still leaves too much friction and uncertainty.`;
@@ -2232,10 +2234,10 @@ function fallbackEffectText(questionLabel: string, bucketLabel = "") {
     return "The page may feel harder to scan, which slows comprehension and increases friction.";
   }
   if (/validation|error|input|form/i.test(cue)) {
-    return "Users may miss mistakes or be unsure how to fix them, leading to more failed submissions.";
+    return "Users may miss mistakes or be unsure how to fix them.";
   }
   if (/loading|success|empty|state/i.test(cue)) {
-    return "Users may not know whether the system is working or what they should do next.";
+    return "Users may not know whether their button or link action worked or what changed next.";
   }
   return "This can increase confusion and make the task harder to complete.";
 }
@@ -2258,10 +2260,10 @@ function fallbackRecommendationText(questionLabel: string, bucketLabel = "") {
     return "Strengthen visual hierarchy with clearer spacing, sizing, and emphasis.";
   }
   if (/validation|error|input|form/i.test(cue)) {
-    return "Add clearer inline validation, helpful error messages, and stronger confirmation states.";
+    return "Add clearer inline feedback, helpful error messages, and stronger confirmation states.";
   }
   if (/loading|success|empty|state/i.test(cue)) {
-    return "Make loading, success, and empty states more explicit so users always know what is happening.";
+    return "Make loading, success, and empty states more explicit so users always know what happened.";
   }
   return "Clarify the interaction with stronger guidance, hierarchy, and feedback.";
 }
