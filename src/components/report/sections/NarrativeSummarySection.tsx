@@ -80,6 +80,29 @@ function looksLikeWeakStatus(text: unknown) {
   );
 }
 
+function isNeutralSummaryText(text: unknown) {
+  const normalized = normalizeKey(text);
+  if (!normalized) return true;
+
+  return (
+    /^(the )?audit did not /i.test(normalized) ||
+    /^(the )?site primarily presents /i.test(normalized) ||
+    /^(the )?pages audited /i.test(normalized) ||
+    normalized.includes("product/marketing page") ||
+    normalized.includes("it is marketing page") ||
+    normalized.includes("page does not have any form") ||
+    normalized.includes("do not show forms or submission actions") ||
+    normalized.includes("did not capture any success states or confirmation feedback") ||
+    normalized.includes("did not find any visible success messages or explanations after user actions") ||
+    normalized.includes("simple navigation without visible multi-step processes requiring progress indicators") ||
+    normalized.includes("no clear indication when the system is processing") ||
+    normalized.includes("clickable elements result in immediate visual changes") ||
+    normalized.includes("visual states are consistently applied and easily distinguishable") ||
+    normalized.includes("all tested clickable elements provide immediate visible feedback") ||
+    normalized.includes("immediate visual changes, confirming the action was registered")
+  );
+}
+
 function isWorkingStrengthText(text: unknown) {
   return (
     Boolean(text) &&
@@ -125,12 +148,20 @@ function bucketRationaleItems(
 ) {
   const rationale = asRecord(bucket.score_rationale) ?? {};
   const directItems = normalizeList(rationale[key], 8).map(cleanNarrativeText).filter(
-    (item) => !placeholderText(item) && !looksEllipsizedText(item) && (key === "what_is_risky" || isWorkingStrengthText(item)),
+    (item) =>
+      !placeholderText(item) &&
+      !looksEllipsizedText(item) &&
+      !isNeutralSummaryText(item) &&
+      (key === "what_is_risky" || isWorkingStrengthText(item)),
   );
   if (directItems.length) return directItems;
 
   const summaryItems = normalizeList(rationale.summary, 4).map(cleanNarrativeText).filter(
-    (item) => !placeholderText(item) && !looksEllipsizedText(item) && (key === "what_is_risky" || isWorkingStrengthText(item)),
+    (item) =>
+      !placeholderText(item) &&
+      !looksEllipsizedText(item) &&
+      !isNeutralSummaryText(item) &&
+      (key === "what_is_risky" || isWorkingStrengthText(item)),
   );
   if (summaryItems.length) return summaryItems;
 
@@ -138,7 +169,14 @@ function bucketRationaleItems(
     const questionItems = asArray(bucket.questions)
       .map((item) => asRecord(item) ?? {})
       .map((item) => cleanNarrativeText(synthesizeWorkingQuestionTakeaway(bucketLabel(bucket), item)))
-      .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item) && isWorkingStrengthText(item));
+      .filter(
+        (item) =>
+          item &&
+          !placeholderText(item) &&
+          !looksEllipsizedText(item) &&
+          !isNeutralSummaryText(item) &&
+          isWorkingStrengthText(item),
+      );
     if (questionItems.length) return normalizeList(questionItems, 4);
 
     return [];
@@ -147,22 +185,38 @@ function bucketRationaleItems(
   const findings = asArray(bucket.findings)
     .map((item) => asRecord(item) ?? {})
     .map((item) => cleanNarrativeText(item.observation || item.what_we_found || item.question || item.evidence))
-    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item) && !looksLikeWeakStatus(item));
+    .filter(
+      (item) =>
+        item &&
+        !placeholderText(item) &&
+        !looksEllipsizedText(item) &&
+        !isNeutralSummaryText(item) &&
+        !looksLikeWeakStatus(item),
+    );
   if (findings.length) return normalizeList(findings, 4);
 
   const improvements = asArray(bucket.improvements)
     .map((item) => asRecord(item) ?? {})
     .map((item) => cleanNarrativeText(item.observation || item.question || item.evidence))
-    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item) && !looksLikeWeakStatus(item));
+    .filter(
+      (item) =>
+        item &&
+        !placeholderText(item) &&
+        !looksEllipsizedText(item) &&
+        !isNeutralSummaryText(item) &&
+        !looksLikeWeakStatus(item),
+    );
   if (improvements.length) return normalizeList(improvements, 4);
 
   const questionItems = asArray(bucket.questions)
     .map((item) => asRecord(item) ?? {})
     .map((item) => cleanNarrativeText(synthesizeQuestionTakeaway(bucketLabel(bucket), item, "risk")))
-    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item));
+    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item));
   if (questionItems.length) return normalizeList(questionItems, 4);
 
-  return normalizeList(bucket.summary || bucket.note || bucket.rationale || "", 4);
+  return normalizeList(bucket.summary || bucket.note || bucket.rationale || "", 4).filter(
+    (item) => !placeholderText(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item),
+  );
 }
 
 function bucketLabel(bucket: Record<string, unknown>) {
@@ -300,23 +354,28 @@ function renderBucketContent(
   bucket: Record<string, unknown> | null,
   bucketData?: SummaryBucketData,
 ) {
-  const hasRenderableProblems = (items?: readonly string[]) =>
-    Array.isArray(items) && items.some((item) => Boolean(cleanNarrativeText(item) && !placeholderText(cleanNarrativeText(item)) && !looksEllipsizedText(item)));
-  const hasRenderableStrengths = (items?: readonly string[]) =>
-    Array.isArray(items) && items.some((item) => Boolean(cleanNarrativeText(item) && isWorkingStrengthText(cleanNarrativeText(item)) && !looksEllipsizedText(item)));
+  const sanitizeProblemItems = (items?: readonly string[]) =>
+    normalizeList(items ?? [], 8).map(cleanNarrativeText).filter(
+      (item) => Boolean(item && !placeholderText(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item)),
+    );
+  const sanitizeWorkingItems = (items?: readonly string[]) =>
+    normalizeList(items ?? [], 8).map(cleanNarrativeText).filter(
+      (item) =>
+        Boolean(item && !placeholderText(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item) && isWorkingStrengthText(item)),
+    );
+  const dataTopProblems = sanitizeProblemItems(bucketData?.topProblems);
+  const dataWhatsWorking = sanitizeWorkingItems(bucketData?.whatsWorking);
   const topProblems =
-    hasRenderableProblems(bucketData?.topProblems)
-      ? (bucketData?.topProblems as readonly string[])
+    dataTopProblems.length
+      ? dataTopProblems
       : bucket
         ? bucketRationaleItems(bucket, "what_is_risky")
         : [];
   const topProblemKeys = new Set(topProblems.map((item) => normalizeKey(cleanNarrativeText(item))));
   const whatsWorkingFromBucket = bucket ? bucketRationaleItems(bucket, "what_is_working") : [];
   const whatsWorking =
-    hasRenderableStrengths(bucketData?.whatsWorking)
-      ? (bucketData?.whatsWorking as readonly string[]).filter(
-          (item) => !topProblemKeys.has(normalizeKey(cleanNarrativeText(item))),
-        )
+    dataWhatsWorking.length
+      ? dataWhatsWorking.filter((item) => !topProblemKeys.has(normalizeKey(cleanNarrativeText(item))))
       : whatsWorkingFromBucket.length
         ? whatsWorkingFromBucket.filter(
             (item) => !topProblemKeys.has(normalizeKey(cleanNarrativeText(item))),

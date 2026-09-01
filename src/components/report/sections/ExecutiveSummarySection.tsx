@@ -1,6 +1,25 @@
 import { asString, stringifyValue } from "@/lib/report-model";
 import { BulletList, normalizeList, type SharedSectionProps } from "./shared";
 
+function isNeutralSummaryText(value: unknown) {
+  const text = asString(value).toLowerCase().trim();
+  if (!text) return true;
+
+  return (
+    text.includes("product/marketing page") ||
+    text.includes("it is marketing page") ||
+    text.includes("pages audited") ||
+    text.includes("do not show forms or submission actions") ||
+    text.includes("did not capture any success states or confirmation feedback") ||
+    text.includes("did not find any visible success messages or explanations after user actions") ||
+    text.includes("simple navigation without visible multi-step processes requiring progress indicators") ||
+    text.includes("no clear indication when the system is processing") ||
+    text.includes("clickable elements result in immediate visual changes") ||
+    text.includes("visual states are consistently applied and easily distinguishable") ||
+    text.includes("all tested clickable elements provide immediate visible feedback")
+  );
+}
+
 export function ExecutiveSummarySection({ vm }: SharedSectionProps) {
   if (vm.isLimitedCoverage && !vm.hasPartialScoring) {
     return (
@@ -40,16 +59,20 @@ export function ExecutiveSummarySection({ vm }: SharedSectionProps) {
   }
 
   const summary = vm.executiveSummary;
+  const topProblemsSource = normalizeList(summary.top_problems).length
+    ? normalizeList(summary.top_problems)
+    : normalizeList(summary.top_3_problems);
   const topProblems = normalizeList(
-    normalizeList(summary.top_problems).length ? summary.top_problems : summary.top_3_problems,
+    topProblemsSource.filter((item) => !isNeutralSummaryText(item)),
     10,
   );
+  const whatWorksSource = normalizeList(summary.whats_working).length
+    ? normalizeList(summary.whats_working)
+    : normalizeList(summary.top_3_quick_wins).length
+      ? normalizeList(summary.top_3_quick_wins)
+      : normalizeList(summary.what_works);
   const whatWorks = normalizeList(
-    normalizeList(summary.whats_working).length
-      ? summary.whats_working
-      : normalizeList(summary.top_3_quick_wins).length
-        ? summary.top_3_quick_wins
-        : summary.what_works,
+    whatWorksSource.filter((item) => !isNeutralSummaryText(item)),
     10,
   );
   const firstPriority =
