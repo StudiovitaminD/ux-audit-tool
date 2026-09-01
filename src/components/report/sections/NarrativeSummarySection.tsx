@@ -71,10 +71,10 @@ function looksLikeWeakStatus(text: unknown) {
   if (!normalized) return false;
 
   return (
-    /^(average|critical|good|excellent|poor|moderate|fair|partially met|mostly meets|fully meets|meets|does not meet|not met|major issues|missing or severe issues|minor gaps remain|usable but inconsistent|insufficient evidence|scoring unavailable|not scored|needs follow-up)$/i.test(
+    /^(pass|partial|fail|not tested|n\/a|na|average|critical|good|excellent|poor|moderate|fair|partially met|mostly meets|fully meets|meets|does not meet|not met|major issues|missing or severe issues|minor gaps remain|usable but inconsistent|insufficient evidence|scoring unavailable|not scored|needs follow-up)$/i.test(
       normalized,
     ) ||
-    /\b(partially met|mostly meets|fully meets|meets|major issues|missing or severe issues|minor gaps remain|usable but inconsistent|insufficient evidence|scoring unavailable|not scored|needs follow-up)\b/.test(
+    /\b(pass|partial|fail|not tested|n\/a|na|partially met|mostly meets|fully meets|meets|major issues|missing or severe issues|minor gaps remain|usable but inconsistent|insufficient evidence|scoring unavailable|not scored|needs follow-up)\b/.test(
       normalized,
     )
   );
@@ -147,13 +147,13 @@ function bucketRationaleItems(
   const findings = asArray(bucket.findings)
     .map((item) => asRecord(item) ?? {})
     .map((item) => cleanNarrativeText(item.observation || item.what_we_found || item.question || item.evidence))
-    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item));
+    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item) && !looksLikeWeakStatus(item));
   if (findings.length) return normalizeList(findings, 4);
 
   const improvements = asArray(bucket.improvements)
     .map((item) => asRecord(item) ?? {})
     .map((item) => cleanNarrativeText(item.observation || item.question || item.evidence))
-    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item));
+    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item) && !looksLikeWeakStatus(item));
   if (improvements.length) return normalizeList(improvements, 4);
 
   const questionItems = asArray(bucket.questions)
@@ -162,7 +162,7 @@ function bucketRationaleItems(
     .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item));
   if (questionItems.length) return normalizeList(questionItems, 4);
 
-  return normalizeList(bucket.summary || bucket.note || bucket.rationale || bucket.health || "", 4);
+  return normalizeList(bucket.summary || bucket.note || bucket.rationale || "", 4);
 }
 
 function bucketLabel(bucket: Record<string, unknown>) {
@@ -224,17 +224,29 @@ function synthesizeQuestionTakeaway(
   const selectedMark = Number(asString(question.selected_option || question.mark));
   const isPassLike = selectedState === "pass" || (Number.isFinite(selectedMark) && selectedMark >= 1);
 
-  if (mode === "risk" && isPassLike) return "";
+  if (mode === "risk" && (isPassLike || selectedState === "partial" || selectedState === "fail")) return "";
 
   const selected = cleanNarrativeText(asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, ""));
-  if (selected && !placeholderText(selected)) return selected;
+  if (selected && !placeholderText(selected)) {
+    if (mode === "risk" && (looksLikeWeakStatus(selected) || looksLikeRecommendation(selected))) {
+      // Continue searching for a real issue statement.
+    } else {
+      return selected;
+    }
+  }
 
   const option = lookupQuestionOptions(bucketNameValue, questionId).find(
     (item) => item.state === selectedState || Number(item.mark) === selectedMark,
   );
   if (option) {
     const optionText = cleanNarrativeText(formatBucketOption(option));
-    if (optionText && !looksEllipsizedText(optionText)) return optionText;
+    if (optionText && !looksEllipsizedText(optionText)) {
+      if (mode === "risk" && (looksLikeWeakStatus(optionText) || looksLikeRecommendation(optionText))) {
+        // Continue searching for a real issue statement.
+      } else {
+        return optionText;
+      }
+    }
   }
 
   if (mode === "working") return "";
