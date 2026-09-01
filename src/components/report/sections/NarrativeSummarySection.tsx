@@ -220,11 +220,15 @@ function synthesizeQuestionTakeaway(
   mode: "risk" | "working",
 ) {
   const questionId = asString(question.id);
+  const selectedState = cleanNarrativeText(asString(question.selected_option_state || question.answer_state));
+  const selectedMark = Number(asString(question.selected_option || question.mark));
+  const isPassLike = selectedState === "pass" || (Number.isFinite(selectedMark) && selectedMark >= 1);
+
+  if (mode === "risk" && isPassLike) return "";
+
   const selected = cleanNarrativeText(asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, ""));
   if (selected && !placeholderText(selected)) return selected;
 
-  const selectedState = cleanNarrativeText(asString(question.selected_option_state || question.answer_state));
-  const selectedMark = Number(asString(question.selected_option || question.mark));
   const option = lookupQuestionOptions(bucketNameValue, questionId).find(
     (item) => item.state === selectedState || Number(item.mark) === selectedMark,
   );
@@ -234,6 +238,8 @@ function synthesizeQuestionTakeaway(
   }
 
   if (mode === "working") return "";
+
+  if (selectedState === "not_tested" || selectedState === "n_a") return "";
 
   const observation = cleanNarrativeText(question.observation);
   if (observation && !placeholderText(observation) && !looksEllipsizedText(observation)) return observation;
