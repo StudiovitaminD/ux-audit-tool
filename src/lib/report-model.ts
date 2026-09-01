@@ -894,7 +894,7 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
 
   const topProblems = uniqueSemanticList(
     scoredQuestions
-      .filter((item) => (item.mark ?? 99) <= 3)
+      .filter((item) => (item.mark ?? 99) < 1)
       .sort((left, right) => {
         if ((left.mark ?? 99) !== (right.mark ?? 99)) return (left.mark ?? 99) - (right.mark ?? 99);
         if (impactRank(left.impact) !== impactRank(right.impact)) {
@@ -911,7 +911,7 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
 
   const whatsWorking = uniqueSemanticList(
     scoredQuestions
-      .filter((item) => (item.mark ?? 0) >= 4)
+      .filter((item) => (item.mark ?? 0) >= 1)
       .sort((left, right) => {
         if ((left.mark ?? 0) !== (right.mark ?? 0)) return (right.mark ?? 0) - (left.mark ?? 0);
         return (right.confidence ?? 0) - (left.confidence ?? 0);
@@ -923,7 +923,7 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
 
   const firstPriority = uniqueSemanticList(
     scoredQuestions
-      .filter((item) => (item.mark ?? 99) <= 2)
+      .filter((item) => (item.mark ?? 99) < 1)
       .sort((left, right) => {
         if (impactRank(left.impact) !== impactRank(right.impact)) {
           return impactRank(right.impact) - impactRank(left.impact);
@@ -940,7 +940,7 @@ function deriveExecutiveQuestionInsights(report: AnyRecord) {
 
   const quickWins = uniqueSemanticList(
     scoredQuestions
-      .filter((item) => (item.mark ?? 99) <= 3)
+      .filter((item) => (item.mark ?? 99) > 0 && (item.mark ?? 99) < 1)
       .filter((item) => effortRank(item.effort) <= 2 && impactRank(item.impact) >= 2)
       .sort((left, right) => {
         if (effortRank(left.effort) !== effortRank(right.effort)) {
@@ -2217,7 +2217,7 @@ function normalizedFinding(report: AnyRecord, item: unknown, index: number): Any
     sanitizeDisplayText(question?.title);
   const answerText = bestAvailableAnswer(report, rec);
   const mark = asNumber(rec.mark ?? rec.selected_option ?? question?.mark ?? question?.selected_option);
-  const isLowScore = mark !== null && mark <= 3;
+  const isLowScore = mark !== null && mark < 1;
   const foundText = [
     rec.what_we_found,
     rec.observation,
