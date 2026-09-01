@@ -741,6 +741,7 @@ function executiveListLooksWeak(items: string[]) {
   if (!items.length) return true;
   return items.every(
     (item) =>
+      isNeutralProblemCandidate(item) ||
       /not scored|scoring unavailable|\d+\/100/i.test(item) ||
       /^(use|implement|redesign|introduce|rewrite|reduce|revise|restructure|capture|provide|add)\b/i.test(
         item.trim(),
@@ -752,6 +753,9 @@ function isNeutralProblemCandidate(value: string) {
   const text = asString(value).trim().toLowerCase();
   if (!text) return true;
   return (
+    /^(the )?audit did not /i.test(text) ||
+    /^(the )?site primarily presents /i.test(text) ||
+    /^(the )?pages audited /i.test(text) ||
     text.includes("the site looks mostly like a product/marketing page") ||
     text.includes("it is marketing page") ||
     text.includes("the page does not have any form") ||
@@ -760,7 +764,11 @@ function isNeutralProblemCandidate(value: string) {
     text.includes("did not find any visible success messages or explanations after user actions") ||
     text.includes("simple navigation without visible multi-step processes requiring progress indicators") ||
     text.includes("the audit did not find any visible success messages or explanations after user actions") ||
-    text.includes("the audit did not capture any success states or confirmation feedback")
+    text.includes("the audit did not capture any success states or confirmation feedback") ||
+    text.includes("no clear indication when the system is processing") ||
+    text.includes("immediate visible feedback after a user action") && text.includes("do not") ||
+    text.includes("clickable elements result in immediate visual changes") ||
+    text.includes("visual states are consistently applied and easily distinguishable")
   );
 }
 
@@ -869,20 +877,23 @@ function questionSummaryText(bucketName: string, question: AnyRecord | null | un
   const observation =
     observationRaw &&
     !isPlaceholderText(observationRaw) &&
-    !isPromptLikeText(observationRaw, questionLabel)
+    !isPromptLikeText(observationRaw, questionLabel) &&
+    !isNeutralProblemCandidate(observationRaw)
       ? observationRaw
       : selectedAnswer;
   const recommendationRaw = bestSummaryText(rec.recommendation, rec.observation, rec.evidence);
   const recommendation =
     recommendationRaw &&
     !isPlaceholderText(recommendationRaw) &&
-    !isPromptLikeText(recommendationRaw, questionLabel)
+    !isPromptLikeText(recommendationRaw, questionLabel) &&
+    !isNeutralProblemCandidate(recommendationRaw)
       ? recommendationRaw
       : selectedAnswer || observation;
+  const cleanSelectedAnswer = selectedAnswer && !isNeutralProblemCandidate(selectedAnswer) ? selectedAnswer : "";
   return {
-    problem: observation ? `${displayName}: ${observation}` : "",
-    action: recommendation ? `${displayName}: ${recommendation}` : "",
-    strength: selectedAnswer ? `${displayName}: ${selectedAnswer}` : "",
+    problem: observation && !isNeutralProblemCandidate(observation) ? `${displayName}: ${observation}` : "",
+    action: recommendation && !isNeutralProblemCandidate(recommendation) ? `${displayName}: ${recommendation}` : "",
+    strength: cleanSelectedAnswer ? `${displayName}: ${cleanSelectedAnswer}` : "",
   };
 }
 
