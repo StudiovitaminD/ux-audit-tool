@@ -1249,11 +1249,14 @@ export function ReportView() {
 
   if (!effectiveReport) {
     return (
-      <div className="p-6">
-        <div className="text-lg font-semibold">Preparing your report…</div>
-        <div className="mt-3 flex items-center gap-3 text-sm text-[color:var(--muted)]">
-          <LoadingSpinner />
-          <div>Hang tight while the live report finishes loading.</div>
+      <div className="grid min-h-[60vh] place-items-center p-6">
+        <div className="book-loader" role="status" aria-label="Loading">
+          <div className="book-loader__shadow" />
+          <div className="book-loader__page" />
+          <div className="book-loader__page book-loader__page--2" />
+          <div className="book-loader__page book-loader__page--3" />
+          <div className="book-loader__page book-loader__page--4" />
+          <div className="book-loader__page book-loader__page--5" />
         </div>
       </div>
     );
