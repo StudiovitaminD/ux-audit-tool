@@ -43,12 +43,20 @@ export function TextInput({
   className,
   spellCheck,
   type,
+  lang,
+  autoCorrect,
+  autoCapitalize,
   ...props
 }: ComponentProps<"input">) {
+  const enableSpellCheck = spellCheck ?? shouldSpellCheckInput(type);
+
   return (
     <input
       type={type}
-      spellCheck={spellCheck ?? shouldSpellCheckInput(type)}
+      spellCheck={enableSpellCheck}
+      lang={enableSpellCheck ? lang ?? "en" : lang}
+      autoCorrect={enableSpellCheck ? autoCorrect ?? "on" : autoCorrect}
+      autoCapitalize={enableSpellCheck ? autoCapitalize ?? "sentences" : autoCapitalize}
       className={cx(
         "h-11 w-full rounded-[var(--radius-sm)] border bg-[color:var(--white)] px-4 text-[15px] outline-none text-[color:var(--ink)]",
         "border-[color:var(--cream-dark)] transition-all",
@@ -88,11 +96,19 @@ export function Select({
 export function Textarea({
   className,
   spellCheck,
+  lang,
+  autoCorrect,
+  autoCapitalize,
   ...props
 }: ComponentProps<"textarea">) {
+  const enableSpellCheck = spellCheck ?? true;
+
   return (
     <textarea
-      spellCheck={spellCheck ?? true}
+      spellCheck={enableSpellCheck}
+      lang={enableSpellCheck ? lang ?? "en" : lang}
+      autoCorrect={enableSpellCheck ? autoCorrect ?? "on" : autoCorrect}
+      autoCapitalize={enableSpellCheck ? autoCapitalize ?? "sentences" : autoCapitalize}
       className={cx(
         "min-h-28 w-full resize-y rounded-[var(--radius-sm)] border bg-[color:var(--white)] px-4 py-3 text-[15px] outline-none text-[color:var(--ink)]",
         "border-[color:var(--cream-dark)] transition-all",
