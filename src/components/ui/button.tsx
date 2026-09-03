@@ -19,7 +19,7 @@ function baseClasses({ variant, size }: { variant: Variant; size: Size }) {
     primary:
       "bg-[color:var(--accent)] text-[color:var(--white)] hover:bg-[color:var(--accent)]/90",
     secondary:
-      "bg-[color:var(--white)] text-[color:var(--ink)] border border-[color:var(--cream-dark)] hover:bg-[color:var(--cream)]",
+      "bg-[color:var(--white)] text-[color:var(--accent)] border border-[color:var(--accent)] hover:bg-[color:var(--accent)]/10",
     ghost:
       "bg-transparent text-[color:var(--ink-soft)] border-b border-[color:var(--ink-faint)] rounded-none px-0 hover:text-[color:var(--accent)] hover:border-[color:var(--accent)]",
     danger:
