@@ -1737,6 +1737,8 @@ export function AuditForm() {
               <Field label="About the product">
                 <Textarea
                   value={payload.knownProblem}
+                  spellCheck={true}
+                  lang="en-US"
                   onChange={(e) =>
                     setPayload((p) => ({ ...p, knownProblem: e.target.value }))
                   }

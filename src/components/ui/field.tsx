@@ -54,7 +54,7 @@ export function TextInput({
     <input
       type={type}
       spellCheck={enableSpellCheck}
-      lang={enableSpellCheck ? lang ?? "en" : lang}
+      lang={enableSpellCheck ? lang ?? "en-US" : lang}
       autoCorrect={enableSpellCheck ? autoCorrect ?? "on" : autoCorrect}
       autoCapitalize={enableSpellCheck ? autoCapitalize ?? "sentences" : autoCapitalize}
       className={cx(
@@ -106,7 +106,7 @@ export function Textarea({
   return (
     <textarea
       spellCheck={enableSpellCheck}
-      lang={enableSpellCheck ? lang ?? "en" : lang}
+      lang={enableSpellCheck ? lang ?? "en-US" : lang}
       autoCorrect={enableSpellCheck ? autoCorrect ?? "on" : autoCorrect}
       autoCapitalize={enableSpellCheck ? autoCapitalize ?? "sentences" : autoCapitalize}
       className={cx(
