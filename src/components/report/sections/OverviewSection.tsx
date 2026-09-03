@@ -61,9 +61,9 @@ function scoreToneClasses(value: unknown) {
 function metricToneClass(value: number | null | undefined, label?: string) {
   const tone = scoreToneFromValue(value);
   if (label === "Drop-off Rate") {
-    if (tone === "good") return "text-[color:var(--report-red)]";
-    if (tone === "warning") return "text-[color:var(--report-orange)]";
-    return "text-[color:var(--report-green-font)]";
+    if (value !== null && value !== undefined && value <= 30) return "text-[color:var(--report-green-font)]";
+    if (value !== null && value !== undefined && value < 50) return "text-[color:var(--report-orange)]";
+    return "text-[color:var(--report-red)]";
   }
   if (tone === "critical") return "text-[color:var(--report-red)]";
   if (tone === "warning") return "text-[color:var(--report-orange)]";
