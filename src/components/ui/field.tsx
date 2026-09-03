@@ -8,17 +8,19 @@ export function Field({
   label,
   hint,
   error,
+  required = true,
   children,
 }: PropsWithChildren<{
   label: ReactNode;
   hint?: string;
   error?: string;
+  required?: boolean;
 }>) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-4">
         <label className="text-sm font-medium text-[color:var(--ink)]">
-          {label} <span className="text-[color:var(--accent)]" aria-label="required">*</span>
+          {label}{required ? <span className="text-[color:var(--accent)]" aria-label="required"> *</span> : null}
         </label>
         {hint ? (
           <span className="text-xs text-[color:var(--ink-muted)]">{hint}</span>

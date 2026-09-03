@@ -1698,8 +1698,9 @@ export function AuditForm() {
 
               {/* ADDED: manual audit goal */}
               <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                <Field label="Add a custom goal (optional)">
+                <Field label="Add a custom goal (optional)" required={false}>
                   <TextInput
+                    required={false}
                     value={customAuditGoal}
                     onChange={(e) => setCustomAuditGoal(e.target.value)}
                     placeholder="Type a goal not listed above…"
@@ -2153,7 +2154,7 @@ export function AuditForm() {
 
               {isPublicAuditType(primaryType) ? (
                 <>
-                  <Field label="Screenshots">
+                  <Field label="Screenshots" required={false}>
                     <FilePickerButton
                       buttonText="Choose files"
                       accept="image/*"
@@ -2293,7 +2294,7 @@ export function AuditForm() {
                   </div>
 
                   {/* ADDED */}
-                  <Field label="Screenshots">
+                  <Field label="Screenshots" required={false}>
                     <FilePickerButton
                       buttonText="Choose files"
                       accept="image/*"
