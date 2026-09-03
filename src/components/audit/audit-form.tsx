@@ -1148,6 +1148,8 @@ export function AuditForm() {
     // ADDED (Q1)
     if (!payload.productOneLiner.trim())
       errors.productOneLiner = "Add a one-sentence description.";
+    if (!payload.knownProblem.trim())
+      errors.knownProblem = "About the product is required.";
     if (!payload.productUrl.trim())
       errors.productUrl = "Product URL is required.";
     else if (!isUrlLike(payload.productUrl))
@@ -1255,7 +1257,8 @@ export function AuditForm() {
       payload.product.type &&
       payload.productName.trim() &&
       payload.primaryPlatform &&
-      payload.auditGoals.length > 0
+      payload.auditGoals.length > 0 &&
+      payload.knownProblem.trim()
     )
       done.add(1);
     // ADDED: step 2 is audit buckets
@@ -1734,9 +1737,14 @@ export function AuditForm() {
               </div>
 
               {/* UPDATED: Reason for Audit (free text) */}
-              <Field label="About the product">
+              <Field
+                label="About the product"
+                hint="Required"
+                error={showErrorsForStep ? validation.knownProblem : undefined}
+              >
                 <Textarea
                   value={payload.knownProblem}
+                  required
                   spellCheck={true}
                   lang="en-US"
                   onChange={(e) =>
