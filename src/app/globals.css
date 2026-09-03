@@ -512,7 +512,7 @@ body.app-route :is(a.btnText, button.btnText) {
 
 .report-page-spread-next {
   position: absolute;
-  top: 0;
+  top: 0 !important;
   left: 794px;
   margin: 0;
   transform-origin: top left;
@@ -532,10 +532,12 @@ body.app-route :is(a.btnText, button.btnText) {
 @keyframes report-page-turn-in {
   from {
     opacity: 0.75;
+    transform: perspective(1400px) rotateY(-8deg) scale(var(--report-page-zoom, 1));
     filter: drop-shadow(-14px 0 10px rgba(15, 23, 42, 0.12));
   }
   to {
     opacity: 1;
+    transform: perspective(1400px) rotateY(0) scale(var(--report-page-zoom, 1));
     filter: drop-shadow(0 0 0 rgba(15, 23, 42, 0));
   }
 }
@@ -543,10 +545,12 @@ body.app-route :is(a.btnText, button.btnText) {
 @keyframes report-page-turn-in-prev {
   from {
     opacity: 0.75;
+    transform: perspective(1400px) rotateY(8deg) scale(var(--report-page-zoom, 1));
     filter: drop-shadow(14px 0 10px rgba(15, 23, 42, 0.12));
   }
   to {
     opacity: 1;
+    transform: perspective(1400px) rotateY(0) scale(var(--report-page-zoom, 1));
     filter: drop-shadow(0 0 0 rgba(15, 23, 42, 0));
   }
 }
