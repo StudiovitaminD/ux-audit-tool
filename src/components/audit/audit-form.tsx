@@ -1605,7 +1605,7 @@ export function AuditForm() {
 
       <aside className="lg:col-span-4">
         <Card className="sticky top-20 p-5">
-          <div className="mt-6 space-y-2">
+          <div className="space-y-2">
             {steps.map((s) => {
               const done = completion.has(s.id);
               const active = activeStep === s.id;
