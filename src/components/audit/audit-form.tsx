@@ -2068,43 +2068,46 @@ export function AuditForm() {
                       <div aria-hidden="true" className="h-12 w-12" />
                     )}
                   </div>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <Field label="Competitor name">
-                      <TextInput
-                        value={c.name}
-                        onChange={(e) =>
-                          setPayload((p) => {
-                            const next = [...p.businessCompetitors];
-                            next[idx] = { ...next[idx], name: e.target.value };
-                            return { ...p, businessCompetitors: next };
-                          })
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label="Competitor name">
+                        <TextInput
+                          value={c.name}
+                          onChange={(e) =>
+                            setPayload((p) => {
+                              const next = [...p.businessCompetitors];
+                              next[idx] = { ...next[idx], name: e.target.value };
+                              return { ...p, businessCompetitors: next };
+                            })
+                          }
+                          placeholder="Competitor name"
+                        />
+                      </Field>
+                      <Field
+                        label="Competitor URL"
+                        error={
+                          showErrorsForStep
+                            ? validation[`businessCompetitorUrl${idx}`]
+                            : undefined
                         }
-                        placeholder="Competitor name"
-                      />
-                    </Field>
-                    <Field
-                      label="Competitor URL"
-                      error={
-                        showErrorsForStep
-                          ? validation[`businessCompetitorUrl${idx}`]
-                          : undefined
-                      }
-                    >
-                      <TextInput
-                        type="url"
-                        value={c.url}
-                        onChange={(e) =>
-                          setPayload((p) => {
-                            const next = [...p.businessCompetitors];
-                            next[idx] = { ...next[idx], url: e.target.value };
-                            return { ...p, businessCompetitors: next };
-                          })
-                        }
-                        placeholder="https://competitor.com"
-                      />
-                    </Field>
-                    <Field label="Compare">
-                      <TextInput
+                      >
+                        <TextInput
+                          type="url"
+                          value={c.url}
+                          onChange={(e) =>
+                            setPayload((p) => {
+                              const next = [...p.businessCompetitors];
+                              next[idx] = { ...next[idx], url: e.target.value };
+                              return { ...p, businessCompetitors: next };
+                            })
+                          }
+                          placeholder="https://competitor.com"
+                        />
+                      </Field>
+                    </div>
+                    <Field label="What do you like about this competitor?">
+                      <Textarea
+                        rows={4}
                         value={c.compareFocus}
                         onChange={(e) =>
                           setPayload((p) => {
