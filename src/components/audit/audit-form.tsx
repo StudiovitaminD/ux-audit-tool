@@ -1991,7 +1991,7 @@ export function AuditForm() {
                             placeholder="e.g. English, Hindi"
                           />
                         </Field>
-                        <Field label="User geography">
+                        <Field label="User location">
                           <TextInput
                             value={persona.userGeography}
                             onChange={(e) => updatePersonaCard(index, { userGeography: e.target.value })}
