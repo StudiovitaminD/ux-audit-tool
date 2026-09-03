@@ -1702,7 +1702,7 @@ export function AuditForm() {
                     <Button
                       type="button"
                       variant="secondary"
-                      className="absolute right-2 top-1/2 h-auto -translate-y-1/2 py-1 leading-none"
+                      className="absolute right-2 top-1/2 h-auto -translate-y-1/2 border-[color:var(--accent)] py-1 leading-none text-[color:var(--accent)] hover:bg-[color:var(--accent)]/10"
                       onClick={() => {
                         const v = customAuditGoal.trim();
                         if (!v) return;
