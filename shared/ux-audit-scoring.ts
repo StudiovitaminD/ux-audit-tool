@@ -45,7 +45,21 @@ export function isApplicableAnswerState(state: UXAuditAnswerState | null | undef
 }
 
 export function isTestedAnswerState(state: UXAuditAnswerState | null | undefined) {
-  return state === "pass" || state === "partial" || state === "fail" || state === "not_tested";
+  return state === "pass" || state === "partial" || state === "fail";
+}
+
+export function validateAnswerSemantics(question: ScoredAuditQuestion) {
+  const answer = normalizeAnswerState(question.answer_state) || normalizeAnswerState(question.selected_option_state);
+  const text = `${question.evidence || ""} ${question.observation || ""}`.toLowerCase();
+  const insufficient = /unable to evaluate|insufficient evidence|not tested|not captured|could not be scored|cannot be evaluated/.test(text);
+  const negative = /\bhowever\b|\bbut\b|\bmissing\b|\black(?:s|ing)?\b|\bgeneric\b|\binconsistent\b|\blimit(?:s|ed|ing)?\b|\bunclear\b|\bweak\b|\bproblem(?:s)?\b|\bdoes not\b|\bnot consistently\b|\bno evidence\b/.test(text);
+  if (insufficient && (answer === "pass" || answer === "partial" || answer === "fail")) {
+    return { ...question, answer_state: "not_tested" as const, selected_option_state: "not_tested" as const, mark: null };
+  }
+  if (negative && answer === "pass") {
+    return { ...question, answer_state: "partial" as const, selected_option_state: "partial" as const, mark: 0.5 };
+  }
+  return question;
 }
 
 export function normalizeQuestionAnswer(question: ScoredAuditQuestion) {
@@ -76,7 +90,7 @@ export function normalizeQuestionAnswer(question: ScoredAuditQuestion) {
 export function scoreQuestions(questions: Array<ScoredAuditQuestion | null | undefined>) {
   const normalized = questions
     .filter(Boolean)
-    .map((question) => normalizeQuestionAnswer(question as ScoredAuditQuestion));
+    .map((question) => validateAnswerSemantics(normalizeQuestionAnswer(question as ScoredAuditQuestion)));
   const scoreable = normalized.filter((question) => {
     const state = question.answer_state as UXAuditAnswerState | null;
     const record = state ? getAnswerStateRecord(state) : null;
@@ -105,7 +119,7 @@ export function scoreQuestions(questions: Array<ScoredAuditQuestion | null | und
 
   const totalMarks = scoreable.reduce((sum, question) => sum + (question.mark ?? 0), 0);
   const maxMarks = scoreable.length;
-  const score = Math.round((totalMarks / maxMarks) * 100);
+  const score = (totalMarks / maxMarks) * 100;
   const confidence = confidenceCount > 0 ? Math.round((scoredCount / confidenceCount) * 100) : null;
 
   return {
@@ -140,7 +154,7 @@ export function scoreBuckets(
   const validBuckets = scoredBuckets.filter((bucket) => bucket.score !== null);
   const overall_score =
     validBuckets.length > 0
-      ? Math.round(validBuckets.reduce((sum, bucket) => sum + (bucket.score ?? 0), 0) / validBuckets.length)
+      ? validBuckets.reduce((sum, bucket) => sum + (bucket.score ?? 0), 0) / validBuckets.length
       : null;
 
   const pillarScores = ["Accessibility", "Impact", "Delight"].reduce<Record<string, { score: number | null; evaluated: boolean }>>(
@@ -148,7 +162,7 @@ export function scoreBuckets(
       const relevant = scoredBuckets.filter((bucket) => bucket.pillar === pillar && bucket.score !== null);
       acc[pillar] = relevant.length
         ? {
-            score: Math.round(relevant.reduce((sum, bucket) => sum + (bucket.score ?? 0), 0) / relevant.length),
+            score: relevant.reduce((sum, bucket) => sum + (bucket.score ?? 0), 0) / relevant.length,
             evaluated: true,
           }
         : { score: null, evaluated: false };
@@ -160,8 +174,7 @@ export function scoreBuckets(
   const audit_confidence =
     buckets.length > 0
       ? Math.round(
-          (scoredBuckets.reduce((sum, bucket) => sum + (bucket.confidence ?? 0), 0) / buckets.length) *
-            100,
+          scoredBuckets.reduce((sum, bucket) => sum + (bucket.confidence ?? 0), 0) / buckets.length,
         ) / 100
       : null;
 
