@@ -502,7 +502,10 @@ body.app-route :is(a.btnText, button.btnText) {
 
 .report-page-stage > .report-a4-page:first-child {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 794px;
+  height: 1123px;
   transform: scale(var(--report-page-zoom, 1));
   transform-origin: top left;
 }
