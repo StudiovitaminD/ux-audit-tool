@@ -235,7 +235,7 @@ function bucketSpecificGuidance(bucket: string) {
     "Content (Impact)": ["Prefer evidence from headings, CTA labels, helper text, alerts, empty states, and repeated terminology."],
     "Content (Delight)": ["Prefer evidence from tone, personality, microcopy, and emotionally resonant writing."],
     "Typography & Readability": ["Prefer evidence from readable type scale, paragraph spacing, hierarchy, and text clarity."],
-    "Visual Consistency": ["Use visible styling, spacing, and component rhythm from capture to judge consistency."],
+    "Visual Consistency": ["Use full-page captures, viewport captures, scroll behavior, visible styling, spacing, padding, section placement, hierarchy, and component rhythm to judge whether the layout is coherent and supports the stated user goal."],
     "Motion & Microinteractions": ["Prefer evidence from transitions, hover feedback, motion restraint, and interaction flourishes."],
     "Brand Expression": ["Use visual personality, tone of voice, and distinct identity cues from capture."],
     "Icons & Imagery": ["Prefer evidence from icon clarity, illustration quality, and image support."],
