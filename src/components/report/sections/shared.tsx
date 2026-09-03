@@ -393,6 +393,8 @@ export function BucketAnswersCard({
                     </div>
                     {onAnswerChange && questionId ? (
                       <textarea
+                        spellCheck
+                        lang="en"
                         className="mt-2 min-h-[92px] w-full rounded-lg border border-[color:var(--card-border)] bg-white px-[5px] py-[5px] text-sm text-[color:var(--ink)]"
                         defaultValue={asString(question.user_evidence) || asString(question.evidence)}
                         placeholder="Add or edit evidence..."
@@ -430,6 +432,8 @@ export function BucketAnswersCard({
                     </div>
                     {onAnswerChange && questionId ? (
                       <textarea
+                        spellCheck
+                        lang="en"
                         className="mt-2 min-h-[92px] w-full rounded-lg border border-[color:var(--card-border)] bg-white px-[5px] py-[5px] text-sm text-[color:var(--ink)]"
                         defaultValue={asString(question.user_reason) || asString(question.observation)}
                         placeholder="Add or edit reason..."

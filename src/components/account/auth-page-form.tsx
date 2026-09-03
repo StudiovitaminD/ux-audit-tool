@@ -154,6 +154,9 @@ export function AuthPageForm({ mode }: AuthPageFormProps) {
               <label className="block">
                 <h3 className="mb-2">Your name</h3>
                 <input
+                  type="text"
+                  spellCheck
+                  lang="en"
                   className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-[14px] outline-none transition focus:border-black/20 focus:ring-2 focus:ring-black/5"
                   placeholder="Jane Smith"
                   value={name}

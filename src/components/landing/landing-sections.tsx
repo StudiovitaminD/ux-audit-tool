@@ -315,6 +315,9 @@ export function LandingSections() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Name</label>
                 <input
+                  type="text"
+                  spellCheck
+                  lang="en"
                   className="w-full rounded-xl border border-[#101010]/15 bg-white px-4 py-3 outline-none"
                   placeholder="Name"
                 />
@@ -330,6 +333,8 @@ export function LandingSections() {
                 <label className="mb-1.5 block text-sm font-medium">Message*</label>
                 <textarea
                   rows={5}
+                  spellCheck
+                  lang="en"
                   className="w-full rounded-xl border border-[#101010]/15 bg-white px-4 py-3 outline-none"
                   placeholder="Message"
                 />
