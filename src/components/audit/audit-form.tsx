@@ -420,6 +420,8 @@ export function AuditForm() {
   const [aiFilling, setAiFilling] = useState(false);
   const [aiUrlDialogOpen, setAiUrlDialogOpen] = useState(false);
   const [aiProductUrl, setAiProductUrl] = useState("");
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+  const [submitConfirmed, setSubmitConfirmed] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [transcriptFileName, setTranscriptFileName] = useState<string | null>(null);
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
@@ -1393,6 +1395,12 @@ export function AuditForm() {
       return;
     }
 
+    if (!submitConfirmed) {
+      setConfirmSubmitOpen(true);
+      return;
+    }
+    setSubmitConfirmed(false);
+
     setLoading(true);
     try {
       const submissionPayload: AuditPayload = {
@@ -1548,6 +1556,32 @@ export function AuditForm() {
               </Button>
               <Button type="button" variant="primary" onClick={() => void fillFormUsingAi(aiProductUrl)} disabled={!aiProductUrl.trim()}>
                 Fill form
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {confirmSubmitOpen ? (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 px-4 backdrop-blur-sm">
+          <div className="w-[min(460px,100%)] rounded-2xl border border-[color:var(--cream-dark)] bg-white p-6 shadow-2xl">
+            <h2 className="text-xl font-semibold text-[color:var(--ink)]">Submit audit?</h2>
+            <p className="mt-2 text-sm text-[color:var(--ink-muted)]">
+              Your completed audit details will be submitted to create the report.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setConfirmSubmitOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  setSubmitConfirmed(true);
+                  setConfirmSubmitOpen(false);
+                  window.setTimeout(() => formRef.current?.requestSubmit(), 0);
+                }}
+              >
+                Confirm submit
               </Button>
             </div>
           </div>
