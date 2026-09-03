@@ -332,7 +332,6 @@ const auditGoals: AuditSelectOption[] = [
   { label: "Reduce churn / improve retention", value: "reduce_churn_retention" },
   { label: "Fix onboarding drop-off", value: "fix_onboarding_dropoff" },
   { label: "Improve overall UX quality", value: "improve_overall_ux_quality" },
-  { label: "Prepare for fundraising", value: "prepare_for_fundraising" },
   { label: "Benchmark against competitors", value: "benchmark_against_competitors" },
   { label: "Accessibility compliance", value: "accessibility_compliance" },
 ];
