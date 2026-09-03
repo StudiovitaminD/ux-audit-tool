@@ -1703,7 +1703,7 @@ export function AuditForm() {
                     <Button
                       type="button"
                       variant="secondary"
-                      className="absolute right-2 top-1/2 h-auto -translate-y-1/2 border-[color:var(--accent)] py-1 leading-none text-[color:var(--accent)] hover:bg-[color:var(--accent)]/10"
+                      className="absolute right-2 top-1/2 h-auto -translate-y-1/2 !border-[#ff7a1f] py-1 leading-none !text-[#ff7a1f] hover:bg-[#ff7a1f]/10"
                       onClick={() => {
                         const v = customAuditGoal.trim();
                         if (!v) return;
@@ -1785,7 +1785,7 @@ export function AuditForm() {
                 variant="secondary"
                 size="sm"
                 onClick={selectAllBuckets}
-                className="whitespace-nowrap border-[color:var(--accent)] text-[color:var(--accent)] hover:bg-[color:var(--accent)]/10"
+                className="whitespace-nowrap !border-[#ff7a1f] !text-[#ff7a1f] hover:bg-[#ff7a1f]/10"
               >
                 {allBucketsSelected ? "Unselect all" : "Select all"}
               </Button>
