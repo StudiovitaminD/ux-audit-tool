@@ -1776,18 +1776,18 @@ export function AuditForm() {
           <Card className="p-5">
             <SectionHeader
               title="Audit Buckets"
-              action={
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={selectAllBuckets}
-                  className="whitespace-nowrap"
-                >
-                  {allBucketsSelected ? "Unselect all" : "Select all"}
-                </Button>
-              }
             />
+            <div className="mt-4 flex justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={selectAllBuckets}
+                className="whitespace-nowrap"
+              >
+                {allBucketsSelected ? "Unselect all" : "Select all"}
+              </Button>
+            </div>
             <div className="mt-3">
               <BucketPicker
                 value={payload.selectedBuckets}
