@@ -35,12 +35,20 @@ export function Field({
   );
 }
 
+function shouldSpellCheckInput(type: ComponentProps<"input">["type"]) {
+  return !["email", "number", "password", "tel", "url"].includes(String(type ?? "text"));
+}
+
 export function TextInput({
   className,
+  spellCheck,
+  type,
   ...props
 }: ComponentProps<"input">) {
   return (
     <input
+      type={type}
+      spellCheck={spellCheck ?? shouldSpellCheckInput(type)}
       className={cx(
         "h-11 w-full rounded-[var(--radius-sm)] border bg-[color:var(--white)] px-4 text-[15px] outline-none text-[color:var(--ink)]",
         "border-[color:var(--cream-dark)] transition-all",
@@ -79,10 +87,12 @@ export function Select({
 
 export function Textarea({
   className,
+  spellCheck,
   ...props
 }: ComponentProps<"textarea">) {
   return (
     <textarea
+      spellCheck={spellCheck ?? true}
       className={cx(
         "min-h-28 w-full resize-y rounded-[var(--radius-sm)] border bg-[color:var(--white)] px-4 py-3 text-[15px] outline-none text-[color:var(--ink)]",
         "border-[color:var(--cream-dark)] transition-all",

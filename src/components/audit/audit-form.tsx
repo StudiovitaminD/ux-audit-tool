@@ -2069,6 +2069,7 @@ export function AuditForm() {
                       }
                     >
                       <TextInput
+                        type="url"
                         value={c.url}
                         onChange={(e) =>
                           setPayload((p) => {
@@ -2130,6 +2131,7 @@ export function AuditForm() {
                 error={showErrorsForStep ? validation.productUrl : undefined}
               >
                 <TextInput
+                  type="url"
                   value={payload.productUrl}
                   onChange={(e) =>
                     setPayload((p) => ({ ...p, productUrl: e.target.value }))
