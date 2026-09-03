@@ -1682,7 +1682,7 @@ export function AuditForm() {
                     <TextInput
                       required={false}
                       aria-label="Custom goal"
-                      className="pr-36"
+                      className="h-[50px] pr-36"
                       value={customAuditGoal}
                       onChange={(e) => setCustomAuditGoal(e.target.value)}
                       placeholder="Type a goal not listed above…"
