@@ -36,6 +36,7 @@ export function LiveReport({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const vm = useMemo(() => buildReportViewModel(editableReport), [editableReport]);
   const [page, setPage] = useState(0);
+  const [pageTurnDirection, setPageTurnDirection] = useState<"next" | "prev">("next");
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
     Array.isArray(vm.competitorAnalysis.competitors) ? vm.competitorAnalysis.competitors : [],
   );
@@ -133,6 +134,13 @@ export function LiveReport({
   const current = pages[page] ?? pages[0];
   const currentPageLocked = Boolean(current?.locked);
 
+  function goToPage(nextPage: number) {
+    const boundedPage = Math.max(0, Math.min(pages.length - 1, nextPage));
+    if (boundedPage === page) return;
+    setPageTurnDirection(boundedPage > page ? "next" : "prev");
+    setPage(boundedPage);
+  }
+
   useEffect(() => {
     setPage((currentPage) => Math.max(0, Math.min(currentPage, Math.max(0, pages.length - 1))));
   }, [pages.length]);
@@ -229,7 +237,8 @@ export function LiveReport({
         data-total-pages={pages.length}
       >
         <div
-          className={`report-a4-page print-page mt-5 print-report-root ${
+          key={page}
+          className={`report-a4-page print-page mt-5 print-report-root report-page-turn report-page-turn-${pageTurnDirection} ${
             current.variant === "cover"
               ? "report-a4-page-cover bg-[#fc6d27]"
               : current.title === "Overview"
@@ -340,7 +349,7 @@ export function LiveReport({
                 type="button"
                 className="floatingBarSecondary"
                 data-report-prev
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                onClick={() => goToPage(page - 1)}
                 disabled={page === 0}
                 aria-disabled={page === 0}
                 style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
@@ -354,7 +363,7 @@ export function LiveReport({
                 type="button"
                 className="floatingBarPrimary"
                 data-report-next
-                onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
+                onClick={() => goToPage(page + 1)}
                 disabled={page === pages.length - 1}
                 aria-disabled={page === pages.length - 1}
                 style={
