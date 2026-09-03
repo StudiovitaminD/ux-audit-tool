@@ -1528,7 +1528,7 @@ export function AuditForm() {
       className="grid gap-6 pb-32 lg:grid-cols-12"
     >
       {aiUrlDialogOpen ? (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 px-4 backdrop-blur-sm">
           <div className="w-[min(520px,100%)] rounded-2xl border border-[color:var(--cream-dark)] bg-white p-6 shadow-2xl">
             <h2 className="text-xl font-semibold text-[color:var(--ink)]">Fill form using AI</h2>
             <p className="mt-2 text-sm text-[color:var(--ink-muted)]">
