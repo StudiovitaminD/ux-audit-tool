@@ -1654,29 +1654,28 @@ export function AuditForm() {
 
             {/* ADDED: moved from previous “Primary goal of audit” step */}
             <div className="mt-5 space-y-5">
-              <Field
-                label="Primary audit goal(s)"
-                error={showErrorsForStep ? validation.auditGoals : undefined}
-                action={
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setShowCustomAuditGoal((visible) => !visible)}
-                  >
-                    {showCustomAuditGoal ? "Hide custom goals" : "Add custom goals"}
-                  </Button>
-                }
-              >
-                <MultiSelect
-                  options={auditGoals}
-                  values={payload.auditGoals}
-                  onChange={(values) =>
-                    setPayload((p) => ({ ...p, auditGoals: values }))
-                  }
-                  placeholder="Choose one or more audit goals"
-                />
-              </Field>
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <Field
+                  label="Primary audit goal(s)"
+                  error={showErrorsForStep ? validation.auditGoals : undefined}
+                >
+                  <MultiSelect
+                    options={auditGoals}
+                    values={payload.auditGoals}
+                    onChange={(values) =>
+                      setPayload((p) => ({ ...p, auditGoals: values }))
+                    }
+                    placeholder="Choose one or more audit goals"
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowCustomAuditGoal((visible) => !visible)}
+                >
+                  {showCustomAuditGoal ? "Hide custom goals" : "Add custom goals"}
+                </Button>
+              </div>
 
               {showCustomAuditGoal ? (
                 <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
