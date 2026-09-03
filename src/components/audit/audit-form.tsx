@@ -1702,7 +1702,7 @@ export function AuditForm() {
                     <Button
                       type="button"
                       variant="secondary"
-                      className="absolute right-2 top-1.5 bottom-1.5"
+                      className="absolute right-2 top-1/2 h-auto -translate-y-1/2"
                       onClick={() => {
                         const v = customAuditGoal.trim();
                         if (!v) return;
