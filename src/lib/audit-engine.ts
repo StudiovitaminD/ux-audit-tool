@@ -2647,6 +2647,12 @@ export async function auditOneBucket(args: {
     } catch {}
   }
   for (const question of questions) {
+    const caveatText = `${question.evidence} ${question.observation}`.toLowerCase();
+    const hasMaterialCaveat = /\bhowever\b|\bbut\b|\bmissing\b|\black(?:s|ing)?\b|\bgeneric\b|\binconsistent\b|\blimit(?:s|ed|ing)?\b|\bunclear\b|\bweak\b|\bproblem(?:s)?\b|\bcould be improved\b|\bnot consistently\b/.test(caveatText);
+    if (hasMaterialCaveat && question.mark !== null && question.mark >= 5) {
+      question.mark = 3;
+      question.selected_option = 3;
+    }
     const missingEvidence = missingEvidenceForQuestion(bucket, question.id, evidence, intake.product_type);
     if (missingEvidence.length > 0) {
       question.mark = null;
