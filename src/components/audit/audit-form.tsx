@@ -419,6 +419,8 @@ export function AuditForm() {
   const [error, setError] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [aiFilling, setAiFilling] = useState(false);
+  const [aiUrlDialogOpen, setAiUrlDialogOpen] = useState(false);
+  const [aiProductUrl, setAiProductUrl] = useState("");
   const [extractError, setExtractError] = useState<string | null>(null);
   const [transcriptFileName, setTranscriptFileName] = useState<string | null>(null);
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
@@ -733,12 +735,13 @@ export function AuditForm() {
     }
   }
 
-  async function fillFormUsingAi() {
-    const websiteUrl = payload.productUrl.trim();
+  async function fillFormUsingAi(enteredUrl: string) {
+    const websiteUrl = enteredUrl.trim();
     if (!websiteUrl) {
-      setError("Enter a product URL first.");
       return;
     }
+    setPayload((p) => ({ ...p, productUrl: websiteUrl }));
+    setAiUrlDialogOpen(false);
     setError(null);
     setAiFilling(true);
     try {
@@ -1524,13 +1527,40 @@ export function AuditForm() {
       onSubmit={onSubmit}
       className="grid gap-6 pb-32 lg:grid-cols-12"
     >
+      {aiUrlDialogOpen ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 px-4 backdrop-blur-sm">
+          <div className="w-[min(520px,100%)] rounded-2xl border border-[color:var(--cream-dark)] bg-white p-6 shadow-2xl">
+            <h2 className="text-xl font-semibold text-[color:var(--ink)]">Fill form using AI</h2>
+            <p className="mt-2 text-sm text-[color:var(--ink-muted)]">
+              Enter the product URL and AI will fill the available audit fields.
+            </p>
+            <TextInput
+              autoFocus
+              type="url"
+              required={false}
+              value={aiProductUrl}
+              onChange={(e) => setAiProductUrl(e.target.value)}
+              className="mt-5"
+              placeholder="https://yourproduct.com"
+            />
+            <div className="mt-5 flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setAiUrlDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" variant="primary" onClick={() => void fillFormUsingAi(aiProductUrl)} disabled={!aiProductUrl.trim()}>
+                Fill form
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {prefillLoading ? (
         <div className="lg:col-span-12 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-4 text-sm text-[color:var(--ink-muted)]">
           Prefilling audit form from previous report…
         </div>
       ) : null}
       {/* ADDED */}
-      {loading ? (
+      {loading || aiFilling ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 backdrop-blur-md transition-opacity">
           <div className="w-[min(480px,92vw)] rounded-2xl border border-[color:var(--cream-dark)] bg-[color:var(--card)] p-8 text-center shadow-2xl relative overflow-hidden">
             {/* Elegant Background Glow */}
@@ -1545,11 +1575,13 @@ export function AuditForm() {
             </div>
             
             <h2 className="mt-6 text-xl font-bold tracking-tight text-[color:var(--ink)]">
-              {creatingMessages[creatingIdx]}
+              {aiFilling ? "Filling form fields…" : creatingMessages[creatingIdx]}
             </h2>
             
             <p className="mt-2 text-sm text-[color:var(--ink-muted)]">
-              Running heuristic audits & generating your customized report.
+              {aiFilling
+                ? "Analyzing the product and updating your audit form."
+                : "Running heuristic audits & generating your customized report."}
             </p>
 
             <div className="mt-6 w-full h-1.5 bg-[color:var(--cream-dark)] rounded-full overflow-hidden relative">
@@ -1633,7 +1665,15 @@ export function AuditForm() {
               <div>
                 <h2 className="font-display text-lg font-semibold tracking-tight">Audit Details</h2>
               </div>
-              <Button type="button" variant="primary" onClick={fillFormUsingAi} disabled={aiFilling}>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  setAiProductUrl(payload.productUrl);
+                  setAiUrlDialogOpen(true);
+                }}
+                disabled={aiFilling}
+              >
                 {aiFilling ? "Filling…" : "Fill form using AI"}
               </Button>
             </div>
