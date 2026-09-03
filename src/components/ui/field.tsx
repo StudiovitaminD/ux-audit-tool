@@ -1,4 +1,4 @@
-import { ComponentProps, PropsWithChildren, useId } from "react";
+import { ComponentProps, PropsWithChildren, ReactNode, useId } from "react";
 
 function cx(...classes: Array<string | undefined | false>) {
   return classes.filter(Boolean).join(" ");
@@ -10,7 +10,7 @@ export function Field({
   error,
   children,
 }: PropsWithChildren<{
-  label: string;
+  label: ReactNode;
   hint?: string;
   error?: string;
 }>) {

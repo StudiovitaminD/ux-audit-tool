@@ -1738,8 +1738,11 @@ export function AuditForm() {
 
               {/* UPDATED: Reason for Audit (free text) */}
               <Field
-                label="About the product"
-                hint="Required"
+                label={
+                  <>
+                    About the product <span className="text-[color:var(--accent)]" aria-label="required">*</span>
+                  </>
+                }
                 error={showErrorsForStep ? validation.knownProblem : undefined}
               >
                 <Textarea
