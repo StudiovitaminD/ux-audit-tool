@@ -1585,6 +1585,9 @@ function parseBucketJson(raw: string) {
     return {
       id: String(qRec.id || "Q"),
       question: String(qRec.question || ""),
+      answer_state: typeof qRec.answer_state === "string" ? qRec.answer_state : undefined,
+      selected_option_state:
+        typeof qRec.selected_option_state === "string" ? qRec.selected_option_state : undefined,
       mark,
       selected_option: explicitSelectedOption ?? mark,
       evidence: String(qRec.evidence || ""),
