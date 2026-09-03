@@ -496,12 +496,22 @@ body.app-route :is(a.btnText, button.btnText) {
 .report-page-stage {
   position: relative;
   flex: 0 0 auto;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.report-page-stage > .report-a4-page {
+.report-page-stage > .report-a4-page:first-child {
   position: absolute;
   inset: 0;
   transform: scale(var(--report-page-zoom, 1));
+  transform-origin: top left;
+}
+
+.report-page-spread-next {
+  position: absolute;
+  top: 0;
+  left: 794px;
+  margin: 0;
   transform-origin: top left;
 }
 
