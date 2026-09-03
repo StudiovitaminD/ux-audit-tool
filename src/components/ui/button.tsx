@@ -27,7 +27,7 @@ function baseClasses({ variant, size }: { variant: Variant; size: Size }) {
   };
 
   return cx(
-    "inline-flex items-center justify-center gap-2 font-semibold transition-colors",
+    "inline-flex items-center justify-center gap-2 font-normal transition-colors",
     variant === "ghost" ? "" : "rounded-full",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--cream)]",
     "disabled:pointer-events-none disabled:opacity-50",
