@@ -1914,7 +1914,7 @@ export function AuditForm() {
                               personaType: e.target.value as PersonaType,
                             })
                           }
-                          className="h-9 w-20 shrink-0 rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] px-3 pr-8 text-xs font-semibold text-[color:var(--ink)] shadow-none"
+                          className="h-9 !w-1/2 max-w-[280px] shrink-0 rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] px-3 pr-8 text-xs font-semibold text-[color:var(--ink)] shadow-none"
                         >
                           <option value="primary">Primary</option>
                           <option value="secondary">Secondary</option>
