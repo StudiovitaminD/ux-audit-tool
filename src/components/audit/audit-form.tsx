@@ -156,11 +156,12 @@ type SectionHeaderProps = {
   title: string;
   description?: string;
   action?: ReactNode;
+  className?: string;
 };
 
-function SectionHeader({ title, description, action }: SectionHeaderProps) {
+function SectionHeader({ title, description, action, className }: SectionHeaderProps) {
   return (
-    <div className="mb-8 flex items-center justify-between gap-4 border-b border-[color:var(--cream-dark)] pb-8">
+    <div className={`mb-8 flex items-center justify-between gap-4 border-b border-[color:var(--cream-dark)] pb-8 ${className ?? ""}`}>
       <div>
         <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
         {description ? (
@@ -1776,6 +1777,7 @@ export function AuditForm() {
           <Card className="p-5">
             <SectionHeader
               title="Audit Buckets"
+              className="mb-0"
             />
             <div className="my-[10px] flex justify-end">
               <Button
@@ -1783,7 +1785,7 @@ export function AuditForm() {
                 variant="secondary"
                 size="sm"
                 onClick={selectAllBuckets}
-                className="whitespace-nowrap"
+                className="whitespace-nowrap border-[color:var(--accent)] text-[color:var(--accent)] hover:bg-[color:var(--accent)]/10"
               >
                 {allBucketsSelected ? "Unselect all" : "Select all"}
               </Button>
