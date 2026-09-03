@@ -184,7 +184,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
   const visibleScoreRows = selectedBucketKeys.size
     ? scoreRows.filter((row) => selectedBucketKeys.has(normalizeKey(displayBucketName(bucketNameFromRow(row)))))
     : scoreRows;
-  const scoreRowsForDisplay = visibleScoreRows.length ? visibleScoreRows : scoreRows;
+  const scoreRowsForDisplay = selectedBucketKeys.size ? visibleScoreRows : scoreRows;
   const displayedOverallScore = vm.overallScore ?? averageScore(scoreRowsForDisplay);
   const selectedPillarScores = vm.pillarScores ?? { Accessibility: { score: null, evaluated: false }, Impact: { score: null, evaluated: false }, Delight: { score: null, evaluated: false } };
   const displayedPillarScores = selectedBucketKeys.size
