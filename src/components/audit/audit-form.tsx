@@ -427,6 +427,7 @@ export function AuditForm() {
   const [attemptedSteps, setAttemptedSteps] = useState<number[]>([]);
   // ADDED: custom audit goal
   const [customAuditGoal, setCustomAuditGoal] = useState("");
+  const [showCustomAuditGoal, setShowCustomAuditGoal] = useState(false);
   // ADDED: report creating overlay copy rotation
   const [creatingIdx, setCreatingIdx] = useState(0);
   const [prefillLoading, setPrefillLoading] = useState(false);
@@ -1656,6 +1657,16 @@ export function AuditForm() {
               <Field
                 label="Primary audit goal(s)"
                 error={showErrorsForStep ? validation.auditGoals : undefined}
+                action={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowCustomAuditGoal((visible) => !visible)}
+                  >
+                    {showCustomAuditGoal ? "Hide custom goals" : "Add custom goals"}
+                  </Button>
+                }
               >
                 <MultiSelect
                   options={auditGoals}
@@ -1666,6 +1677,46 @@ export function AuditForm() {
                   placeholder="Choose one or more audit goals"
                 />
               </Field>
+
+              {showCustomAuditGoal ? (
+                <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                  <Field label="Custom goals" required={false}>
+                    <TextInput
+                      required={false}
+                      value={customAuditGoal}
+                      onChange={(e) => setCustomAuditGoal(e.target.value)}
+                      placeholder="Type a goal not listed above…"
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        const v = customAuditGoal.trim();
+                        if (!v) return;
+                        setPayload((p) => ({
+                          ...p,
+                          auditGoals: Array.from(new Set([...p.auditGoals, v])),
+                        }));
+                        setCustomAuditGoal("");
+                      }}
+                    />
+                  </Field>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      const v = customAuditGoal.trim();
+                      if (!v) return;
+                      setPayload((p) => ({
+                        ...p,
+                        auditGoals: Array.from(new Set([...p.auditGoals, v])),
+                      }));
+                      setCustomAuditGoal("");
+                    }}
+                    disabled={!customAuditGoal.trim()}
+                  >
+                    Save goal
+                  </Button>
+                </div>
+              ) : null}
 
               {/* ADDED: show custom goals (values not in preset options) */}
               {payload.auditGoals.some((g) => !auditGoalOptionValues.has(g)) ? (
@@ -1695,47 +1746,6 @@ export function AuditForm() {
                     ))}
                 </div>
               ) : null}
-
-              {/* ADDED: manual audit goal */}
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                <Field label="Add a custom goal (optional)" required={false}>
-                  <TextInput
-                    required={false}
-                    value={customAuditGoal}
-                    onChange={(e) => setCustomAuditGoal(e.target.value)}
-                    placeholder="Type a goal not listed above…"
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
-                      e.preventDefault();
-                      const v = customAuditGoal.trim();
-                      if (!v) return;
-                      setPayload((p) => {
-                        const next = new Set(p.auditGoals);
-                        next.add(v);
-                        return { ...p, auditGoals: Array.from(next) };
-                      });
-                      setCustomAuditGoal("");
-                    }}
-                  />
-                </Field>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    const v = customAuditGoal.trim();
-                    if (!v) return;
-                    setPayload((p) => {
-                      const next = new Set(p.auditGoals);
-                      next.add(v);
-                      return { ...p, auditGoals: Array.from(next) };
-                    });
-                    setCustomAuditGoal("");
-                  }}
-                  disabled={!customAuditGoal.trim()}
-                >
-                  Add
-                </Button>
-              </div>
 
               {/* UPDATED: Reason for Audit (free text) */}
               <Field

@@ -9,12 +9,14 @@ export function Field({
   hint,
   error,
   required = true,
+  action,
   children,
 }: PropsWithChildren<{
   label: ReactNode;
   hint?: string;
   error?: string;
   required?: boolean;
+  action?: ReactNode;
 }>) {
   return (
     <div className="space-y-2">
@@ -25,6 +27,7 @@ export function Field({
         {hint ? (
           <span className="text-xs text-[color:var(--ink-muted)]">{hint}</span>
         ) : null}
+        {action}
       </div>
       {children}
       {error ? (
