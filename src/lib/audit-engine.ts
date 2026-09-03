@@ -2436,7 +2436,7 @@ export async function auditOneBucket(args: {
   const questionChunks = chunkArray(qs, 2);
 
   for (const questionChunk of questionChunks) {
-    const prompt = `${bucketPrompt(intake, bucket, questionChunk)}\n\nBucket-focused evidence summary:\n${bucketEvidenceSummary}\n`;
+    const prompt = `${bucketPrompt(intake, bucket, questionChunk)}\n\nDo not truncate any evidence, observation, or recommendation. Never end a field with \"...\"; write complete sentences using the available evidence.\n\nBucket-focused evidence summary:\n${bucketEvidenceSummary}\n`;
     let raw: string;
     try {
       raw = await openRouterChat(prompt, { modelOverride: args.modelOverride });
