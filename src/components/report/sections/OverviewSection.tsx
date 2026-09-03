@@ -58,14 +58,8 @@ function scoreToneClasses(value: unknown) {
   };
 }
 
-function metricToneClass(value: number | null | undefined, label?: string) {
+function metricToneClass(value: number | null | undefined) {
   const tone = scoreToneFromValue(value);
-  const isLowerBetter = label === "Drop-off Rate";
-  if (isLowerBetter) {
-    if (tone === "good") return "text-[color:var(--report-red)]";
-    if (tone === "warning") return "text-[color:var(--report-orange)]";
-    return "text-[color:var(--report-green-font)]";
-  }
   if (tone === "critical") return "text-[color:var(--report-red)]";
   if (tone === "warning") return "text-[color:var(--report-orange)]";
   return "text-[color:var(--report-green-font)]";
@@ -390,13 +384,13 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                   </div>
                   <div className="mt-1 flex items-end gap-0.5">
                     <div
-                      className={`text-[24px] font-bold leading-none ${metricToneClass(metric.value, metric.label)}`}
+                      className={`text-[24px] font-bold leading-none ${metricToneClass(metric.value)}`}
                       style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
                     >
                       {metric.value === null ? "—" : metric.value}
                     </div>
                     <div
-                      className={`text-[16px] font-bold leading-none ${metricToneClass(metric.value, metric.label)}`}
+                      className={`text-[16px] font-bold leading-none ${metricToneClass(metric.value)}`}
                       style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
                     >
                       {metric.value === null ? "" : "%"}
