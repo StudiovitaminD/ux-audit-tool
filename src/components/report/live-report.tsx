@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { asString, buildReportViewModel, type AnyRecord } from "@/lib/report-model";
 import { buildReportPages } from "@/components/report/report-pages";
 import { recalculateEditedReport, updateReportAnswer } from "@/lib/report-editing";
@@ -38,6 +38,7 @@ export function LiveReport({
   const [page, setPage] = useState(0);
   const [pageTurnDirection, setPageTurnDirection] = useState<"next" | "prev">("next");
   const [zoom, setZoom] = useState(0.82);
+  const dragStartX = useRef<number | null>(null);
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
     Array.isArray(vm.competitorAnalysis.competitors) ? vm.competitorAnalysis.competitors : [],
   );
@@ -143,6 +144,20 @@ export function LiveReport({
     setPage(boundedPage);
   }
 
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (zoom <= 0.7) return;
+    dragStartX.current = event.clientX;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragStartX.current === null) return;
+    const delta = event.clientX - dragStartX.current;
+    dragStartX.current = null;
+    if (Math.abs(delta) < 60) return;
+    goToPage(page + (delta < 0 ? 2 : -2));
+  }
+
   useEffect(() => {
     setPage((currentPage) => Math.max(0, Math.min(currentPage, Math.max(0, pages.length - 1))));
   }, [pages.length]);
@@ -235,6 +250,10 @@ export function LiveReport({
       <div
         className="mt-5 flex-1 min-h-0 overflow-x-auto"
         data-report-live-canvas
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => { dragStartX.current = null; }}
+        style={{ cursor: zoom > 0.7 ? "grab" : undefined }}
         data-current-page={page + 1}
         data-total-pages={pages.length}
       >
@@ -315,10 +334,10 @@ export function LiveReport({
         </div>
         {current.variant !== "cover" && nextPage ? (
           <div
-            className={`report-a4-page print-page print-report-root report-page-spread-next ${
+            className={`report-a4-page print-page print-report-root report-page-spread-next report-page-turn report-page-turn-${pageTurnDirection} ${
               nextPage.title === "Overview" ? "report-a4-page-overview" : "bg-[color:var(--white)]"
             }`}
-            style={{ transform: `scale(${zoom})`, left: `${794 * zoom}px` }}
+            style={{ transform: `scale(${zoom})`, left: `${794 * zoom}px`, ["--report-page-zoom" as string]: zoom } as React.CSSProperties}
             data-report-live-page
             data-report-page-title={nextPage.title}
           >
