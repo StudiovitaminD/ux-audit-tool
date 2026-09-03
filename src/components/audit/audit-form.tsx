@@ -418,6 +418,7 @@ export function AuditForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [aiFilling, setAiFilling] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [transcriptFileName, setTranscriptFileName] = useState<string | null>(null);
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
@@ -729,6 +730,33 @@ export function AuditForm() {
       setExtractError(getErrorMessage(e));
     } finally {
       setExtracting(false);
+    }
+  }
+
+  async function fillFormUsingAi() {
+    const websiteUrl = payload.productUrl.trim();
+    if (!websiteUrl) {
+      setError("Enter a product URL first.");
+      return;
+    }
+    setError(null);
+    setAiFilling(true);
+    try {
+      const res = await fetch("/api/intake/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ websiteUrl, current: payload }),
+      });
+      const data = (await res.json()) as unknown;
+      if (!res.ok) throw new Error(getErrorMessage(data || "AI form fill failed."));
+      const patch = data && typeof data === "object" && "patch" in data
+        ? (data as Record<string, unknown>).patch
+        : null;
+      setPayload((p) => deepMerge(p, patch));
+    } catch (e) {
+      setError(getErrorMessage(e) || "AI form fill failed.");
+    } finally {
+      setAiFilling(false);
     }
   }
 
@@ -1605,6 +1633,9 @@ export function AuditForm() {
               <div>
                 <h2 className="font-display text-lg font-semibold tracking-tight">Audit Details</h2>
               </div>
+              <Button type="button" variant="primary" onClick={fillFormUsingAi} disabled={aiFilling}>
+                {aiFilling ? "Filling…" : "Fill form using AI"}
+              </Button>
             </div>
             <div className="grid gap-4 lg:grid-cols-3">
               <Field label="Product type" error={showErrorsForStep ? validation.productType : undefined}>

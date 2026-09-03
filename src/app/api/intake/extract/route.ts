@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const BodySchema = z.object({
-  transcript: z.string().min(1),
+  transcript: z.string().optional(),
+  websiteUrl: z.string().url().optional(),
   current: z.unknown().optional(),
+}).refine((body) => Boolean(body.transcript?.trim() || body.websiteUrl), {
+  message: "Provide a transcript or website URL",
 });
 
 function safeJsonParse<T>(raw: string): T | null {
@@ -106,6 +109,22 @@ function extractOpenRouterContent(raw: string): string {
 export async function POST(req: Request) {
   try {
     const parsedBody = BodySchema.parse(await req.json());
+    let sourceText = parsedBody.transcript?.trim() || "";
+    if (!sourceText && parsedBody.websiteUrl) {
+      const page = await fetch(parsedBody.websiteUrl, {
+        headers: { "User-Agent": "UX Audit Tool intake reader" },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!page.ok) throw new Error(`Could not read website (${page.status})`);
+      const html = await page.text();
+      sourceText = html
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 30_000);
+    }
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
@@ -126,17 +145,17 @@ export async function POST(req: Request) {
       !normalizedModel.includes("gpt-oss");
 
     const system = [
-      "You are an expert UX researcher helping to fill a UX audit intake form from a meeting transcript.",
+      "You are an expert UX researcher helping to fill a UX audit intake form from a transcript or product website.",
       "Return ONLY valid JSON. No markdown, no prose.",
       "If you are unsure about a field, omit it (do NOT guess).",
       "Never return undefined; omit keys instead.",
       "Prefer short strings. For arrays, include only items you are confident about.",
     ].join("\n");
 
-    const user = `Extract as much as possible from this transcript into an intake PATCH object.
+    const user = `Extract as much as possible from this source into an intake PATCH object.
 
-Transcript:
-${parsedBody.transcript}
+Source:
+${sourceText}
 
 Current intake (may be empty; use as context, do not overwrite with blanks):
 ${JSON.stringify(parsedBody.current ?? {}, null, 2)}
