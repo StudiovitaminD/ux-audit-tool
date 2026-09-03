@@ -1941,7 +1941,7 @@ export function AuditForm() {
 
                     <div className="space-y-4">
                       <Field
-                        label="Primary users (Who is this for?)"
+                        label="Users"
                         error={showErrorsForStep && index === 0 ? validation.primaryUser : undefined}
                       >
                         <TextInput
