@@ -37,6 +37,7 @@ export function LiveReport({
   const vm = useMemo(() => buildReportViewModel(editableReport), [editableReport]);
   const [page, setPage] = useState(0);
   const [pageTurnDirection, setPageTurnDirection] = useState<"next" | "prev">("next");
+  const [zoom, setZoom] = useState(0.82);
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
     Array.isArray(vm.competitorAnalysis.competitors) ? vm.competitorAnalysis.competitors : [],
   );
@@ -237,14 +238,19 @@ export function LiveReport({
         data-total-pages={pages.length}
       >
         <div
+          className="report-page-stage mt-5"
+          style={{ width: `${794 * zoom}px`, height: `${1123 * zoom}px` }}
+        >
+        <div
           key={page}
-          className={`report-a4-page print-page mt-5 print-report-root report-page-turn report-page-turn-${pageTurnDirection} ${
+          className={`report-a4-page print-page print-report-root report-page-turn report-page-turn-${pageTurnDirection} ${
             current.variant === "cover"
               ? "report-a4-page-cover bg-[#fc6d27]"
               : current.title === "Overview"
                 ? "report-a4-page-overview"
               : "bg-[color:var(--white)]"
           }`}
+          style={{ ["--report-page-zoom" as string]: zoom } as React.CSSProperties}
           data-report-live-page
           data-report-page-title={current.title}
         >
@@ -306,6 +312,7 @@ export function LiveReport({
             ) : null}
           </div>
         </div>
+        </div>
 
         <div
           className="no-print fixed bottom-6 left-1/2 z-30 w-[794px] max-w-[calc(100%-3rem)] -translate-x-1/2 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
@@ -345,6 +352,25 @@ export function LiveReport({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="floatingBarSecondary"
+                onClick={() => setZoom((value) => Math.max(0.6, Math.round((value - 0.1) * 100) / 100))}
+                disabled={zoom <= 0.6}
+                aria-label="Zoom out"
+              >
+                −
+              </button>
+              <span className="text-sm text-white/70" aria-live="polite">{Math.round(zoom * 100)}%</span>
+              <button
+                type="button"
+                className="floatingBarSecondary"
+                onClick={() => setZoom((value) => Math.min(1.2, Math.round((value + 0.1) * 100) / 100))}
+                disabled={zoom >= 1.2}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
               <button
                 type="button"
                 className="floatingBarSecondary"
