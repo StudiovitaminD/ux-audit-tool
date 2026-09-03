@@ -17,7 +17,9 @@ export function Field({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-4">
-        <label className="text-sm font-medium text-[color:var(--ink)]">{label}</label>
+        <label className="text-sm font-medium text-[color:var(--ink)]">
+          {label} <span className="text-[color:var(--accent)]" aria-label="required">*</span>
+        </label>
         {hint ? (
           <span className="text-xs text-[color:var(--ink-muted)]">{hint}</span>
         ) : null}
@@ -46,6 +48,7 @@ export function TextInput({
   lang,
   autoCorrect,
   autoCapitalize,
+  required,
   ...props
 }: ComponentProps<"input">) {
   const enableSpellCheck = spellCheck ?? shouldSpellCheckInput(type);
@@ -64,6 +67,7 @@ export function TextInput({
         "focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/15",
         className,
       )}
+      required={required ?? true}
       {...props}
     />
   );
@@ -71,6 +75,7 @@ export function TextInput({
 
 export function Select({
   className,
+  required,
   ...props
 }: ComponentProps<"select">) {
   return (
@@ -81,6 +86,7 @@ export function Select({
         "focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent)]/15",
         className,
       )}
+      required={required ?? true}
       style={{
         backgroundImage:
           "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%23222222' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
@@ -99,6 +105,7 @@ export function Textarea({
   lang,
   autoCorrect,
   autoCapitalize,
+  required,
   ...props
 }: ComponentProps<"textarea">) {
   const enableSpellCheck = spellCheck ?? true;
@@ -109,6 +116,7 @@ export function Textarea({
       lang={enableSpellCheck ? lang ?? "en-US" : lang}
       autoCorrect={enableSpellCheck ? autoCorrect ?? "on" : autoCorrect}
       autoCapitalize={enableSpellCheck ? autoCapitalize ?? "sentences" : autoCapitalize}
+      required={required ?? true}
       className={cx(
         "min-h-28 w-full resize-y rounded-[var(--radius-sm)] border bg-[color:var(--white)] px-4 py-3 text-[15px] outline-none text-[color:var(--ink)]",
         "border-[color:var(--cream-dark)] transition-all",

@@ -1739,9 +1739,7 @@ export function AuditForm() {
               {/* UPDATED: Reason for Audit (free text) */}
               <Field
                 label={
-                  <>
-                    About the product <span className="text-[color:var(--accent)]" aria-label="required">*</span>
-                  </>
+                  <>About the product</>
                 }
                 error={showErrorsForStep ? validation.knownProblem : undefined}
               >
