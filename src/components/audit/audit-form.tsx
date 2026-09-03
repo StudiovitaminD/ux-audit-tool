@@ -1678,10 +1678,11 @@ export function AuditForm() {
               </div>
 
               {showCustomAuditGoal ? (
-                <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                  <Field label="Custom goals" required={false}>
+                <div className="relative">
                     <TextInput
                       required={false}
+                      aria-label="Custom goal"
+                      className="pr-36"
                       value={customAuditGoal}
                       onChange={(e) => setCustomAuditGoal(e.target.value)}
                       placeholder="Type a goal not listed above…"
@@ -1697,23 +1698,23 @@ export function AuditForm() {
                         setCustomAuditGoal("");
                       }}
                     />
-                  </Field>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      const v = customAuditGoal.trim();
-                      if (!v) return;
-                      setPayload((p) => ({
-                        ...p,
-                        auditGoals: Array.from(new Set([...p.auditGoals, v])),
-                      }));
-                      setCustomAuditGoal("");
-                    }}
-                    disabled={!customAuditGoal.trim()}
-                  >
-                    Save goal
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2"
+                      onClick={() => {
+                        const v = customAuditGoal.trim();
+                        if (!v) return;
+                        setPayload((p) => ({
+                          ...p,
+                          auditGoals: Array.from(new Set([...p.auditGoals, v])),
+                        }));
+                        setCustomAuditGoal("");
+                      }}
+                      disabled={!customAuditGoal.trim()}
+                    >
+                      Save goal
+                    </Button>
                 </div>
               ) : null}
 
