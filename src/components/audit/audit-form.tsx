@@ -1777,7 +1777,7 @@ export function AuditForm() {
             <SectionHeader
               title="Audit Buckets"
             />
-            <div className="mt-4 flex justify-end">
+            <div className="my-[10px] flex justify-end">
               <Button
                 type="button"
                 variant="secondary"
@@ -1788,7 +1788,7 @@ export function AuditForm() {
                 {allBucketsSelected ? "Unselect all" : "Select all"}
               </Button>
             </div>
-            <div className="mt-3">
+            <div>
               <BucketPicker
                 value={payload.selectedBuckets}
                 onChange={(next) =>
