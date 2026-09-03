@@ -1696,12 +1696,13 @@ export function AuditForm() {
                           auditGoals: Array.from(new Set([...p.auditGoals, v])),
                         }));
                         setCustomAuditGoal("");
+                        setShowCustomAuditGoal(false);
                       }}
                     />
                     <Button
                       type="button"
                       variant="secondary"
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2"
+                      className="absolute right-2 top-1.5 bottom-1.5"
                       onClick={() => {
                         const v = customAuditGoal.trim();
                         if (!v) return;
@@ -1710,6 +1711,7 @@ export function AuditForm() {
                           auditGoals: Array.from(new Set([...p.auditGoals, v])),
                         }));
                         setCustomAuditGoal("");
+                        setShowCustomAuditGoal(false);
                       }}
                       disabled={!customAuditGoal.trim()}
                     >
