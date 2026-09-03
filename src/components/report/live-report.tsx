@@ -318,7 +318,7 @@ export function LiveReport({
             className={`report-a4-page print-page print-report-root report-page-spread-next report-page-turn report-page-turn-${pageTurnDirection} ${
               nextPage.title === "Overview" ? "report-a4-page-overview" : "bg-[color:var(--white)]"
             }`}
-            style={{ transform: `scale(${zoom})`, left: "794px", ["--report-page-zoom" as string]: zoom } as React.CSSProperties}
+            style={{ transform: `scale(${zoom})`, left: `${794 * zoom}px`, ["--report-page-zoom" as string]: zoom } as React.CSSProperties}
             data-report-live-page
             data-report-page-title={nextPage.title}
           >
