@@ -11,6 +11,11 @@ function scoreFromText(value: unknown) {
   return match ? clampPercent(Number(match[1])) : null;
 }
 
+function formatScore(value: unknown) {
+  const score = typeof value === "number" ? value : scoreFromText(value);
+  return score === null || !Number.isFinite(score) ? null : Math.round(score);
+}
+
 function experienceLabelFromScore(value: unknown) {
   const score = typeof value === "number" ? value : scoreFromText(value);
   if (score === null || !Number.isFinite(score)) return "—";
@@ -246,7 +251,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                 }`}
                 style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
               >
-                {displayedOverallScore ?? "—"}/100
+                {formatScore(displayedOverallScore) ?? "—"}/100
               </span>
               <span
                 aria-hidden="true"
@@ -326,7 +331,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                         className={`text-[24px] font-bold leading-none ${tone.score}`}
                         style={{ fontFamily: 'var(--font-roboto-condensed), "Roboto Condensed", sans-serif' }}
                       >
-                        {p.score ?? "—"}
+                        {formatScore(p.score) ?? "—"}
                       </div>
                       <div
                         className={`text-[16px] font-bold leading-none ${tone.suffix}`}
@@ -456,7 +461,7 @@ export function OverviewSection({ vm }: SharedSectionProps) {
                   const score =
                     rawScore.toLowerCase() === "insufficient evidence"
                       ? "Not Tested"
-                      : rawScore || "Not Tested";
+                      : formatScore(row?.score)?.toString() || rawScore || "Not Tested";
                   const experience = row ? experienceLabelFromScore(scoreFromText(row?.score)) : "—";
                   const priority = row ? formatPriority(row.priority) : "—";
                   const healthColors =
