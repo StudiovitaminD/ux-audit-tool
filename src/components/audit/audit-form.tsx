@@ -1670,7 +1670,7 @@ export function AuditForm() {
                 </Field>
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="primary"
                   onClick={() => setShowCustomAuditGoal((visible) => !visible)}
                 >
                   {showCustomAuditGoal ? "Hide custom goals" : "Add custom goals"}
