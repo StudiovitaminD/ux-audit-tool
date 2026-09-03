@@ -1562,36 +1562,42 @@ export function AuditForm() {
       {/* ADDED */}
       {loading || aiFilling ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 backdrop-blur-md transition-opacity">
-          <div className="w-[min(480px,92vw)] rounded-2xl border border-[color:var(--cream-dark)] bg-[color:var(--card)] p-8 text-center shadow-2xl relative overflow-hidden">
+          <div className="book-loader" role="status" aria-label="Loading">
+            <div className="book-loader__shadow" />
+            <div className="book-loader__page" />
+            <div className="book-loader__page book-loader__page--2" />
+            <div className="book-loader__page book-loader__page--3" />
+            <div className="book-loader__page book-loader__page--4" />
+            <div className="book-loader__page book-loader__page--5" />
             {/* Elegant Background Glow */}
-            <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-[color:var(--accent)]/10 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-[color:var(--accent)]/10 blur-3xl pointer-events-none" />
+            <div className="hidden absolute -top-24 -left-24 w-48 h-48 rounded-full bg-[color:var(--accent)]/10 blur-3xl pointer-events-none" />
+            <div className="hidden absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-[color:var(--accent)]/10 blur-3xl pointer-events-none" />
 
-            <div className="mx-auto flex size-16 items-center justify-center rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] shadow-inner">
+            <div className="hidden mx-auto flex size-16 items-center justify-center rounded-full border border-[color:var(--cream-dark)] bg-[color:var(--cream)] shadow-inner">
               <svg className="w-8 h-8 text-[color:var(--accent)] animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
             </div>
             
-            <h2 className="mt-6 text-xl font-bold tracking-tight text-[color:var(--ink)]">
+            <h2 className="hidden mt-6 text-xl font-bold tracking-tight text-[color:var(--ink)]">
               {aiFilling ? "Filling form fields…" : creatingMessages[creatingIdx]}
             </h2>
             
-            <p className="mt-2 text-sm text-[color:var(--ink-muted)]">
+            <p className="hidden mt-2 text-sm text-[color:var(--ink-muted)]">
               {aiFilling
                 ? "Analyzing the product and updating your audit form."
                 : "Running heuristic audits & generating your customized report."}
             </p>
 
-            <div className="mt-6 w-full h-1.5 bg-[color:var(--cream-dark)] rounded-full overflow-hidden relative">
+            <div className="hidden mt-6 w-full h-1.5 bg-[color:var(--cream-dark)] rounded-full overflow-hidden relative">
               <div 
                 className="h-full bg-[color:var(--accent)] rounded-full transition-all duration-1000 ease-out" 
                 style={{ width: `${((creatingIdx + 1) / creatingMessages.length) * 100}%` }}
               />
             </div>
 
-            <div className="mt-4 text-xs text-[color:var(--ink-faint)]">
+            <div className="hidden mt-4 text-xs text-[color:var(--ink-faint)]">
               Keep this tab open · Assembling deck slide {creatingIdx + 1} of {creatingMessages.length}
             </div>
           </div>

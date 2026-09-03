@@ -2,6 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+.book-loader,
+.book-loader__shadow,
+.book-loader__page {
+  animation: book-cover 5s ease-in-out infinite;
+}
+.book-loader {
+  position: relative;
+  width: 8em;
+  height: 6em;
+  padding: 0.25em;
+  border-radius: 0.25em;
+  background: #ff8a1f;
+  box-shadow: 0 0.25em 0.5em #0004, 0 0 0 0.25em #e56f0b inset;
+  perspective: 37.5em;
+  transform-style: preserve-3d;
+}
+.book-loader__shadow,
+.book-loader__page { position: absolute; left: 0.25em; width: calc(50% - 0.25em); }
+.book-loader__shadow { top: calc(100% - 0.25em); height: 3.75em; filter: blur(0.25em); transform: scaleY(0); transform-origin: 100% 0; animation-name: book-shadow; }
+.book-loader__page { height: calc(100% - 0.5em); background: #fff; transform-origin: 100% 50%; animation-name: book-page-1; }
+.book-loader__page--2 { animation-name: book-page-2; }
+.book-loader__page--3 { animation-name: book-page-3; }
+.book-loader__page--4 { animation-name: book-page-4; }
+.book-loader__page--5 { animation-name: book-page-5; }
+@keyframes book-cover { 0%, 5%, 45%, 55%, 95%, 100% { background-color: #ff9b35; } 10%, 40%, 60%, 90% { background-color: #e56f0b; } }
+@keyframes book-page-1 { 0%, 100% { transform: rotateY(.4deg); } 10%, 40%, 60%, 90% { transform: rotateY(180deg); } }
+@keyframes book-page-2 { 0%, 15%, 85%, 100% { transform: rotateY(.3deg); } 20%, 80% { transform: rotateY(179.9deg); } }
+@keyframes book-page-3 { 0%, 20%, 80%, 100% { transform: rotateY(.2deg); } 30%, 70% { transform: rotateY(179.8deg); } }
+@keyframes book-page-4 { 0%, 25%, 75%, 100% { transform: rotateY(.1deg); } 40%, 60% { transform: rotateY(179.7deg); } }
+@keyframes book-page-5 { 0%, 30%, 70%, 100% { transform: rotateY(0); } 50% { transform: rotateY(179.6deg); } }
+@keyframes book-shadow { 0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { transform: scaleY(0) rotateY(180deg); } 5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { transform: scaleY(.2) rotateY(90deg); } }
+
 @import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap");
 
