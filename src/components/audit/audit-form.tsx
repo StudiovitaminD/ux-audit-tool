@@ -1939,7 +1939,7 @@ export function AuditForm() {
                       )}
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="space-y-4">
                       <Field
                         label="Primary users (Who is this for?)"
                         error={showErrorsForStep && index === 0 ? validation.primaryUser : undefined}
@@ -1952,57 +1952,53 @@ export function AuditForm() {
                           placeholder="e.g. Marketing manager, student, buyer"
                         />
                       </Field>
-                      <Field label="Age group">
-                        <TextInput
-                          value={persona.userAge}
-                          onChange={(e) => updatePersonaCard(index, { userAge: e.target.value })}
-                          placeholder="e.g. 18-24, 25-34"
-                        />
-                      </Field>
-                      <Field label="User gender">
-                        <Select
-                          value={persona.userGender}
-                          onChange={(e) =>
-                            updatePersonaCard(index, { userGender: e.target.value })
-                          }
-                        >
-                          <option value="">Select…</option>
-                          <option value="women">Female</option>
-                          <option value="men">Male</option>
-                          <option value="both">Both</option>
-                        </Select>
-                      </Field>
-                      <Field label="User language">
-                        <TextInput
-                          value={persona.userLanguage}
-                          onChange={(e) =>
-                            updatePersonaCard(index, { userLanguage: e.target.value })
-                          }
-                          placeholder="e.g. English, Hindi"
-                        />
-                      </Field>
-                      <Field label="User preferred Platform">
-                        <Select
-                          value={persona.primaryUserIntent}
-                          onChange={(e) =>
-                            updatePersonaCard(index, { primaryUserIntent: e.target.value })
-                          }
-                        >
-                          <option value="">Select…</option>
-                          <option value="desktop">Desktop</option>
-                          <option value="mobile">Mobile</option>
-                          <option value="both">Both</option>
-                        </Select>
-                      </Field>
-                      <Field label="User geography">
-                        <TextInput
-                          value={persona.userGeography}
-                          onChange={(e) =>
-                            updatePersonaCard(index, { userGeography: e.target.value })
-                          }
-                          placeholder="India, Pune"
-                        />
-                      </Field>
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <Field label="Age group">
+                          <TextInput
+                            value={persona.userAge}
+                            onChange={(e) => updatePersonaCard(index, { userAge: e.target.value })}
+                            placeholder="e.g. 18-24, 25-34"
+                          />
+                        </Field>
+                        <Field label="User gender">
+                          <Select
+                            value={persona.userGender}
+                            onChange={(e) => updatePersonaCard(index, { userGender: e.target.value })}
+                          >
+                            <option value="">Select…</option>
+                            <option value="women">Female</option>
+                            <option value="men">Male</option>
+                            <option value="both">Both</option>
+                          </Select>
+                        </Field>
+                        <Field label="User preferred Platform">
+                          <Select
+                            value={persona.primaryUserIntent}
+                            onChange={(e) => updatePersonaCard(index, { primaryUserIntent: e.target.value })}
+                          >
+                            <option value="">Select…</option>
+                            <option value="desktop">Desktop</option>
+                            <option value="mobile">Mobile</option>
+                            <option value="both">Both</option>
+                          </Select>
+                        </Field>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field label="User language">
+                          <TextInput
+                            value={persona.userLanguage}
+                            onChange={(e) => updatePersonaCard(index, { userLanguage: e.target.value })}
+                            placeholder="e.g. English, Hindi"
+                          />
+                        </Field>
+                        <Field label="User geography">
+                          <TextInput
+                            value={persona.userGeography}
+                            onChange={(e) => updatePersonaCard(index, { userGeography: e.target.value })}
+                            placeholder="India, Pune"
+                          />
+                        </Field>
+                      </div>
                     </div>
 
                     <div className="mt-4">
