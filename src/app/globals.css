@@ -21,7 +21,7 @@
 .book-loader__shadow,
 .book-loader__page { position: absolute; left: 0.25em; width: calc(50% - 0.25em); }
 .book-loader__shadow { top: calc(100% - 0.25em); height: 3.75em; filter: blur(0.25em); transform: scaleY(0); transform-origin: 100% 0; animation-name: book-shadow; }
-.book-loader__page { height: calc(100% - 0.5em); background: #fff; transform-origin: 100% 50%; animation-name: book-page-1; }
+.book-loader__page { height: calc(100% - 0.5em); background-color: #fff; background-image: repeating-linear-gradient(#191919 0 0.125em, transparent 0.125em 0.5em), linear-gradient(90deg, transparent 87.5%, #dedede); background-repeat: no-repeat; background-position: center; background-size: 2.5em 4.125em, 100% 100%; transform-origin: 100% 50%; animation-name: book-page-1; }
 .book-loader__page--2 { animation-name: book-page-2; }
 .book-loader__page--3 { animation-name: book-page-3; }
 .book-loader__page--4 { animation-name: book-page-4; }
