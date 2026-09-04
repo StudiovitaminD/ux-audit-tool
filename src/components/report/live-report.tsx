@@ -253,7 +253,7 @@ export function LiveReport({
           style={{
             width: "1588px",
             height: "1123px",
-            transform: `scale(${zoom})`,
+            transform: `${page === 0 ? "translateX(-397px) " : ""}scale(${zoom})`,
             transformOrigin: "top center",
           }}
         >
