@@ -559,13 +559,6 @@ body.app-route :is(a.btnText, button.btnText) {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .report-page-turn,
-  .report-page-turn-prev {
-    animation: none;
-  }
-}
-
 .report-a4-page-inner {
   height: 100%;
   display: flex;
