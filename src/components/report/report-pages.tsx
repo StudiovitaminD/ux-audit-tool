@@ -53,7 +53,7 @@ export function buildReportPages({
     },
     {
       key: "overview",
-      title: "Overview",
+      title: "Overall",
       body: <OverviewSection vm={vm} />,
       locked: isLocked("overview"),
       variant: "standard",

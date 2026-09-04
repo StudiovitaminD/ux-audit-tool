@@ -247,7 +247,7 @@ export function LiveReport({
           className={`report-a4-page print-page print-report-root report-page-turn report-page-turn-${pageTurnDirection} ${
             current.variant === "cover"
               ? "report-a4-page-cover bg-[#fc6d27]"
-              : current.title === "Overview"
+              : current.title === "Overall"
                 ? "report-a4-page-overview"
               : "bg-[color:var(--white)]"
           }`}
@@ -278,7 +278,7 @@ export function LiveReport({
                   {current.showTitle !== false ? (
                     <div
                       className={`mb-5 flex flex-col items-start gap-1 self-stretch ${
-                        current.title === "Overview"
+                        current.title === "Overall"
                           ? "pb-0"
                           : "border-b border-[rgba(15,23,42,0.14)] pb-4"
                       }`}
@@ -316,7 +316,7 @@ export function LiveReport({
         {current.variant !== "cover" && nextPage ? (
           <div
             className={`report-a4-page print-page print-report-root report-page-spread-next report-page-turn report-page-turn-${pageTurnDirection} ${
-              nextPage.title === "Overview" ? "report-a4-page-overview" : "bg-[color:var(--white)]"
+              nextPage.title === "Overall" ? "report-a4-page-overview" : "bg-[color:var(--white)]"
             }`}
             style={{ transform: `scale(${zoom})`, left: `${794 * zoom}px`, ["--report-page-zoom" as string]: zoom } as React.CSSProperties}
             data-report-live-page
@@ -398,7 +398,7 @@ export function LiveReport({
                 type="button"
                 className="floatingBarSecondary"
                 data-report-prev
-                onClick={() => goToPage(page - 2)}
+                onClick={() => goToPage(page === 1 ? 0 : page - 2)}
                 disabled={page === 0}
                 aria-disabled={page === 0}
                 style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
@@ -412,7 +412,7 @@ export function LiveReport({
                 type="button"
                 className="floatingBarPrimary"
                 data-report-next
-                onClick={() => goToPage(page + 2)}
+                onClick={() => goToPage(page === 0 ? 1 : page + 2)}
                 disabled={page === pages.length - 1}
                 aria-disabled={page === pages.length - 1}
                 style={
