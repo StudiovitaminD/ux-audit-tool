@@ -243,7 +243,7 @@ export function LiveReport({
       />
 
       <div
-        className="mt-5 flex-1 min-h-0 overflow-x-hidden"
+        className="mt-5 flex w-full flex-1 min-h-0 justify-center overflow-x-hidden"
         data-report-live-canvas
         data-current-page={page + 1}
         data-total-pages={pages.length}
