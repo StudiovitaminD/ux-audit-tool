@@ -251,7 +251,7 @@ export function LiveReport({
         <div
           className="report-page-flipbook mx-auto mt-5"
           style={{
-            width: "1588px",
+            width: page === 0 ? "794px" : "1588px",
             height: "1123px",
             transform: `scale(${zoom})`,
             transformOrigin: "top center",
