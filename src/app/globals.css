@@ -523,8 +523,9 @@ body.app-route :is(a.btnText, button.btnText) {
   transform-origin: center right;
   transform-style: preserve-3d;
   backface-visibility: hidden;
+  will-change: transform;
   z-index: 2;
-  animation: report-page-turn-in 760ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation: report-page-turn-in 900ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 .report-page-turn-prev {
@@ -535,7 +536,7 @@ body.app-route :is(a.btnText, button.btnText) {
 @keyframes report-page-turn-in {
   from {
     opacity: 1;
-    transform: perspective(1800px) rotateY(88deg) scale(var(--report-page-zoom, 1));
+    transform: perspective(1800px) rotateY(180deg) scale(var(--report-page-zoom, 1));
     filter: drop-shadow(-28px 0 18px rgba(15, 23, 42, 0.28));
   }
   to {
@@ -548,7 +549,7 @@ body.app-route :is(a.btnText, button.btnText) {
 @keyframes report-page-turn-in-prev {
   from {
     opacity: 1;
-    transform: perspective(1800px) rotateY(-88deg) scale(var(--report-page-zoom, 1));
+    transform: perspective(1800px) rotateY(-180deg) scale(var(--report-page-zoom, 1));
     filter: drop-shadow(28px 0 18px rgba(15, 23, 42, 0.28));
   }
   to {
