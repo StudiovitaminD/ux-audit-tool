@@ -345,6 +345,7 @@ export function LiveReport({
         ) : null}
         {turningSnapshot ? (
           <div
+            key={`${page}-${pageTurnDirection}-${turningSnapshot.length}`}
             className={`report-turn-overlay report-turn-overlay-${pageTurnDirection}`}
             style={{ ["--report-page-zoom" as string]: zoom } as React.CSSProperties}
             dangerouslySetInnerHTML={{ __html: turningSnapshot }}
