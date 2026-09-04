@@ -315,7 +315,7 @@ export function LiveReport({
         </div>
         {current.variant !== "cover" && nextPage ? (
           <div
-            className={`report-a4-page print-page print-report-root report-page-spread-next report-page-turn report-page-turn-${pageTurnDirection} ${
+            className={`report-a4-page print-page print-report-root report-page-spread-next ${
               nextPage.title === "Overall" ? "report-a4-page-overview" : "bg-[color:var(--white)]"
             }`}
             style={{ transform: `scale(${zoom})`, left: `${794 * zoom}px`, ["--report-page-zoom" as string]: zoom } as React.CSSProperties}
