@@ -519,6 +519,35 @@ body.app-route :is(a.btnText, button.btnText) {
   transform-origin: top left;
 }
 
+.report-turn-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 794px;
+  height: 1123px;
+  z-index: 5;
+  transform-origin: center right;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  pointer-events: none;
+  animation: report-turn-out-next 900ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.report-turn-overlay-prev {
+  transform-origin: center left;
+  animation-name: report-turn-out-prev;
+}
+
+@keyframes report-turn-out-next {
+  from { transform: perspective(1800px) rotateY(0) scale(var(--report-page-zoom, 1)); }
+  to { transform: perspective(1800px) rotateY(-180deg) scale(var(--report-page-zoom, 1)); }
+}
+
+@keyframes report-turn-out-prev {
+  from { transform: perspective(1800px) rotateY(0) scale(var(--report-page-zoom, 1)); }
+  to { transform: perspective(1800px) rotateY(180deg) scale(var(--report-page-zoom, 1)); }
+}
+
 .report-page-turn {
   transform-origin: center right;
   transform-style: preserve-3d;

@@ -38,6 +38,7 @@ export function LiveReport({
   const [page, setPage] = useState(0);
   const [pageTurnDirection, setPageTurnDirection] = useState<"next" | "prev">("next");
   const [zoom, setZoom] = useState(0.82);
+  const [turningSnapshot, setTurningSnapshot] = useState<string | null>(null);
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
     Array.isArray(vm.competitorAnalysis.competitors) ? vm.competitorAnalysis.competitors : [],
   );
@@ -139,6 +140,13 @@ export function LiveReport({
   function goToPage(nextPage: number) {
     const boundedPage = Math.max(0, Math.min(pages.length - 1, nextPage));
     if (boundedPage === page) return;
+    const currentSheet = document.querySelector('[data-report-live-page="active"]');
+    if (currentSheet) {
+      setTurningSnapshot(
+        currentSheet.outerHTML.replace(/\sreport-page-turn(?:-prev)?/g, ""),
+      );
+      window.setTimeout(() => setTurningSnapshot(null), 900);
+    }
     setPageTurnDirection(boundedPage > page ? "next" : "prev");
     setPage(boundedPage);
   }
@@ -252,7 +260,7 @@ export function LiveReport({
               : "bg-[color:var(--white)]"
           }`}
           style={{ ["--report-page-zoom" as string]: zoom } as React.CSSProperties}
-          data-report-live-page
+          data-report-live-page="active"
           data-report-page-title={current.title}
         >
           <div className={`report-a4-page-inner relative ${current.variant === "cover" ? "h-full" : ""}`}>
@@ -334,6 +342,14 @@ export function LiveReport({
               </div>
             </div>
           </div>
+        ) : null}
+        {turningSnapshot ? (
+          <div
+            className={`report-turn-overlay report-turn-overlay-${pageTurnDirection}`}
+            style={{ ["--report-page-zoom" as string]: zoom } as React.CSSProperties}
+            dangerouslySetInnerHTML={{ __html: turningSnapshot }}
+            aria-hidden="true"
+          />
         ) : null}
         </div>
 
