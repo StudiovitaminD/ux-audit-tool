@@ -248,7 +248,7 @@ export function LiveReport({
         data-current-page={page + 1}
         data-total-pages={pages.length}
       >
-        <div className="report-page-flipbook mx-auto mt-5" style={{ width: "1588px", height: "1123px", transform: `${page === 0 ? "translateX(-397px) " : ""}scale(${zoom})`, transformOrigin: "top center" }}>
+        <div className="report-page-flipbook mx-auto mt-5" style={{ width: "1588px", height: "1123px", transform: `scale(${zoom})`, transformOrigin: "top center" }}>
           <HTMLFlipBook
             ref={flipBookRef}
             className="report-flipbook-canvas"
@@ -267,7 +267,7 @@ export function LiveReport({
             usePortrait={false}
             drawShadow
             maxShadowOpacity={0.45}
-            flippingTime={900}
+            flippingTime={1400}
             mobileScrollSupport={false}
             clickEventForward
             useMouseEvents
