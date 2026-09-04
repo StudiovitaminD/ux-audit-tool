@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import HTMLFlipBook from "react-pageflip";
 import { asString, buildReportViewModel, type AnyRecord } from "@/lib/report-model";
 import { buildReportPages } from "@/components/report/report-pages";
 import { recalculateEditedReport, updateReportAnswer } from "@/lib/report-editing";
@@ -38,6 +39,7 @@ export function LiveReport({
   const [page, setPage] = useState(0);
   const [pageTurnDirection, setPageTurnDirection] = useState<"next" | "prev">("next");
   const [zoom, setZoom] = useState(0.82);
+  const flipBookRef = useRef<any>(null);
   const [turningSnapshot, setTurningSnapshot] = useState<string | null>(null);
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
     Array.isArray(vm.competitorAnalysis.competitors) ? vm.competitorAnalysis.competitors : [],
@@ -246,8 +248,68 @@ export function LiveReport({
         data-current-page={page + 1}
         data-total-pages={pages.length}
       >
+        <div className="report-page-flipbook mx-auto mt-5" style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}>
+          <HTMLFlipBook
+            ref={flipBookRef}
+            className="report-flipbook-canvas"
+            style={{}}
+            width={794}
+            height={1123}
+            size="fixed"
+            startPage={page}
+            minWidth={320}
+            maxWidth={794}
+            minHeight={453}
+            maxHeight={1123}
+            startZIndex={0}
+            autoSize
+            showCover
+            usePortrait={false}
+            drawShadow
+            maxShadowOpacity={0.45}
+            flippingTime={900}
+            mobileScrollSupport={false}
+            clickEventForward
+            useMouseEvents
+            swipeDistance={30}
+            showPageCorners
+            disableFlipByClick={false}
+            onFlip={(event) => setPage(Number(event.data))}
+          >
+            {pages.map((reportPage, index) => (
+              <div
+                key={`${reportPage.key}-${index}`}
+                className={`report-a4-page print-page print-report-root ${
+                  reportPage.variant === "cover"
+                    ? "report-a4-page-cover bg-[#fc6d27]"
+                    : reportPage.title === "Overall"
+                      ? "report-a4-page-overview"
+                      : "bg-[color:var(--white)]"
+                }`}
+              >
+                <div className={`report-a4-page-inner relative ${reportPage.variant === "cover" ? "h-full" : ""}`}>
+                  {reportPage.variant === "cover" ? reportPage.body : (
+                    <div className="flex h-full min-h-0 flex-col">
+                      <div className="report-a4-page-body">
+                        {reportPage.showTitle !== false ? (
+                          <div className={`mb-5 flex flex-col items-start gap-1 self-stretch ${reportPage.title === "Overall" ? "pb-0" : "border-b border-[rgba(15,23,42,0.14)] pb-4"}`}>
+                            <div className="text-[24px] font-bold leading-normal text-[color:var(--report-black)]">{reportPage.title}</div>
+                          </div>
+                        ) : null}
+                        {reportPage.body}
+                      </div>
+                      <div className="report-a4-page-footer mt-auto h-[30px] shrink-0 self-stretch border-t border-[rgba(252,109,39,0.20)] bg-[color:var(--report-orange)] text-[14px] leading-5 text-[color:var(--report-white)]">
+                        <div className="report-a4-page-footer-inner flex h-full items-center justify-between px-8 py-1.5"><div>Page {index + 1}</div><div>UX Audit Report</div></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </HTMLFlipBook>
+        </div>
         <div
-          className="report-page-stage mt-5"
+          className="report-page-stage mt-5 hidden"
           style={{ width: `${794 * zoom * (current.variant === "cover" || !nextPage ? 1 : 2)}px`, height: `${1123 * zoom}px` }}
         >
         <div
@@ -415,7 +477,7 @@ export function LiveReport({
                 type="button"
                 className="floatingBarSecondary"
                 data-report-prev
-                onClick={() => goToPage(page === 1 ? 0 : page - 2)}
+                onClick={() => flipBookRef.current?.pageFlip().flipPrev()}
                 disabled={page === 0}
                 aria-disabled={page === 0}
                 style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
@@ -429,7 +491,7 @@ export function LiveReport({
                 type="button"
                 className="floatingBarPrimary"
                 data-report-next
-                onClick={() => goToPage(page === 0 ? 1 : page + 2)}
+                onClick={() => flipBookRef.current?.pageFlip().flipNext()}
                 disabled={page === pages.length - 1}
                 aria-disabled={page === pages.length - 1}
                 style={
