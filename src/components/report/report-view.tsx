@@ -352,6 +352,7 @@ export function ReportView() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
   const [reportComments, setReportComments] = useState<Record<string, string>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const report = useMemo(() => loadLastReport<unknown>(), []);
   const filteredReportHistory = useMemo(() => {
@@ -954,15 +955,20 @@ export function ReportView() {
                           {editingCommentId === item.id ? (
                             <div className="space-y-2">
                               <textarea
-                                value={reportComments[item.id] || ""}
-                                onChange={(event) => updateReportComment(item.id, event.target.value)}
+                                value={commentDrafts[item.id] ?? reportComments[item.id] ?? ""}
+                                onChange={(event) => setCommentDrafts((current) => ({ ...current, [item.id]: event.target.value }))}
                                 placeholder="Add a note about this report"
                                 aria-label={`Comment for ${item.productName}`}
                                 className="min-h-20 w-full rounded-xl border border-[color:var(--cream-dark)] bg-white px-3 py-2 text-sm text-[color:var(--ink)] outline-none focus:border-[#fc9223]"
                               />
-                              <button type="button" className="btnSecondary text-sm" onClick={() => setEditingCommentId(null)}>
-                                Save comment
-                              </button>
+                              <div className="flex items-center gap-3">
+                                <button type="button" className="btnPrimary text-sm" onClick={() => { updateReportComment(item.id, commentDrafts[item.id] ?? ""); setEditingCommentId(null); }}>
+                                  Save comment
+                                </button>
+                                <button type="button" className="btnSecondary text-sm" onClick={() => setEditingCommentId(null)}>
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
                           ) : null}
                           {editingCommentId !== item.id && reportComments[item.id] ? (
@@ -982,7 +988,7 @@ export function ReportView() {
                         <button
                           type="button"
                           data-no-card-nav
-                          onClick={() => setEditingCommentId(item.id)}
+                          onClick={() => { setCommentDrafts((current) => ({ ...current, [item.id]: reportComments[item.id] || "" })); setEditingCommentId(item.id); }}
                           className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--cream-dark)] bg-white text-[color:var(--accent)] transition hover:border-[#fc9223] hover:bg-[#fff7ed]"
                           aria-label={reportComments[item.id] ? "Edit comment" : "Add comment"}
                           title={reportComments[item.id] ? "Edit comment" : "Add comment"}
