@@ -951,30 +951,6 @@ export function ReportView() {
                             {statusLabel}
                           </div>
                         </div>
-                        <div data-no-card-nav className="mt-3 w-full">
-                          {editingCommentId === item.id ? (
-                            <div className="space-y-2">
-                              <textarea
-                                value={commentDrafts[item.id] ?? reportComments[item.id] ?? ""}
-                                onChange={(event) => setCommentDrafts((current) => ({ ...current, [item.id]: event.target.value }))}
-                                placeholder="Add a note about this report"
-                                aria-label={`Comment for ${item.productName}`}
-                                className="min-h-20 w-full rounded-xl border border-[color:var(--cream-dark)] bg-white px-3 py-2 text-sm text-[color:var(--ink)] outline-none focus:border-[#fc9223]"
-                              />
-                              <div className="flex items-center gap-3">
-                                <button type="button" className="btnPrimary text-sm" onClick={() => { updateReportComment(item.id, commentDrafts[item.id] ?? ""); setEditingCommentId(null); }}>
-                                  Save comment
-                                </button>
-                                <button type="button" className="btnSecondary text-sm" onClick={() => setEditingCommentId(null)}>
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
-                          {editingCommentId !== item.id && reportComments[item.id] ? (
-                            <p className="mt-2 whitespace-pre-wrap text-sm text-[color:var(--ink-muted)]">{reportComments[item.id]}</p>
-                          ) : null}
-                        </div>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-3">
@@ -1019,6 +995,30 @@ export function ReportView() {
                           )}
                         </button>
                       </div>
+                    </div>
+                    <div data-no-card-nav className="mt-4 w-full">
+                      {editingCommentId === item.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={commentDrafts[item.id] ?? reportComments[item.id] ?? ""}
+                            onChange={(event) => setCommentDrafts((current) => ({ ...current, [item.id]: event.target.value }))}
+                            placeholder="Add a note about this report"
+                            aria-label={`Comment for ${item.productName}`}
+                            className="min-h-20 w-full rounded-xl border border-[color:var(--cream-dark)] bg-white px-3 py-2 text-sm text-[color:var(--ink)] outline-none focus:border-[#fc9223]"
+                          />
+                          <div className="flex items-center gap-3">
+                            <button type="button" className="btnPrimary text-sm" onClick={() => { updateReportComment(item.id, commentDrafts[item.id] ?? ""); setEditingCommentId(null); }}>
+                              Save comment
+                            </button>
+                            <button type="button" className="btnSecondary text-sm" onClick={() => setEditingCommentId(null)}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                      {editingCommentId !== item.id && reportComments[item.id] ? (
+                        <p className="mt-2 whitespace-pre-wrap text-sm text-[color:var(--ink-muted)]">{reportComments[item.id]}</p>
+                      ) : null}
                     </div>
                   </div>
                 );
