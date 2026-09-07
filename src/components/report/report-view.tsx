@@ -1010,8 +1010,15 @@ export function ReportView() {
                             <button type="button" className="btnPrimary text-sm" onClick={() => { updateReportComment(item.id, commentDrafts[item.id] ?? ""); setEditingCommentId(null); }}>
                               Save comment
                             </button>
-                            <button type="button" className="btnSecondary text-sm" onClick={() => setEditingCommentId(null)}>
-                              Cancel
+                            <button
+                              type="button"
+                              className="btnSecondary text-sm"
+                              onClick={() => {
+                                if (reportComments[item.id]) updateReportComment(item.id, "");
+                                setEditingCommentId(null);
+                              }}
+                            >
+                              {reportComments[item.id] ? "Delete comment" : "Cancel"}
                             </button>
                           </div>
                         </div>
