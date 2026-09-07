@@ -251,14 +251,13 @@ export function LiveReport({
         <div
           className="report-page-flipbook mx-auto mt-5"
           style={{
-            width: page === 0 ? "794px" : "1588px",
+            width: "1588px",
             height: "1123px",
             transform: `scale(${zoom})`,
             transformOrigin: "top center",
           }}
         >
           <HTMLFlipBook
-            key={page === 0 ? "cover-mode" : "spread-mode"}
             ref={flipBookRef}
             className="report-flipbook-canvas"
             style={{}}
@@ -273,7 +272,7 @@ export function LiveReport({
             startZIndex={0}
             autoSize
             showCover
-            usePortrait={page === 0}
+            usePortrait={false}
             drawShadow
             maxShadowOpacity={0.45}
             flippingTime={1400}
