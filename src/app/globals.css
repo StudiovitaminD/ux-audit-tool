@@ -501,6 +501,11 @@ body.app-route :is(a.btnText, button.btnText) {
   background: var(--background);
 }
 
+html:has([data-report-live-root]),
+html:has([data-report-live-root]) body {
+  overflow: hidden;
+}
+
 .report-page-stage {
   position: relative;
   flex: 0 0 auto;
