@@ -272,7 +272,7 @@ export function LiveReport({
             maxHeight={1123}
             startZIndex={0}
             autoSize
-            showCover={false}
+            showCover
             usePortrait={false}
             drawShadow
             maxShadowOpacity={0.45}
