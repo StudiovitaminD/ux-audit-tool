@@ -304,10 +304,10 @@ export function LiveReport({
             flippingTime={1400}
             mobileScrollSupport={false}
             clickEventForward
-            useMouseEvents={!canPanReport}
+            useMouseEvents={false}
             swipeDistance={30}
             showPageCorners
-            disableFlipByClick={false}
+            disableFlipByClick
             onFlip={(event) => setPage(Number(event.data))}
           >
             {pages.map((reportPage, index) => (
