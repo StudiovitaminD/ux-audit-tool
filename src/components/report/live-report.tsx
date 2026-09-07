@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import HTMLFlipBook from "react-pageflip";
 import { asString, buildReportViewModel, type AnyRecord } from "@/lib/report-model";
 import { buildReportPages } from "@/components/report/report-pages";
@@ -39,6 +39,8 @@ export function LiveReport({
   const [page, setPage] = useState(0);
   const [pageTurnDirection, setPageTurnDirection] = useState<"next" | "prev">("next");
   const [zoom, setZoom] = useState(0.6);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const panStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const flipBookRef = useRef<any>(null);
   const [turningSnapshot, setTurningSnapshot] = useState<string | null>(null);
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
@@ -55,6 +57,25 @@ export function LiveReport({
   );
   const reportAccessLevel = asString(reportRecord.report_access_level) || "full";
   const isPreviewReport = reportAccessLevel === "free_preview";
+  const canPanReport = zoom > 0.6;
+
+  const handleCanvasPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (!canPanReport) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    panStart.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
+  };
+
+  const handleCanvasPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!panStart.current) return;
+    setPan({
+      x: panStart.current.panX + event.clientX - panStart.current.x,
+      y: panStart.current.panY + event.clientY - panStart.current.y,
+    });
+  };
+
+  const stopCanvasPan = () => {
+    panStart.current = null;
+  };
 
   useEffect(() => {
     const next = recalculateEditedReport(report);
@@ -243,17 +264,21 @@ export function LiveReport({
       />
 
       <div
-        className="report-viewer-canvas mx-auto mt-5 flex min-h-0 justify-center overflow-hidden"
+        className={`report-viewer-canvas mx-auto mt-5 flex min-h-0 justify-center overflow-hidden ${canPanReport ? "cursor-grab select-none" : ""}`}
         data-report-live-canvas
         data-current-page={page + 1}
         data-total-pages={pages.length}
+        onPointerDown={handleCanvasPointerDown}
+        onPointerMove={handleCanvasPointerMove}
+        onPointerUp={stopCanvasPan}
+        onPointerCancel={stopCanvasPan}
       >
         <div
           className="report-page-flipbook mx-auto mt-5"
           style={{
             width: "1588px",
             height: "1123px",
-            transform: `scale(${zoom * 0.82})`,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom * 0.82})`,
             transformOrigin: "top center",
             position: "relative",
           }}
@@ -279,7 +304,7 @@ export function LiveReport({
             flippingTime={1400}
             mobileScrollSupport={false}
             clickEventForward
-            useMouseEvents
+            useMouseEvents={!canPanReport}
             swipeDistance={30}
             showPageCorners
             disableFlipByClick={false}
