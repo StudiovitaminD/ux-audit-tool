@@ -964,15 +964,7 @@ export function ReportView() {
                                 Save comment
                               </button>
                             </div>
-                          ) : (
-                            <button
-                              type="button"
-                              className="text-sm font-medium text-[color:var(--accent)] underline-offset-2 hover:underline"
-                              onClick={() => setEditingCommentId(item.id)}
-                            >
-                              {reportComments[item.id] ? "Edit comment" : "Add comment"}
-                            </button>
-                          )}
+                          ) : null}
                           {editingCommentId !== item.id && reportComments[item.id] ? (
                             <p className="mt-2 whitespace-pre-wrap text-sm text-[color:var(--ink-muted)]">{reportComments[item.id]}</p>
                           ) : null}
@@ -987,6 +979,19 @@ export function ReportView() {
                         >
                           Re-audit
                         </Link>
+                        <button
+                          type="button"
+                          data-no-card-nav
+                          onClick={() => setEditingCommentId(item.id)}
+                          className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--cream-dark)] bg-white text-[color:var(--accent)] transition hover:border-[#fc9223] hover:bg-[#fff7ed]"
+                          aria-label={reportComments[item.id] ? "Edit comment" : "Add comment"}
+                          title={reportComments[item.id] ? "Edit comment" : "Add comment"}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8">
+                            <path d="M20 11.5a7.5 7.5 0 0 1-8 7.45 8.2 8.2 0 0 1-3.2-.65L4 20l1.7-3.7A7.3 7.3 0 0 1 4.5 12 7.5 7.5 0 1 1 20 11.5Z" />
+                            <path d="M8 12h.01M12 12h.01M16 12h.01" strokeLinecap="round" />
+                          </svg>
+                        </button>
                         <button
                           type="button"
                           data-no-card-nav
