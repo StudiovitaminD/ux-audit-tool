@@ -494,8 +494,8 @@ body.app-route :is(a.btnText, button.btnText) {
 }
 
 .report-viewer-canvas {
-  width: 1600px;
-  height: 1123px;
+  width: 789px;
+  height: 634px;
   max-width: calc(100vw - 3rem);
   flex: 0 0 auto;
   background: var(--background);
