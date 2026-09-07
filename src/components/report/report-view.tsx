@@ -950,7 +950,7 @@ export function ReportView() {
                             {statusLabel}
                           </div>
                         </div>
-                        <div data-no-card-nav className="mt-3 max-w-xl">
+                        <div data-no-card-nav className="mt-3 w-full">
                           {editingCommentId === item.id ? (
                             <div className="space-y-2">
                               <textarea
