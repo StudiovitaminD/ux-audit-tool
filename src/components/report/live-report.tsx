@@ -59,6 +59,10 @@ export function LiveReport({
   const isPreviewReport = reportAccessLevel === "free_preview";
   const canPanReport = zoom > 0.6;
 
+  useEffect(() => {
+    if (!canPanReport) setPan({ x: 0, y: 0 });
+  }, [canPanReport]);
+
   const handleCanvasPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (!canPanReport || (event.target as HTMLElement).closest("button, a, input, select, textarea")) return;
     event.currentTarget.setPointerCapture(event.pointerId);
