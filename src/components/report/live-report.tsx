@@ -60,7 +60,7 @@ export function LiveReport({
   const canPanReport = zoom > 0.6;
 
   const handleCanvasPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (!canPanReport) return;
+    if (!canPanReport || (event.target as HTMLElement).closest("button, a, input, select, textarea")) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     panStart.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
   };
@@ -453,6 +453,7 @@ export function LiveReport({
         <div
           className="no-print fixed bottom-6 left-1/2 z-30 w-[794px] max-w-[calc(100%-3rem)] -translate-x-1/2 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
           data-report-pagination
+          onPointerDown={(event) => event.stopPropagation()}
         >
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2" data-report-pagination-controls>
