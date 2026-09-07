@@ -249,7 +249,7 @@ export function LiveReport({
         data-total-pages={pages.length}
       >
         <div
-          className="report-page-flipbook mx-auto mt-5"
+          className={`report-page-flipbook mx-auto mt-5 ${page === 0 ? "report-page-flipbook-cover" : "report-page-flipbook-spread"}`}
           style={{
             width: page === 0 ? "794px" : "1588px",
             height: "1123px",
