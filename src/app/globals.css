@@ -493,6 +493,14 @@ body.app-route :is(a.btnText, button.btnText) {
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
 }
 
+.report-viewer-canvas {
+  width: 1600px;
+  height: 1123px;
+  max-width: calc(100vw - 3rem);
+  flex: 0 0 auto;
+  background: var(--background);
+}
+
 .report-page-stage {
   position: relative;
   flex: 0 0 auto;
