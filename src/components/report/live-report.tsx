@@ -38,7 +38,7 @@ export function LiveReport({
   const vm = useMemo(() => buildReportViewModel(editableReport), [editableReport]);
   const [page, setPage] = useState(0);
   const [pageTurnDirection, setPageTurnDirection] = useState<"next" | "prev">("next");
-  const [zoom, setZoom] = useState(0.82);
+  const [zoom, setZoom] = useState(0.6);
   const flipBookRef = useRef<any>(null);
   const [turningSnapshot, setTurningSnapshot] = useState<string | null>(null);
   const [hydratedCompetitors, setHydratedCompetitors] = useState<AnyRecord[]>(
