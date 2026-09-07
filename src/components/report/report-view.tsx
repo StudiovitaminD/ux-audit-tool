@@ -947,11 +947,6 @@ export function ReportView() {
                             </>
                           ) : null}
                         </div>
-                        <div className="mt-4 flex flex-wrap gap-3 transition group-hover:text-white">
-                          <div className="rounded-[14px] border border-[color:var(--cream-dark)] bg-white px-4 py-2 text-sm font-medium transition group-hover:border-white/10 group-hover:bg-white/10 group-hover:text-white">
-                            {statusLabel}
-                          </div>
-                        </div>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-3">
