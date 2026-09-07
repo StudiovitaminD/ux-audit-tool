@@ -351,6 +351,8 @@ export function ReportView() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
+  const [reportComments, setReportComments] = useState<Record<string, string>>({});
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const report = useMemo(() => loadLastReport<unknown>(), []);
   const filteredReportHistory = useMemo(() => {
     const query = reportSearch.trim().toLowerCase();
@@ -362,6 +364,23 @@ export function ReportView() {
   const lastProcessKickMsRef = useRef(0);
   const sessionHeaders = useMemo(() => getAppSessionRequestHeaders(), []);
   const showAdminDashboardCta = accountReady && accountSession.role === "admin";
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("ux-audit-report-comments");
+      if (stored) setReportComments(JSON.parse(stored) as Record<string, string>);
+    } catch {
+      setReportComments({});
+    }
+  }, []);
+
+  function updateReportComment(id: string, comment: string) {
+    setReportComments((current) => {
+      const next = { ...current, [id]: comment };
+      window.localStorage.setItem("ux-audit-report-comments", JSON.stringify(next));
+      return next;
+    });
+  }
 
   useEffect(() => {
     const storageSnapshot = window.localStorage.getItem(SESSION_STORAGE_KEY);
@@ -930,6 +949,33 @@ export function ReportView() {
                           <div className="rounded-[14px] border border-[color:var(--cream-dark)] bg-white px-4 py-2 text-sm font-medium transition group-hover:border-white/10 group-hover:bg-white/10 group-hover:text-white">
                             {statusLabel}
                           </div>
+                        </div>
+                        <div data-no-card-nav className="mt-3 max-w-xl">
+                          {editingCommentId === item.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={reportComments[item.id] || ""}
+                                onChange={(event) => updateReportComment(item.id, event.target.value)}
+                                placeholder="Add a note about this report"
+                                aria-label={`Comment for ${item.productName}`}
+                                className="min-h-20 w-full rounded-xl border border-[color:var(--cream-dark)] bg-white px-3 py-2 text-sm text-[color:var(--ink)] outline-none focus:border-[#fc9223]"
+                              />
+                              <button type="button" className="btnSecondary text-sm" onClick={() => setEditingCommentId(null)}>
+                                Save comment
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="text-sm font-medium text-[color:var(--accent)] underline-offset-2 hover:underline"
+                              onClick={() => setEditingCommentId(item.id)}
+                            >
+                              {reportComments[item.id] ? "Edit comment" : "Add comment"}
+                            </button>
+                          )}
+                          {editingCommentId !== item.id && reportComments[item.id] ? (
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-[color:var(--ink-muted)]">{reportComments[item.id]}</p>
+                          ) : null}
                         </div>
                       </div>
 
