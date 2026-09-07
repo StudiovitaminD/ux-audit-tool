@@ -251,7 +251,7 @@ export function LiveReport({
         <div
           className="report-page-flipbook mx-auto mt-5"
           style={{
-            width: "794px",
+            width: "1588px",
             height: "1123px",
             transform: `scale(${zoom * 0.82})`,
             transformOrigin: "top center",
@@ -273,7 +273,7 @@ export function LiveReport({
             startZIndex={0}
             autoSize
             showCover
-            usePortrait
+            usePortrait={false}
             drawShadow
             maxShadowOpacity={0.45}
             flippingTime={1400}
