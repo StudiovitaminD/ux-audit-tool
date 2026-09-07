@@ -501,10 +501,6 @@ body.app-route :is(a.btnText, button.btnText) {
   background: var(--background);
 }
 
-.report-viewer-canvas > .report-page-flipbook-spread {
-  position: relative;
-}
-
 .report-page-stage {
   position: relative;
   flex: 0 0 auto;

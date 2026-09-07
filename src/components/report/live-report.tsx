@@ -249,20 +249,16 @@ export function LiveReport({
         data-total-pages={pages.length}
       >
         <div
-          className={`report-page-flipbook mx-auto mt-5 ${page === 0 ? "report-page-flipbook-cover" : "report-page-flipbook-spread"}`}
+          className="report-page-flipbook mx-auto mt-5"
           style={{
-            width: page === 0 ? "794px" : "1588px",
+            width: "794px",
             height: "1123px",
             transform: `scale(${zoom * 0.82})`,
             transformOrigin: "top center",
             position: "relative",
-            left: page === 0 ? "0px" : "50%",
-            marginLeft: page === 0 ? "0px" : "-794px",
-            transition: "left 900ms ease, margin-left 900ms ease",
           }}
         >
           <HTMLFlipBook
-            key={page === 0 ? "cover-mode" : "spread-mode"}
             ref={flipBookRef}
             className="report-flipbook-canvas"
             style={{}}
@@ -277,7 +273,7 @@ export function LiveReport({
             startZIndex={0}
             autoSize
             showCover
-            usePortrait={page === 0}
+            usePortrait
             drawShadow
             maxShadowOpacity={0.45}
             flippingTime={1400}
