@@ -255,6 +255,10 @@ export function LiveReport({
             height: "1123px",
             transform: `scale(${zoom * 0.82})`,
             transformOrigin: "top center",
+            position: "relative",
+            left: page === 0 ? "0px" : "50%",
+            marginLeft: page === 0 ? "0px" : "-794px",
+            transition: "left 900ms ease, margin-left 900ms ease",
           }}
         >
           <HTMLFlipBook
