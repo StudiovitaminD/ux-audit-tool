@@ -779,17 +779,31 @@ export function AuditForm() {
             body: formData,
           });
 
-          const data = (await response.json()) as
-            | {
-                error?: unknown;
-                url?: string;
-                publicId?: string;
-                width?: number | null;
-                height?: number | null;
-                format?: string;
-                resourceType?: string;
-              }
-            | null;
+          const responseText = await response.text();
+          let data: {
+            error?: unknown;
+            url?: string;
+            publicId?: string;
+            width?: number | null;
+            height?: number | null;
+            format?: string;
+            resourceType?: string;
+          } | null = null;
+          try {
+            data = JSON.parse(responseText) as {
+              error?: unknown;
+              url?: string;
+              publicId?: string;
+              width?: number | null;
+              height?: number | null;
+              format?: string;
+              resourceType?: string;
+            };
+          } catch {
+            if (!response.ok) {
+              throw new Error(responseText.trim() || `Upload failed (${response.status}).`);
+            }
+          }
 
           if (!response.ok || !data?.url) {
             throw new Error(getErrorMessage(data?.error) || `Failed to upload ${file.name}.`);

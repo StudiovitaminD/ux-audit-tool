@@ -84,7 +84,7 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
     const height = Math.max(1, Math.ceil(Number(contentSize?.height || 1)));
     const result = await chrome.debugger.sendCommand({ tabId }, "Page.captureScreenshot", {
       format: "jpeg",
-      quality: 65,
+      quality: 40,
       captureBeyondViewport: true,
       fromSurface: true,
       clip: { x: 0, y: 0, width, height, scale: 1 },
