@@ -2354,7 +2354,7 @@ export function AuditForm() {
                         {payload.artifacts.screenshots.map((s, idx) => (
                           <div
                             key={`${s.name}-${idx}`}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5"
+                            className="flex items-center gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5"
                           >
                             <a href={s.url} target="_blank" rel="noreferrer" className="shrink-0" title={`Open ${s.name}`}>
                               <img
@@ -2364,7 +2364,7 @@ export function AuditForm() {
                                 className="h-24 w-32 rounded-lg border border-[color:var(--card-border)] bg-white object-contain object-top"
                               />
                             </a>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1 text-left">
                               <div className="truncate font-medium">{s.name}</div>
                               <div className="text-xs text-zinc-500 dark:text-zinc-400">
                                 {Math.round(s.size / 1024)} KB · {s.label || "other"}
@@ -2374,6 +2374,7 @@ export function AuditForm() {
                               type="button"
                               variant="ghost"
                               size="sm"
+                              className="ml-auto shrink-0"
                               onClick={() =>
                                 setPayload((p) => ({
                                   ...p,
@@ -2476,7 +2477,7 @@ export function AuditForm() {
                         {payload.artifacts.screenshots.map((s, idx) => (
                           <div
                             key={`${s.name}-${idx}`}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5"
+                            className="flex items-center gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5"
                           >
                             <a href={s.url} target="_blank" rel="noreferrer" className="shrink-0" title={`Open ${s.name}`}>
                               <img
@@ -2486,7 +2487,7 @@ export function AuditForm() {
                                 className="h-24 w-32 rounded-lg border border-[color:var(--card-border)] bg-white object-contain object-top"
                               />
                             </a>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1 text-left">
                               <div className="truncate font-medium">{s.name}</div>
                               <div className="text-xs text-zinc-500 dark:text-zinc-400">
                                 {Math.round(s.size / 1024)} KB · {s.label || "other"}
@@ -2496,6 +2497,7 @@ export function AuditForm() {
                               type="button"
                               variant="ghost"
                               size="sm"
+                              className="ml-auto shrink-0"
                               onClick={() =>
                                 setPayload((p) => ({
                                   ...p,
