@@ -2356,12 +2356,14 @@ export function AuditForm() {
                             key={`${s.name}-${idx}`}
                             className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5"
                           >
-                            <img
-                              src={s.url}
-                              alt={s.name}
-                              loading="lazy"
-                              className="h-16 w-24 shrink-0 rounded-lg border border-[color:var(--card-border)] bg-white object-cover object-top"
-                            />
+                            <a href={s.url} target="_blank" rel="noreferrer" className="shrink-0" title={`Open ${s.name}`}>
+                              <img
+                                src={s.url}
+                                alt={s.name}
+                                loading="lazy"
+                                className="h-24 w-32 rounded-lg border border-[color:var(--card-border)] bg-white object-contain object-top"
+                              />
+                            </a>
                             <div className="min-w-0">
                               <div className="truncate font-medium">{s.name}</div>
                               <div className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -2476,12 +2478,14 @@ export function AuditForm() {
                             key={`${s.name}-${idx}`}
                             className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--card-border)] bg-white/50 px-3 py-2 text-sm dark:bg-white/5"
                           >
-                            <img
-                              src={s.url}
-                              alt={s.name}
-                              loading="lazy"
-                              className="h-16 w-24 shrink-0 rounded-lg border border-[color:var(--card-border)] bg-white object-cover object-top"
-                            />
+                            <a href={s.url} target="_blank" rel="noreferrer" className="shrink-0" title={`Open ${s.name}`}>
+                              <img
+                                src={s.url}
+                                alt={s.name}
+                                loading="lazy"
+                                className="h-24 w-32 rounded-lg border border-[color:var(--card-border)] bg-white object-contain object-top"
+                              />
+                            </a>
                             <div className="min-w-0">
                               <div className="truncate font-medium">{s.name}</div>
                               <div className="text-xs text-zinc-500 dark:text-zinc-400">
