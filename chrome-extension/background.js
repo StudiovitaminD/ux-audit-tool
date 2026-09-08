@@ -109,6 +109,7 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
 
     const tiles = [];
     for (let y = 0; y < page.height; y += page.viewportHeight) {
+      const tileHeight = Math.min(page.viewportHeight, page.height - y);
       await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
         expression: `window.scrollTo(${page.scrollX}, ${y})`,
       });
@@ -116,10 +117,17 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
       const tile = await chrome.debugger.sendCommand({ tabId }, "Page.captureScreenshot", {
         format: "jpeg",
         quality: 40,
-        captureBeyondViewport: false,
+        captureBeyondViewport: true,
         fromSurface: true,
+        clip: {
+          x: 0,
+          y,
+          width: page.width,
+          height: tileHeight,
+          scale: 1,
+        },
       });
-      if (tile?.data) tiles.push(tile.data);
+      if (tile?.data) tiles.push({ data: tile.data, y, height: tileHeight });
     }
 
     await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
@@ -133,14 +141,14 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
     const assembled = await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
       expression: `(${(async function stitch(tileData, pageHeight, viewportWidth, viewportHeight) {
         const images = [];
-        for (const data of tileData) {
-          const response = await fetch('data:image/jpeg;base64,' + data);
+        for (const tile of tileData) {
+          const response = await fetch('data:image/jpeg;base64,' + tile.data);
           images.push(await createImageBitmap(await response.blob()));
         }
         const scale = images[0].width / viewportWidth;
         const canvas = new OffscreenCanvas(images[0].width, Math.ceil(pageHeight * scale));
         const context = canvas.getContext('2d');
-        images.forEach((image, index) => context.drawImage(image, 0, index * viewportHeight * scale));
+        images.forEach((image, index) => context.drawImage(image, 0, tileData[index].y * scale));
         const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.4 });
         const buffer = await blob.arrayBuffer();
         let binary = '';
