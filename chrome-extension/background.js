@@ -78,16 +78,11 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
   try {
     await chrome.debugger.attach({ tabId }, "1.3");
     await chrome.debugger.sendCommand({ tabId }, "Page.enable");
-    const metrics = await chrome.debugger.sendCommand({ tabId }, "Page.getLayoutMetrics");
-    const contentSize = metrics?.contentSize || metrics?.cssContentSize;
-    const width = Math.max(1, Math.ceil(Number(contentSize?.width || 1)));
-    const height = Math.max(1, Math.ceil(Number(contentSize?.height || 1)));
     const result = await chrome.debugger.sendCommand({ tabId }, "Page.captureScreenshot", {
       format: "jpeg",
       quality: 40,
       captureBeyondViewport: true,
       fromSurface: true,
-      clip: { x: 0, y: 0, width, height, scale: 1 },
     });
     await chrome.debugger.detach({ tabId });
     return result?.data ? `data:image/jpeg;base64,${result.data}` : "";
