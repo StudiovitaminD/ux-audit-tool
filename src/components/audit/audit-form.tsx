@@ -2309,15 +2309,6 @@ export function AuditForm() {
                     >
                       Capture Pages for Audit
                     </Button>
-                    <FilePickerButton
-                      buttonText="Choose files"
-                      accept="image/*"
-                      multiple
-                      onFilesSelected={async (files) => {
-                        await uploadScreenshots(files);
-                      }}
-                    />
-
                     {uploadingScreenshots ? (
                       <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
                         Uploading screenshots…
@@ -2457,15 +2448,6 @@ export function AuditForm() {
                     >
                       Capture Pages for Audit
                     </Button>
-                    <FilePickerButton
-                      buttonText="Choose files"
-                      accept="image/*"
-                      multiple
-                      onFilesSelected={async (files) => {
-                        await uploadScreenshots(files);
-                      }}
-                    />
-
                     {uploadingScreenshots ? (
                       <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
                         Uploading screenshots…
