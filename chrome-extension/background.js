@@ -117,8 +117,7 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
           else scroller.scrollTop = position;
           return scroller.scrollTop;
         } });
-      if (y > 0 && Math.abs((scrollResult?.result || 0) - y) > page.viewportHeight / 2) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       // captureVisibleTab is intentionally used here: it captures exactly the
       // viewport after scrolling, unlike CDP surface capture on some sites.
       const tile = await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 40 });
