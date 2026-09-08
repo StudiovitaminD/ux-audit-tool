@@ -235,6 +235,15 @@ async function updateJourneyEnabled(enabled) {
   return nextState;
 }
 
+async function sendToAuditTab(tabId, message) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, message);
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+    return chrome.tabs.sendMessage(tabId, message);
+  }
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   const settings = await getSettings();
   await chrome.storage.local.set({
@@ -292,18 +301,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const screenshotUrl = String(capture.screenshotUrl || "");
         const captureMeta = { ...capture };
         delete captureMeta.screenshotUrl;
-        await chrome.tabs.sendMessage(target.id, {
+        await sendToAuditTab(target.id, {
           type: "UX_AUDIT_IMPORT_CAPTURE_START",
           capture: captureMeta,
         });
         const chunkSize = 1024 * 1024;
         for (let offset = 0; offset < screenshotUrl.length; offset += chunkSize) {
-          await chrome.tabs.sendMessage(target.id, {
+          await sendToAuditTab(target.id, {
             type: "UX_AUDIT_IMPORT_CAPTURE_CHUNK",
             chunk: screenshotUrl.slice(offset, offset + chunkSize),
           });
         }
-        await chrome.tabs.sendMessage(target.id, { type: "UX_AUDIT_IMPORT_CAPTURE_END" });
+        await sendToAuditTab(target.id, { type: "UX_AUDIT_IMPORT_CAPTURE_END" });
       }
       await clearAudit();
       return { ok: true };
