@@ -2328,31 +2328,6 @@ export function AuditForm() {
                                 {Math.round(s.size / 1024)} KB · {s.label || "other"}
                               </div>
                             </div>
-                            <Select
-                              value={s.label || "other"}
-                              onChange={(e) =>
-                                setPayload((p) => ({
-                                  ...p,
-                                  artifacts: {
-                                    ...p.artifacts,
-                                    screenshots: p.artifacts.screenshots.map((shot, i) =>
-                                      i === idx
-                                        ? {
-                                            ...shot,
-                                            label: e.target.value as UploadedScreenshotLabel,
-                                          }
-                                        : shot,
-                                    ),
-                                  },
-                                }))
-                              }
-                            >
-                              {screenshotLabelOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </Select>
                             <Button
                               type="button"
                               variant="ghost"
@@ -2467,31 +2442,6 @@ export function AuditForm() {
                                 {Math.round(s.size / 1024)} KB · {s.label || "other"}
                               </div>
                             </div>
-                            <Select
-                              value={s.label || "other"}
-                              onChange={(e) =>
-                                setPayload((p) => ({
-                                  ...p,
-                                  artifacts: {
-                                    ...p.artifacts,
-                                    screenshots: p.artifacts.screenshots.map((shot, i) =>
-                                      i === idx
-                                        ? {
-                                            ...shot,
-                                            label: e.target.value as UploadedScreenshotLabel,
-                                          }
-                                        : shot,
-                                    ),
-                                  },
-                                }))
-                              }
-                            >
-                              {screenshotLabelOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </Select>
                             <Button
                               type="button"
                               variant="ghost"
