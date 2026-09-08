@@ -267,7 +267,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tabId = message.tabId || sender.tab?.id;
       if (!tabId) throw new Error("No active tab found.");
       const capture = await captureCurrentTab(tabId, message.captureReason || "manual_capture");
-      return { ok: true, capture };
+      // Keep the large image in extension storage; never return it through the
+      // popup message channel, which has a hard 64 MiB limit.
+      const { screenshotUrl: _screenshotUrl, ...captureSummary } = capture;
+      return { ok: true, capture: captureSummary };
     }
 
     if (message?.type === "UX_AUDIT_RENAME_LAST_CAPTURE") {
