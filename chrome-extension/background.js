@@ -327,7 +327,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === "UX_AUDIT_GET_STATE") {
       const state = await getState();
       const settings = await getSettings();
-      return { ok: true, state, settings };
+      const stateForPopup = {
+        ...state,
+        captures: (state.captures || []).map(({ screenshotUrl: _screenshotUrl, ...capture }) => capture),
+      };
+      return { ok: true, state: stateForPopup, settings };
     }
 
     if (message?.type === "UX_AUDIT_SAVE_SETTINGS") {
