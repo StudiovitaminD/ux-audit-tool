@@ -286,10 +286,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const target = tabs.find((tab) => tab.id && tab.url && /\/audit(?:\?|$)/.test(tab.url));
       if (!target?.id) throw new Error("Open the audit form before sending captures.");
       for (const capture of state.captures) {
+        const screenshotUrl = String(capture.screenshotUrl || "");
+        const captureMeta = { ...capture };
+        delete captureMeta.screenshotUrl;
         await chrome.tabs.sendMessage(target.id, {
-          type: "UX_AUDIT_IMPORT_CAPTURE",
-          capture,
+          type: "UX_AUDIT_IMPORT_CAPTURE_START",
+          capture: captureMeta,
         });
+        const chunkSize = 1024 * 1024;
+        for (let offset = 0; offset < screenshotUrl.length; offset += chunkSize) {
+          await chrome.tabs.sendMessage(target.id, {
+            type: "UX_AUDIT_IMPORT_CAPTURE_CHUNK",
+            chunk: screenshotUrl.slice(offset, offset + chunkSize),
+          });
+        }
+        await chrome.tabs.sendMessage(target.id, { type: "UX_AUDIT_IMPORT_CAPTURE_END" });
       }
       await clearAudit();
       return { ok: true };

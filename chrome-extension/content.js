@@ -2,7 +2,26 @@
   if (window.__uxAuditExtensionRegistered) return;
   window.__uxAuditExtensionRegistered = true;
 
+  let pendingImport = null;
+
   chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "UX_AUDIT_IMPORT_CAPTURE_START") {
+      pendingImport = { ...message.capture, screenshotUrl: "" };
+      return;
+    }
+    if (message?.type === "UX_AUDIT_IMPORT_CAPTURE_CHUNK" && pendingImport) {
+      pendingImport.screenshotUrl += String(message.chunk || "");
+      return;
+    }
+    if (message?.type === "UX_AUDIT_IMPORT_CAPTURE_END" && pendingImport) {
+      window.postMessage({
+        source: "ux-audit-extension",
+        type: "UX_AUDIT_IMPORT_CAPTURE",
+        captures: [pendingImport],
+      }, "*");
+      pendingImport = null;
+      return;
+    }
     if (message?.type === "UX_AUDIT_IMPORT_CAPTURES" || message?.type === "UX_AUDIT_IMPORT_CAPTURE") {
       window.postMessage({
         source: "ux-audit-extension",
