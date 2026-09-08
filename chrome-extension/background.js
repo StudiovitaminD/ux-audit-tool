@@ -75,13 +75,8 @@ function guessScreenType(payload) {
 
 async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataUrl) {
   if (!includeScreenshotDataUrl) return "";
-  let attached = false;
   try {
-    await chrome.debugger.attach({ tabId }, "1.3");
-    attached = true;
-    await chrome.debugger.sendCommand({ tabId }, "Page.enable");
-    const metrics = await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
-      expression: `(() => {
+    const [metricsResult] = await chrome.scripting.executeScript({ target: { tabId }, func: () => {
         const body = document.body;
         const html = document.documentElement;
         const candidates = [document.scrollingElement, ...document.querySelectorAll('*')]
@@ -102,31 +97,27 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
           scrollX: window.scrollX,
           scrollY: window.scrollY,
         };
-      })()`,
-      returnByValue: true,
-    });
-    const page = metrics?.result?.result?.value;
+      } });
+    const page = metricsResult?.result;
     if (!page?.width || !page?.height || !page?.viewportHeight) throw new Error("Page dimensions unavailable.");
 
-    await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
-      expression: `(() => {
+    await chrome.scripting.executeScript({ target: { tabId }, func: () => {
         const style = document.createElement('style');
         style.id = '__ux_audit_capture_style__';
         style.textContent = '* { animation: none !important; transition: none !important; } [style*="position: fixed"], [style*="position:sticky"] { visibility: hidden !important; }';
         document.documentElement.appendChild(style);
-      })()`,
-    });
+      } });
 
     const tiles = [];
     for (let y = 0; y < page.height; y += page.viewportHeight) {
       const tileHeight = Math.min(page.viewportHeight, page.height - y);
-      await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
-        expression: `(() => {
+      const [scrollResult] = await chrome.scripting.executeScript({ target: { tabId }, args: [y], func: (position) => {
           const scroller = window.__uxAuditScroller || document.scrollingElement;
-          if (scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body) window.scrollTo(${page.scrollX}, ${y});
-          else scroller.scrollTop = ${y};
-        })()`,
-      });
+          if (scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body) window.scrollTo(0, position);
+          else scroller.scrollTop = position;
+          return scroller.scrollTop;
+        } });
+      if (y > 0 && Math.abs((scrollResult?.result || 0) - y) > page.viewportHeight / 2) break;
       await new Promise((resolve) => setTimeout(resolve, 100));
       // captureVisibleTab is intentionally used here: it captures exactly the
       // viewport after scrolling, unlike CDP surface capture on some sites.
@@ -134,14 +125,12 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
       if (tile) tiles.push({ data: tile.split(",")[1], y, height: tileHeight });
     }
 
-    await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
-        expression: `(() => {
+    await chrome.scripting.executeScript({ target: { tabId }, args: [page.scrollX, page.scrollY], func: (x, y) => {
         document.getElementById('__ux_audit_capture_style__')?.remove();
         const scroller = window.__uxAuditScroller || document.scrollingElement;
-        if (scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body) window.scrollTo(${page.scrollX}, ${page.scrollY});
-        else scroller.scrollTop = ${page.scrollY};
-      })()`,
-    });
+        if (scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body) window.scrollTo(x, y);
+        else scroller.scrollTop = y;
+      } });
     if (!tiles.length) throw new Error("No screenshot tiles captured.");
 
     const images = [];
@@ -158,10 +147,8 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
     let binary = "";
     const bytes = new Uint8Array(buffer);
     for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
-    if (attached) await chrome.debugger.detach({ tabId });
     return `data:image/jpeg;base64,${btoa(binary)}`;
   } catch {
-    if (attached) try { await chrome.debugger.detach({ tabId }); } catch {}
     try { return await chrome.tabs.captureVisibleTab(windowId, { format: "png" }); } catch {}
     return "";
   }
