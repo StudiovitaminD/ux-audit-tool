@@ -85,7 +85,12 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
         const body = document.body;
         const html = document.documentElement;
         const candidates = [document.scrollingElement, ...document.querySelectorAll('*')]
-          .filter((element) => element && element.scrollHeight > element.clientHeight + 8)
+          .filter((element) => {
+            if (!element || element.scrollHeight <= element.clientHeight + 8) return false;
+            if (element === document.scrollingElement || element === document.documentElement || element === document.body) return true;
+            const style = getComputedStyle(element);
+            return (style.overflowY === 'auto' || style.overflowY === 'scroll') && element.clientHeight > 0;
+          })
           .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
         const scroller = candidates[0] || document.scrollingElement;
         window.__uxAuditScroller = scroller;
