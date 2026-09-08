@@ -861,6 +861,29 @@ export function AuditForm() {
     }
   }
 
+  useEffect(() => {
+    async function importExtensionCaptures(event: MessageEvent) {
+      if (event.source !== window || event.data?.source !== "ux-audit-extension") return;
+      if (event.data.type !== "UX_AUDIT_IMPORT_CAPTURES") return;
+      const captures = Array.isArray(event.data.captures) ? event.data.captures : [];
+      const files = captures
+        .filter((capture: unknown) => {
+          const item = capture as Record<string, unknown>;
+          return typeof item.screenshotUrl === "string" && item.screenshotUrl.startsWith("data:image/");
+        })
+        .map((capture: unknown, index: number) => {
+          const item = capture as Record<string, unknown>;
+          const [header, data] = String(item.screenshotUrl).split(",");
+          const bytes = Uint8Array.from(atob(data || ""), (char) => char.charCodeAt(0));
+          const blob = new Blob([bytes], { type: header.match(/data:(.*?);/)?.[1] || "image/png" });
+          return new File([blob], `${String(item.title || `Captured page ${index + 1}`)}.png`, { type: blob.type });
+        });
+      if (files.length) await uploadScreenshots(files);
+    }
+    window.addEventListener("message", importExtensionCaptures);
+    return () => window.removeEventListener("message", importExtensionCaptures);
+  }, []);
+
   async function uploadCriticalFlowVideo(file: File) {
     setError(null);
     setUploadingVideo(true);
@@ -2278,6 +2301,14 @@ export function AuditForm() {
               {isPublicAuditType(primaryType) ? (
                 <>
                   <Field label="Screenshots" required={false}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={!isUrlLike(payload.productUrl)}
+                      onClick={() => window.open(payload.productUrl.trim(), "_blank", "noopener,noreferrer")}
+                    >
+                      Capture Pages for Audit
+                    </Button>
                     <FilePickerButton
                       buttonText="Choose files"
                       accept="image/*"
@@ -2418,6 +2449,14 @@ export function AuditForm() {
 
                   {/* ADDED */}
                   <Field label="Screenshots" required={false}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={!isUrlLike(payload.productUrl)}
+                      onClick={() => window.open(payload.productUrl.trim(), "_blank", "noopener,noreferrer")}
+                    >
+                      Capture Pages for Audit
+                    </Button>
                     <FilePickerButton
                       buttonText="Choose files"
                       accept="image/*"

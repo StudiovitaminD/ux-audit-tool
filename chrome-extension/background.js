@@ -73,11 +73,26 @@ function guessScreenType(payload) {
   return "other";
 }
 
-async function captureVisibleScreenshot(windowId, includeScreenshotDataUrl) {
+async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataUrl) {
   if (!includeScreenshotDataUrl) return "";
   try {
-    return await chrome.tabs.captureVisibleTab(windowId, { format: "png" });
+    await chrome.debugger.attach({ tabId }, "1.3");
+    await chrome.debugger.sendCommand({ tabId }, "Page.enable");
+    const metrics = await chrome.debugger.sendCommand({ tabId }, "Page.getLayoutMetrics");
+    const contentSize = metrics?.contentSize || metrics?.cssContentSize;
+    const width = Math.max(1, Math.ceil(Number(contentSize?.width || 1)));
+    const height = Math.max(1, Math.ceil(Number(contentSize?.height || 1)));
+    const result = await chrome.debugger.sendCommand({ tabId }, "Page.captureScreenshot", {
+      format: "png",
+      captureBeyondViewport: true,
+      fromSurface: true,
+      clip: { x: 0, y: 0, width, height, scale: 1 },
+    });
+    await chrome.debugger.detach({ tabId });
+    return result?.data ? `data:image/png;base64,${result.data}` : "";
   } catch {
+    try { await chrome.debugger.detach({ tabId }); } catch {}
+    try { return await chrome.tabs.captureVisibleTab(windowId, { format: "png" }); } catch {}
     return "";
   }
 }
@@ -94,7 +109,7 @@ async function captureCurrentTab(tabId, captureReason = "manual_capture") {
     },
   });
 
-  const screenshotUrl = await captureVisibleScreenshot(tab.windowId, settings.includeScreenshotDataUrl);
+  const screenshotUrl = await captureFullPageScreenshot(tabId, tab.windowId, settings.includeScreenshotDataUrl);
   const state = await getState();
 
   const capture = {
@@ -233,6 +248,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (!tabId) throw new Error("No active tab found.");
       const capture = await captureCurrentTab(tabId, message.captureReason || "manual_capture");
       return { ok: true, capture };
+    }
+
+    if (message?.type === "UX_AUDIT_RENAME_LAST_CAPTURE") {
+      const state = await getState();
+      if (!state.captures?.length) throw new Error("Capture a page first.");
+      const captures = state.captures.slice();
+      captures[captures.length - 1] = { ...captures[captures.length - 1], title: String(message.name || "Captured page") };
+      await setState({ ...state, captures });
+      return { ok: true };
+    }
+
+    if (message?.type === "UX_AUDIT_SEND_TO_FORM") {
+      const state = await getState();
+      if (!state.captures?.length) throw new Error("Capture at least one page first.");
+      const tabs = await chrome.tabs.query({});
+      const target = tabs.find((tab) => tab.id && tab.url && /\/audit(?:\?|$)/.test(tab.url));
+      if (!target?.id) throw new Error("Open the audit form before sending captures.");
+      await chrome.tabs.sendMessage(target.id, { type: "UX_AUDIT_IMPORT_CAPTURES", captures: state.captures });
+      await clearAudit();
+      return { ok: true };
     }
 
     if (message?.type === "UX_AUDIT_UPDATE_JOURNEY") {

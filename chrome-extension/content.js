@@ -2,6 +2,12 @@
   if (window.__uxAuditExtensionRegistered) return;
   window.__uxAuditExtensionRegistered = true;
 
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "UX_AUDIT_IMPORT_CAPTURES") {
+      window.postMessage({ source: "ux-audit-extension", type: message.type, captures: message.captures || [] }, "*");
+    }
+  });
+
   function cleanText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
   }

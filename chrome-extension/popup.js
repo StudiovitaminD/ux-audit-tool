@@ -102,8 +102,21 @@ document.getElementById("capturePage").addEventListener("click", async () => {
     return;
   }
 
-  showFlash("Page captured.", "success");
+  const name = window.prompt("Name this page", response.capture?.title || "Captured page");
+  if (name?.trim()) {
+    await send({ type: "UX_AUDIT_RENAME_LAST_CAPTURE", name: name.trim() });
+  }
+  showFlash("Full page captured.", "success");
   await refresh();
+});
+
+document.getElementById("sendCaptures").addEventListener("click", async () => {
+  const response = await send({ type: "UX_AUDIT_SEND_TO_FORM" });
+  if (!response?.ok) {
+    showFlash(response?.error || "Could not send captures to the audit form.", "error");
+    return;
+  }
+  showFlash("Captures sent to the audit form.", "success");
 });
 
 document.getElementById("stopAudit").addEventListener("click", async () => {
