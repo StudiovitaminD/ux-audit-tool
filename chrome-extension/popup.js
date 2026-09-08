@@ -47,42 +47,10 @@ async function refresh() {
 
   const { state, settings } = response;
   const captures = state.captures || [];
-  document.getElementById("sessionStatus").textContent = state.running
-    ? `Running on tab ${state.tabId || "—"}`
-    : "Not started";
   document.getElementById("captureCount").textContent = `${captures.length} page${captures.length === 1 ? "" : "s"} captured`;
-  document.getElementById("journeyToggle").checked = !!state.journey?.enabled;
   renderCaptures(captures);
-
-  if (settings?.autoCaptureOnNavigation && state.journey?.enabled) {
-    showFlash("Journey recording is enabled with auto-capture on navigation.", "info");
-  } else {
-    showFlash("", "info");
-  }
+  showFlash("", "info");
 }
-
-document.getElementById("startAudit").addEventListener("click", async () => {
-  const tab = await getCurrentTab();
-  if (!tab?.id) {
-    showFlash("No active tab found.", "error");
-    return;
-  }
-
-  const journeyEnabled = document.getElementById("journeyToggle").checked;
-  const response = await send({
-    type: "UX_AUDIT_START",
-    tabId: tab.id,
-    options: { journeyEnabled },
-  });
-
-  if (!response?.ok) {
-    showFlash(response?.error || "Could not start the audit session.", "error");
-    return;
-  }
-
-  showFlash("Audit session started.", "success");
-  await refresh();
-});
 
 document.getElementById("capturePage").addEventListener("click", async () => {
   const tab = await getCurrentTab();
@@ -119,16 +87,6 @@ document.getElementById("sendCaptures").addEventListener("click", async () => {
   showFlash("Captures sent to the audit form.", "success");
 });
 
-document.getElementById("stopAudit").addEventListener("click", async () => {
-  const response = await send({ type: "UX_AUDIT_STOP" });
-  if (!response?.ok) {
-    showFlash(response?.error || "Could not stop the audit session.", "error");
-    return;
-  }
-  showFlash("Audit session stopped.", "success");
-  await refresh();
-});
-
 document.getElementById("clearCaptures").addEventListener("click", async () => {
   const response = await send({ type: "UX_AUDIT_CLEAR" });
   if (!response?.ok) {
@@ -136,45 +94,6 @@ document.getElementById("clearCaptures").addEventListener("click", async () => {
     return;
   }
   showFlash("Captured evidence cleared.", "success");
-  await refresh();
-});
-
-document.getElementById("copyJson").addEventListener("click", async () => {
-  const response = await send({ type: "UX_AUDIT_EXPORT" });
-  if (!response?.ok) {
-    showFlash(response?.error || "Could not export capture JSON.", "error");
-    return;
-  }
-  await navigator.clipboard.writeText(response.json || "[]");
-  showFlash("Capture JSON copied. Paste it into the app.", "success");
-});
-
-document.getElementById("downloadJson").addEventListener("click", async () => {
-  const response = await send({ type: "UX_AUDIT_EXPORT" });
-  if (!response?.ok) {
-    showFlash(response?.error || "Could not export capture JSON.", "error");
-    return;
-  }
-
-  const blob = new Blob([response.json || "[]"], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  await chrome.downloads.download({
-    url,
-    filename: `ux-audit-captures-${Date.now()}.json`,
-    saveAs: true,
-  });
-  showFlash("Capture JSON download started.", "success");
-});
-
-document.getElementById("openOptions").addEventListener("click", async () => {
-  await chrome.runtime.openOptionsPage();
-});
-
-document.getElementById("journeyToggle").addEventListener("change", async (event) => {
-  await send({
-    type: "UX_AUDIT_UPDATE_JOURNEY",
-    enabled: event.target.checked,
-  });
   await refresh();
 });
 
