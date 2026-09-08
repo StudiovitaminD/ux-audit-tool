@@ -864,7 +864,7 @@ export function AuditForm() {
   useEffect(() => {
     async function importExtensionCaptures(event: MessageEvent) {
       if (event.source !== window || event.data?.source !== "ux-audit-extension") return;
-      if (event.data.type !== "UX_AUDIT_IMPORT_CAPTURES") return;
+      if (event.data.type !== "UX_AUDIT_IMPORT_CAPTURES" && event.data.type !== "UX_AUDIT_IMPORT_CAPTURE") return;
       const captures = Array.isArray(event.data.captures) ? event.data.captures : [];
       const files = captures
         .filter((capture: unknown) => {

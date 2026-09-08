@@ -3,8 +3,12 @@
   window.__uxAuditExtensionRegistered = true;
 
   chrome.runtime.onMessage.addListener((message) => {
-    if (message?.type === "UX_AUDIT_IMPORT_CAPTURES") {
-      window.postMessage({ source: "ux-audit-extension", type: message.type, captures: message.captures || [] }, "*");
+    if (message?.type === "UX_AUDIT_IMPORT_CAPTURES" || message?.type === "UX_AUDIT_IMPORT_CAPTURE") {
+      window.postMessage({
+        source: "ux-audit-extension",
+        type: message.type,
+        captures: message.captures || (message.capture ? [message.capture] : []),
+      }, "*");
     }
   });
 

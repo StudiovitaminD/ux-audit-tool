@@ -83,13 +83,14 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
     const width = Math.max(1, Math.ceil(Number(contentSize?.width || 1)));
     const height = Math.max(1, Math.ceil(Number(contentSize?.height || 1)));
     const result = await chrome.debugger.sendCommand({ tabId }, "Page.captureScreenshot", {
-      format: "png",
+      format: "jpeg",
+      quality: 65,
       captureBeyondViewport: true,
       fromSurface: true,
       clip: { x: 0, y: 0, width, height, scale: 1 },
     });
     await chrome.debugger.detach({ tabId });
-    return result?.data ? `data:image/png;base64,${result.data}` : "";
+    return result?.data ? `data:image/jpeg;base64,${result.data}` : "";
   } catch {
     try { await chrome.debugger.detach({ tabId }); } catch {}
     try { return await chrome.tabs.captureVisibleTab(windowId, { format: "png" }); } catch {}
@@ -284,7 +285,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tabs = await chrome.tabs.query({});
       const target = tabs.find((tab) => tab.id && tab.url && /\/audit(?:\?|$)/.test(tab.url));
       if (!target?.id) throw new Error("Open the audit form before sending captures.");
-      await chrome.tabs.sendMessage(target.id, { type: "UX_AUDIT_IMPORT_CAPTURES", captures: state.captures });
+      for (const capture of state.captures) {
+        await chrome.tabs.sendMessage(target.id, {
+          type: "UX_AUDIT_IMPORT_CAPTURE",
+          capture,
+        });
+      }
       await clearAudit();
       return { ok: true };
     }
