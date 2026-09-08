@@ -84,9 +84,14 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
       expression: `(() => {
         const body = document.body;
         const html = document.documentElement;
+        const candidates = [document.scrollingElement, ...document.querySelectorAll('*')]
+          .filter((element) => element && element.scrollHeight > element.clientHeight + 8)
+          .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
+        const scroller = candidates[0] || document.scrollingElement;
+        window.__uxAuditScroller = scroller;
         return {
-          width: Math.max(body?.scrollWidth || 0, html.scrollWidth, html.clientWidth),
-          height: Math.max(body?.scrollHeight || 0, html.scrollHeight, html.clientHeight),
+          width: Math.max(scroller?.scrollWidth || 0, body?.scrollWidth || 0, html.scrollWidth, html.clientWidth),
+          height: scroller?.scrollHeight || Math.max(body?.scrollHeight || 0, html.scrollHeight, html.clientHeight),
           viewportWidth: window.innerWidth,
           viewportHeight: window.innerHeight,
           scrollX: window.scrollX,
@@ -111,7 +116,11 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
     for (let y = 0; y < page.height; y += page.viewportHeight) {
       const tileHeight = Math.min(page.viewportHeight, page.height - y);
       await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
-        expression: `window.scrollTo(${page.scrollX}, ${y})`,
+        expression: `(() => {
+          const scroller = window.__uxAuditScroller || document.scrollingElement;
+          if (scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body) window.scrollTo(${page.scrollX}, ${y});
+          else scroller.scrollTop = ${y};
+        })()`,
       });
       await new Promise((resolve) => setTimeout(resolve, 100));
       // captureVisibleTab is intentionally used here: it captures exactly the
@@ -121,9 +130,11 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
     }
 
     await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
-      expression: `(() => {
+        expression: `(() => {
         document.getElementById('__ux_audit_capture_style__')?.remove();
-        window.scrollTo(${page.scrollX}, ${page.scrollY});
+        const scroller = window.__uxAuditScroller || document.scrollingElement;
+        if (scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body) window.scrollTo(${page.scrollX}, ${page.scrollY});
+        else scroller.scrollTop = ${page.scrollY};
       })()`,
     });
     if (!tiles.length) throw new Error("No screenshot tiles captured.");
