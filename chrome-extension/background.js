@@ -114,20 +114,10 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
         expression: `window.scrollTo(${page.scrollX}, ${y})`,
       });
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const tile = await chrome.debugger.sendCommand({ tabId }, "Page.captureScreenshot", {
-        format: "jpeg",
-        quality: 40,
-        captureBeyondViewport: true,
-        fromSurface: true,
-        clip: {
-          x: 0,
-          y,
-          width: page.width,
-          height: tileHeight,
-          scale: 1,
-        },
-      });
-      if (tile?.data) tiles.push({ data: tile.data, y, height: tileHeight });
+      // captureVisibleTab is intentionally used here: it captures exactly the
+      // viewport after scrolling, unlike CDP surface capture on some sites.
+      const tile = await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 40 });
+      if (tile) tiles.push({ data: tile.split(",")[1], y, height: tileHeight });
     }
 
     await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
@@ -138,29 +128,22 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
     });
     if (!tiles.length) throw new Error("No screenshot tiles captured.");
 
-    const assembled = await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
-      expression: `(${(async function stitch(tileData, pageHeight, viewportWidth, viewportHeight) {
-        const images = [];
-        for (const tile of tileData) {
-          const response = await fetch('data:image/jpeg;base64,' + tile.data);
-          images.push(await createImageBitmap(await response.blob()));
-        }
-        const scale = images[0].width / viewportWidth;
-        const canvas = new OffscreenCanvas(images[0].width, Math.ceil(pageHeight * scale));
-        const context = canvas.getContext('2d');
-        images.forEach((image, index) => context.drawImage(image, 0, tileData[index].y * scale));
-        const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.4 });
-        const buffer = await blob.arrayBuffer();
-        let binary = '';
-        const bytes = new Uint8Array(buffer);
-        for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
-        return btoa(binary);
-      }).toString()})(${JSON.stringify(tiles)}, ${page.height}, ${page.viewportWidth}, ${page.viewportHeight})`,
-      awaitPromise: true,
-      returnByValue: true,
-    });
+    const images = [];
+    for (const tile of tiles) {
+      const response = await fetch(`data:image/jpeg;base64,${tile.data}`);
+      images.push(await createImageBitmap(await response.blob()));
+    }
+    const scale = images[0].width / page.viewportWidth;
+    const canvas = new OffscreenCanvas(images[0].width, Math.ceil(page.height * scale));
+    const context = canvas.getContext("2d");
+    images.forEach((image, index) => context.drawImage(image, 0, tiles[index].y * scale));
+    const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.4 });
+    const buffer = await blob.arrayBuffer();
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
     if (attached) await chrome.debugger.detach({ tabId });
-    return assembled?.result?.result?.value ? `data:image/jpeg;base64,${assembled.result.result.value}` : "";
+    return `data:image/jpeg;base64,${btoa(binary)}`;
   } catch {
     if (attached) try { await chrome.debugger.detach({ tabId }); } catch {}
     try { return await chrome.tabs.captureVisibleTab(windowId, { format: "png" }); } catch {}
