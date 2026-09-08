@@ -45,7 +45,7 @@ async function refresh() {
     return;
   }
 
-  const { state, settings } = response;
+  const { state } = response;
   const captures = state.captures || [];
   document.getElementById("captureCount").textContent = `${captures.length} page${captures.length === 1 ? "" : "s"} captured`;
   renderCaptures(captures);
@@ -53,38 +53,37 @@ async function refresh() {
 }
 
 document.getElementById("capturePage").addEventListener("click", async () => {
-  const tab = await getCurrentTab();
-  if (!tab?.id) {
-    showFlash("No active tab found.", "error");
-    return;
-  }
+  try {
+    const tab = await getCurrentTab();
+    if (!tab?.id) throw new Error("No active tab found.");
 
-  const response = await send({
-    type: "UX_AUDIT_CAPTURE",
-    tabId: tab.id,
-    captureReason: "manual_capture",
-  });
+    const response = await send({
+      type: "UX_AUDIT_CAPTURE",
+      tabId: tab.id,
+      captureReason: "manual_capture",
+    });
+    if (!response?.ok) throw new Error(response?.error || "Could not capture this page.");
 
-  if (!response?.ok) {
-    showFlash(response?.error || "Could not capture this page.", "error");
-    return;
+    const name = window.prompt("Name this page", response.capture?.title || "Captured page");
+    if (name?.trim()) {
+      const renamed = await send({ type: "UX_AUDIT_RENAME_LAST_CAPTURE", name: name.trim() });
+      if (!renamed?.ok) throw new Error(renamed?.error || "Could not name this capture.");
+    }
+    showFlash("Full page captured.", "success");
+    await refresh();
+  } catch (error) {
+    showFlash(error instanceof Error ? error.message : "Could not capture this page.", "error");
   }
-
-  const name = window.prompt("Name this page", response.capture?.title || "Captured page");
-  if (name?.trim()) {
-    await send({ type: "UX_AUDIT_RENAME_LAST_CAPTURE", name: name.trim() });
-  }
-  showFlash("Full page captured.", "success");
-  await refresh();
 });
 
 document.getElementById("sendCaptures").addEventListener("click", async () => {
-  const response = await send({ type: "UX_AUDIT_SEND_TO_FORM" });
-  if (!response?.ok) {
-    showFlash(response?.error || "Could not send captures to the audit form.", "error");
-    return;
+  try {
+    const response = await send({ type: "UX_AUDIT_SEND_TO_FORM" });
+    if (!response?.ok) throw new Error(response?.error || "Could not send captures to the audit form.");
+    showFlash("Captures sent to the audit form.", "success");
+  } catch (error) {
+    showFlash(error instanceof Error ? error.message : "Could not send captures to the audit form.", "error");
   }
-  showFlash("Captures sent to the audit form.", "success");
 });
 
 document.getElementById("clearCaptures").addEventListener("click", async () => {
