@@ -327,6 +327,25 @@ function isUrlLike(value: string) {
   }
 }
 
+async function optimizeScreenshot(file: File) {
+  if (!file.type.startsWith("image/") || typeof window === "undefined") return file;
+  const source = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = URL.createObjectURL(file);
+  });
+  const maxWidth = 1600;
+  const scale = Math.min(1, maxWidth / source.naturalWidth);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(source.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(source.naturalHeight * scale));
+  canvas.getContext("2d")?.drawImage(source, 0, 0, canvas.width, canvas.height);
+  URL.revokeObjectURL(source.src);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.42));
+  return blob ? new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }) : file;
+}
+
 const auditGoals: AuditSelectOption[] = [
   { label: "Improve conversion", value: "improve_conversion" },
   { label: "Reduce churn / improve retention", value: "reduce_churn_retention" },
@@ -771,8 +790,9 @@ export function AuditForm() {
     try {
       const results = await Promise.allSettled(
         files.map(async (file) => {
+          const uploadFile = await optimizeScreenshot(file);
           const formData = new FormData();
-          formData.set("file", file);
+          formData.set("file", uploadFile);
 
           const response = await fetch("/api/uploads/screenshots", {
             method: "POST",
@@ -801,7 +821,7 @@ export function AuditForm() {
             };
           } catch {
             if (!response.ok) {
-              throw new Error(responseText.trim() || `Upload failed (${response.status}).`);
+            throw new Error(responseText.trim() || `Upload failed (${response.status}).`);
             }
           }
 
@@ -811,8 +831,8 @@ export function AuditForm() {
 
           return {
             name: file.name,
-            type: file.type,
-            size: file.size,
+            type: uploadFile.type,
+            size: uploadFile.size,
             url: data.url,
             label: "other" as UploadedScreenshotLabel,
             publicId: data.publicId || "",
