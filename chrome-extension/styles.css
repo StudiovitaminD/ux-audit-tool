@@ -120,8 +120,9 @@ p {
 
 .capture-item {
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   gap: 10px;
+  align-items: center;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -130,7 +131,11 @@ p {
 
 .capture-remove {
   flex: 0 0 auto;
+  align-self: center;
   padding: 8px 12px;
+  border-color: #f4b4b4;
+  color: #b42318;
+  white-space: nowrap;
 }
 
 .capture-index {
