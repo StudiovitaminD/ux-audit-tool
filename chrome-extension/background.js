@@ -282,7 +282,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         ...state,
         captures: state.captures.filter((_, captureIndex) => captureIndex !== index),
       });
-      return { ok: true };
+      const updatedState = await getState();
+      if (updatedState.captures.length !== state.captures.length - 1) {
+        throw new Error("The capture could not be removed.");
+      }
+      return { ok: true, remaining: updatedState.captures.length };
     }
 
     if (message?.type === "UX_AUDIT_CAPTURE") {

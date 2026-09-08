@@ -46,6 +46,7 @@ function renderCaptures(captures) {
         showFlash(response?.error || "Could not remove this capture.", "error");
         return;
       }
+      showFlash("Capture removed.", "success");
       await refresh();
     });
   });

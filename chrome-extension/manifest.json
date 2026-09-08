@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "UX Audit Capture",
   "description": "Capture SaaS, ecommerce, and website evidence for the UX audit tool.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "permissions": [
     "activeTab",
     "downloads",
