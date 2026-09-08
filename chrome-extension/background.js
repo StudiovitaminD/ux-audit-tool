@@ -75,19 +75,86 @@ function guessScreenType(payload) {
 
 async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataUrl) {
   if (!includeScreenshotDataUrl) return "";
+  let attached = false;
   try {
     await chrome.debugger.attach({ tabId }, "1.3");
+    attached = true;
     await chrome.debugger.sendCommand({ tabId }, "Page.enable");
-    const result = await chrome.debugger.sendCommand({ tabId }, "Page.captureScreenshot", {
-      format: "jpeg",
-      quality: 40,
-      captureBeyondViewport: true,
-      fromSurface: true,
+    const metrics = await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+      expression: `(() => {
+        const body = document.body;
+        const html = document.documentElement;
+        return {
+          width: Math.max(body?.scrollWidth || 0, html.scrollWidth, html.clientWidth),
+          height: Math.max(body?.scrollHeight || 0, html.scrollHeight, html.clientHeight),
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+          scrollX: window.scrollX,
+          scrollY: window.scrollY,
+        };
+      })()`,
+      returnByValue: true,
     });
-    await chrome.debugger.detach({ tabId });
-    return result?.data ? `data:image/jpeg;base64,${result.data}` : "";
+    const page = metrics?.result?.result?.value;
+    if (!page?.width || !page?.height || !page?.viewportHeight) throw new Error("Page dimensions unavailable.");
+
+    await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+      expression: `(() => {
+        const style = document.createElement('style');
+        style.id = '__ux_audit_capture_style__';
+        style.textContent = '* { animation: none !important; transition: none !important; } [style*="position: fixed"], [style*="position:sticky"] { visibility: hidden !important; }';
+        document.documentElement.appendChild(style);
+      })()`,
+    });
+
+    const tiles = [];
+    for (let y = 0; y < page.height; y += page.viewportHeight) {
+      await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+        expression: `window.scrollTo(${page.scrollX}, ${y})`,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const tile = await chrome.debugger.sendCommand({ tabId }, "Page.captureScreenshot", {
+        format: "jpeg",
+        quality: 40,
+        captureBeyondViewport: false,
+        fromSurface: true,
+      });
+      if (tile?.data) tiles.push(tile.data);
+    }
+
+    await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+      expression: `(() => {
+        document.getElementById('__ux_audit_capture_style__')?.remove();
+        window.scrollTo(${page.scrollX}, ${page.scrollY});
+      })()`,
+    });
+    if (!tiles.length) throw new Error("No screenshot tiles captured.");
+
+    const assembled = await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+      expression: `(${(async function stitch(tileData, pageHeight, viewportWidth, viewportHeight) {
+        const images = [];
+        for (const data of tileData) {
+          const response = await fetch('data:image/jpeg;base64,' + data);
+          images.push(await createImageBitmap(await response.blob()));
+        }
+        const scale = images[0].width / viewportWidth;
+        const canvas = new OffscreenCanvas(images[0].width, Math.ceil(pageHeight * scale));
+        const context = canvas.getContext('2d');
+        images.forEach((image, index) => context.drawImage(image, 0, index * viewportHeight * scale));
+        const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.4 });
+        const buffer = await blob.arrayBuffer();
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+        return btoa(binary);
+      }).toString()})(${JSON.stringify(tiles)}, ${page.height}, ${page.viewportWidth}, ${page.viewportHeight})`,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (attached) await chrome.debugger.detach({ tabId });
+    return assembled?.result?.result?.value ? `data:image/jpeg;base64,${assembled.result.result.value}` : "";
   } catch {
-    try { await chrome.debugger.detach({ tabId }); } catch {}
+    if (attached) try { await chrome.debugger.detach({ tabId }); } catch {}
     try { return await chrome.tabs.captureVisibleTab(windowId, { format: "png" }); } catch {}
     return "";
   }
