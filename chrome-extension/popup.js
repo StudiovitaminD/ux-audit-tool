@@ -32,10 +32,23 @@ function renderCaptures(captures) {
             <div class="capture-subtitle">${capture.screenTypeLabel || "other"} · ${capture.captureReason || "manual_capture"}</div>
             <div class="capture-url">${capture.url || ""}</div>
           </div>
+          <button class="button button-ghost capture-remove" type="button" data-capture-index="${index}">Remove</button>
         </div>
       `,
     )
     .join("");
+
+  list.querySelectorAll("[data-capture-index]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const index = Number(button.dataset.captureIndex);
+      const response = await send({ type: "UX_AUDIT_REMOVE_CAPTURE", index });
+      if (!response?.ok) {
+        showFlash(response?.error || "Could not remove this capture.", "error");
+        return;
+      }
+      await refresh();
+    });
+  });
 }
 
 async function refresh() {

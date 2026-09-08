@@ -272,6 +272,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return { ok: true };
     }
 
+    if (message?.type === "UX_AUDIT_REMOVE_CAPTURE") {
+      const state = await getState();
+      const index = Number(message.index);
+      if (!Number.isInteger(index) || index < 0 || index >= (state.captures || []).length) {
+        throw new Error("Capture not found.");
+      }
+      await setState({
+        ...state,
+        captures: state.captures.filter((_, captureIndex) => captureIndex !== index),
+      });
+      return { ok: true };
+    }
+
     if (message?.type === "UX_AUDIT_CAPTURE") {
       const tabId = message.tabId || sender.tab?.id;
       if (!tabId) throw new Error("No active tab found.");

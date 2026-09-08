@@ -128,6 +128,11 @@ p {
   background: #faf8f5;
 }
 
+.capture-remove {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+}
+
 .capture-index {
   width: 32px;
   height: 32px;
