@@ -101,13 +101,32 @@ async function captureCurrentTab(tabId, captureReason = "manual_capture") {
   const tab = await chrome.tabs.get(tabId);
   const settings = await getSettings();
 
-  const payload = await chrome.tabs.sendMessage(tabId, {
-    type: "UX_AUDIT_CAPTURE_PAGE",
-    payload: {
-      settings,
-      captureReason,
-    },
-  });
+  let payload;
+  try {
+    payload = await chrome.tabs.sendMessage(tabId, {
+      type: "UX_AUDIT_CAPTURE_PAGE",
+      payload: {
+        settings,
+        captureReason,
+      },
+    });
+  } catch {
+    // A tab opened before the extension was reloaded may not have content.js yet.
+    // The screenshot is still useful, so keep capture working with tab metadata.
+    payload = {
+      url: tab.url || "",
+      title: tab.title || "Captured page",
+      headings: [],
+      visibleText: "",
+      buttons: [],
+      links: [],
+      forms: [],
+      tables: [],
+      navigationLabels: [],
+      dropdownModalState: "none",
+      domSummary: "",
+    };
+  }
 
   const screenshotUrl = await captureFullPageScreenshot(tabId, tab.windowId, settings.includeScreenshotDataUrl);
   const state = await getState();
