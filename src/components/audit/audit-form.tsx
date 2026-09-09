@@ -472,6 +472,15 @@ export function AuditForm() {
     setOwnershipOpen(true);
   }
 
+  function downloadOwnershipFile() {
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Website verification</title></head><body>ux-audit-verification:${ownershipToken}</body></html>`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    link.download = "zero-threat.html";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   async function verifyOwnership() {
     setOwnershipChecking(true);
     setOwnershipError(null);
@@ -1659,14 +1668,14 @@ export function AuditForm() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-[color:var(--ink)]">Verify website ownership</h2>
-                <p className="mt-2 text-sm text-[color:var(--ink-muted)]">Add this meta tag to your website homepage, then verify it.</p>
+                <p className="mt-2 text-sm text-[color:var(--ink-muted)]">Download the verification file, place it in your website root, then verify it at <strong>/zero-threat.html</strong>.</p>
               </div>
               <button type="button" className="text-2xl" onClick={() => setOwnershipOpen(false)} aria-label="Close">×</button>
             </div>
-            <pre className="mt-5 overflow-x-auto rounded-xl bg-zinc-100 p-4 text-sm">{`<meta name="ux-audit-verification" content="${ownershipToken}" />`}</pre>
+            <pre className="mt-5 overflow-x-auto rounded-xl bg-zinc-100 p-4 text-sm">{`Place zero-threat.html in your website root.\nVerification token: ux-audit-verification:${ownershipToken}`}</pre>
             <div className="mt-4 flex items-center justify-between gap-3 text-sm text-[color:var(--ink-muted)]">
               <span>URL: {payload.productUrl}</span>
-              <Button type="button" variant="secondary" onClick={() => void navigator.clipboard?.writeText(`<meta name="ux-audit-verification" content="${ownershipToken}" />`)}>Copy tag</Button>
+              <Button type="button" variant="secondary" onClick={downloadOwnershipFile}>Download HTML</Button>
             </div>
             {ownershipError ? <p className="mt-4 text-sm text-red-600">{ownershipError}</p> : null}
             <div className="mt-6 flex justify-end gap-3">

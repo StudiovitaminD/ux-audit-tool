@@ -27,9 +27,10 @@ export async function GET(request: Request) {
     const html = await response.text();
     const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const meta = new RegExp(`<meta[^>]+name=["']ux-audit-verification["'][^>]+content=["']${escapedToken}["']`, "i");
-    const file = await fetch(new URL("/ux-audit-verification.txt", target.origin), { cache: "no-store" }).then((r) => r.text()).catch(() => "");
-    const verified = meta.test(html) || file.trim() === token;
-    return NextResponse.json({ ok: verified, method: meta.test(html) ? "meta_tag" : file.trim() === token ? "file" : null, error: verified ? null : "Verification token was not found on this website." });
+    const file = await fetch(new URL("/zero-threat.html", target.origin), { cache: "no-store" }).then((r) => r.text()).catch(() => "");
+    const verifiedFile = file.includes(`ux-audit-verification:${token}`);
+    const verified = meta.test(html) || verifiedFile;
+    return NextResponse.json({ ok: verified, method: meta.test(html) ? "meta_tag" : verifiedFile ? "html_file" : null, error: verified ? null : "Verification token was not found on this website." });
   } catch {
     return NextResponse.json({ ok: false, error: "Could not reach this website. Check the URL and try again." }, { status: 502 });
   }
