@@ -455,10 +455,39 @@ export function AuditForm() {
   // ADDED: report creating overlay copy rotation
   const [creatingIdx, setCreatingIdx] = useState(0);
   const [prefillLoading, setPrefillLoading] = useState(false);
+  const [ownershipOpen, setOwnershipOpen] = useState(false);
+  const [ownershipToken, setOwnershipToken] = useState("");
+  const [ownershipVerified, setOwnershipVerified] = useState(false);
+  const [ownershipChecking, setOwnershipChecking] = useState(false);
+  const [ownershipError, setOwnershipError] = useState<string | null>(null);
   const [personaCards, setPersonaCards] = useState<PersonaCard[]>(() => [
     createEmptyPersonaCard("primary"),
   ]);
   const formRef = useRef<HTMLFormElement | null>(null);
+
+  function openOwnershipVerification() {
+    const token = ownershipToken || `uxa_${crypto.randomUUID().replaceAll("-", "")}`;
+    setOwnershipToken(token);
+    setOwnershipError(null);
+    setOwnershipOpen(true);
+  }
+
+  async function verifyOwnership() {
+    setOwnershipChecking(true);
+    setOwnershipError(null);
+    try {
+      const query = new URLSearchParams({ url: payload.productUrl.trim(), token: ownershipToken });
+      const response = await fetch(`/api/verify-ownership?${query}`);
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "Verification failed.");
+      setOwnershipVerified(true);
+      setOwnershipOpen(false);
+    } catch (verificationError) {
+      setOwnershipError(getErrorMessage(verificationError) || "Verification failed.");
+    } finally {
+      setOwnershipChecking(false);
+    }
+  }
 
   // ADDED
   const primaryType = payload.product.type;
@@ -1452,6 +1481,12 @@ export function AuditForm() {
       return;
     }
 
+    if (!ownershipVerified) {
+      setError("Verify that you own or control the product URL before submitting.");
+      openOwnershipVerification();
+      return;
+    }
+
     if (!submitConfirmed) {
       setConfirmSubmitOpen(true);
       return;
@@ -1614,6 +1649,29 @@ export function AuditForm() {
               <Button type="button" variant="primary" onClick={() => void fillFormUsingAi(aiProductUrl)} disabled={!aiProductUrl.trim()}>
                 Fill form
               </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {ownershipOpen ? (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/50 px-4 backdrop-blur-sm">
+          <div className="w-[min(760px,100%)] rounded-2xl border border-[color:var(--cream-dark)] bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-[color:var(--ink)]">Verify website ownership</h2>
+                <p className="mt-2 text-sm text-[color:var(--ink-muted)]">Add this meta tag to your website homepage, then verify it.</p>
+              </div>
+              <button type="button" className="text-2xl" onClick={() => setOwnershipOpen(false)} aria-label="Close">×</button>
+            </div>
+            <pre className="mt-5 overflow-x-auto rounded-xl bg-zinc-100 p-4 text-sm">{`<meta name="ux-audit-verification" content="${ownershipToken}" />`}</pre>
+            <div className="mt-4 flex items-center justify-between gap-3 text-sm text-[color:var(--ink-muted)]">
+              <span>URL: {payload.productUrl}</span>
+              <Button type="button" variant="secondary" onClick={() => void navigator.clipboard?.writeText(`<meta name="ux-audit-verification" content="${ownershipToken}" />`)}>Copy tag</Button>
+            </div>
+            {ownershipError ? <p className="mt-4 text-sm text-red-600">{ownershipError}</p> : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setOwnershipOpen(false)}>Cancel</Button>
+              <Button type="button" variant="primary" onClick={() => void verifyOwnership()} disabled={ownershipChecking}>{ownershipChecking ? "Checking…" : "Verify ownership"}</Button>
             </div>
           </div>
         </div>
@@ -2326,7 +2384,7 @@ export function AuditForm() {
                   type="url"
                   value={payload.productUrl}
                   onChange={(e) =>
-                    setPayload((p) => ({ ...p, productUrl: e.target.value }))
+                    (setOwnershipVerified(false), setPayload((p) => ({ ...p, productUrl: e.target.value })))
                   }
                   placeholder="https://yourproduct.com"
                 />
@@ -2342,6 +2400,9 @@ export function AuditForm() {
                       onClick={() => window.open(payload.productUrl.trim(), "_blank", "noopener,noreferrer")}
                     >
                       Capture Pages for Audit
+                    </Button>
+                    <Button type="button" variant={ownershipVerified ? "secondary" : "ghost"} className="ml-2" disabled={!isUrlLike(payload.productUrl)} onClick={openOwnershipVerification}>
+                      {ownershipVerified ? "Ownership verified" : "Verify ownership"}
                     </Button>
                     {uploadingScreenshots ? (
                       <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
@@ -2465,6 +2526,9 @@ export function AuditForm() {
                       onClick={() => window.open(payload.productUrl.trim(), "_blank", "noopener,noreferrer")}
                     >
                       Capture Pages for Audit
+                    </Button>
+                    <Button type="button" variant={ownershipVerified ? "secondary" : "ghost"} className="ml-2" disabled={!isUrlLike(payload.productUrl)} onClick={openOwnershipVerification}>
+                      {ownershipVerified ? "Ownership verified" : "Verify ownership"}
                     </Button>
                     {uploadingScreenshots ? (
                       <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
