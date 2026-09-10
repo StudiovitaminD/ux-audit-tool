@@ -951,6 +951,10 @@ function uniqueSemanticList(items: string[], limit = 999) {
   return output;
 }
 
+function isNegativeStrength(value: string) {
+  return /\b(?:cannot|can't|unable|lacks?|missing|without|no visible|not possible|not consistently|unclear|confus(?:e|ing)|impairs?|fails?|failure|problem|risk|weak|poor|insufficient|not available)\b/i.test(value);
+}
+
 function bucketLeadInsight(bucket: BucketResult) {
   const finding =
     Array.isArray(bucket.findings) && bucket.findings[0] && typeof bucket.findings[0] === "object"
@@ -1142,7 +1146,7 @@ function executiveSummaryLooksWeak(summary: Record<string, unknown> | null) {
   const strongest = String(summary.strongest_area || "").trim();
   const mainIssue = String(summary.main_issue || "").trim();
   const topProblems = Array.isArray(summary.top_problems) ? summary.top_problems.map((item) => String(item || "").trim()).filter(Boolean) : [];
-  const whatsWorking = Array.isArray(summary.whats_working) ? summary.whats_working.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  const whatsWorking = Array.isArray(summary.whats_working) ? summary.whats_working.map((item) => String(item || "").trim()).filter((item) => item && !isNegativeStrength(item)) : [];
 
   if (!strongest || /^not scored$/i.test(strongest)) return true;
   if (!mainIssue || /^scoring unavailable$/i.test(mainIssue)) return true;
@@ -3157,7 +3161,7 @@ export async function finalizeAudit(args: {
               [
                 ...((executiveSummaryFromNarrative?.whats_working as string[]) || []),
                 ...derivedExecutiveSummary.whats_working,
-              ],
+              ].filter((item) => !isNegativeStrength(item)),
               4,
             ),
             first_priority: uniqueSemanticList(
