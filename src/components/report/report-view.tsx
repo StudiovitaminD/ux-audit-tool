@@ -1251,47 +1251,63 @@ export function ReportView() {
       debugDetails && typeof debugDetails.totalBuckets === "number"
         ? debugDetails.totalBuckets
         : null;
+    const progressPercent =
+      totalBuckets && totalBuckets > 0
+        ? Math.min(100, Math.round(((completedBuckets ?? 0) / totalBuckets) * 100))
+        : 8;
+    const progressMessage =
+      currentStage === "Scoring"
+        ? `Reviewing ${currentBucketName || "the current audit area"}…`
+        : currentStage === "Evidence prepared"
+          ? "Organizing the evidence we found…"
+          : currentStage === "Finalizing"
+            ? "Bringing your findings together…"
+            : "Preparing your website review…";
+    const progressSteps = [
+      {
+        label: "Reviewing your evidence",
+        complete: (completedBuckets ?? 0) > 0,
+        active: currentStage === "Evidence prepared" || currentStage === "Scoring",
+      },
+      {
+        label: "Checking the selected audit areas",
+        complete: totalBuckets !== null && (completedBuckets ?? 0) >= totalBuckets,
+        active: currentStage === "Scoring",
+      },
+      {
+        label: "Writing your report",
+        complete: currentStage === "Finalizing",
+        active: currentStage === "Finalizing",
+      },
+    ];
     return (
       <div className="px-6 pb-6 pt-10">
-        <div className="text-lg font-semibold">Creating your report…</div>
-        <div className="mt-3 flex items-center gap-3 text-sm text-[color:var(--muted)]">
-          <LoadingSpinner />
-          <div>
-            Keep this tab open. This can take a minute.
-          </div>
-        </div>
-        {debugDetails ? (
-          <div className="mt-4 rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-4 text-sm">
-            <div className="font-semibold">Progress</div>
-            <div className="mt-3 grid gap-2 text-[color:var(--ink-muted)] sm:grid-cols-2">
-              <div>
-                Completed buckets:{" "}
-                <span className="font-medium text-[color:var(--ink)]">
-                  {completedBuckets ?? "—"}{totalBuckets !== null ? ` / ${totalBuckets}` : ""}
-                </span>
-              </div>
-              <div>
-                Current bucket:{" "}
-                <span className="font-medium text-[color:var(--ink)]">
-                  {currentBucketNumber ?? "—"}
-                  {currentBucketName ? ` — ${currentBucketName}` : ""}
-                </span>
-              </div>
-              <div>
-                Current stage:{" "}
-                <span className="font-medium text-[color:var(--ink)]">{currentStage || "Waiting"}</span>
-              </div>
-              <div>
-                Retry / attempt:{" "}
-                <span className="font-medium text-[color:var(--ink)]">
-                  {typeof debugDetails.retryCount === "number" ? debugDetails.retryCount : 0}
-                  {" / "}
-                  {typeof debugDetails.attemptCount === "number" ? debugDetails.attemptCount : 0}
-                </span>
-              </div>
+        <div className="mx-auto max-w-2xl rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex items-start gap-4">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[color:var(--orange)]/10">
+              <LoadingSpinner />
+            </div>
+            <div className="min-w-0">
+              <div className="text-lg font-semibold">Creating your report…</div>
+              <div className="mt-1 text-sm text-[color:var(--muted)]">{progressMessage}</div>
             </div>
           </div>
-        ) : null}
+          <div className="mt-7 h-2 overflow-hidden rounded-full bg-[color:var(--cream-dark)]" aria-label={`${progressPercent}% complete`}>
+            <div className="h-full rounded-full bg-[color:var(--orange)] transition-all duration-700" style={{ width: `${progressPercent}%` }} />
+          </div>
+          <div className="mt-2 text-right text-xs text-[color:var(--muted)]">{progressPercent}% complete</div>
+          <div className="mt-6 space-y-4">
+            {progressSteps.map((step) => (
+              <div key={step.label} className="flex items-center gap-3 text-sm">
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${step.complete ? "border-emerald-500 bg-emerald-500 text-white" : step.active ? "border-[color:var(--orange)]" : "border-[color:var(--cream-dark)]"}`}>
+                  {step.complete ? "✓" : step.active ? <LoadingSpinner /> : null}
+                </span>
+                <span className={step.active || step.complete ? "text-[color:var(--ink)]" : "text-[color:var(--muted)]"}>{step.label}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-7 text-xs text-[color:var(--muted)]">You can keep this tab open while we finish. This usually takes about a minute.</p>
+        </div>
         {jobError ? (
           <div className="mt-3 text-xs text-red-600 dark:text-red-400">{jobError}</div>
         ) : null}
@@ -1299,9 +1315,6 @@ export function ReportView() {
           <div className="mt-3 text-xs text-amber-600 dark:text-amber-400">
             Retrying: {lastError}
           </div>
-        ) : null}
-        {debugDetails ? (
-          <CapturePipelineDebug debug={debugDetails} />
         ) : null}
       </div>
     );
