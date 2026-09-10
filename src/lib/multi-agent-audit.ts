@@ -26,7 +26,7 @@ export type MultiAgentResult = {
 
 const ROLE_PROMPTS: Record<PillarAgent, string> = {
   accessibility: "Audit WCAG-oriented accessibility: keyboard access, focus, semantics, contrast, typography, forms, errors, and screen-reader support. Check default, hover, focus, keyboard-focused, active, disabled, loading, success, error, validation, empty, expanded, collapsed, open-menu, modal, mobile, 200% zoom, and reduced-motion states where applicable.",
-  impact: "Audit business and task impact: user goals, task completion, conversion friction, findability, drop-off risks, and measurable business consequences. Check default, loading, error, validation, success, empty, disabled, expanded, collapsed, and authenticated journey states where applicable.",
+  impact: "Audit the Impact pillar only: page-load performance, DOM load readiness, resource and asset loading, runtime responsiveness, interaction latency, loading states, slow-network behavior, timeout behavior, error recovery, and mobile performance. Use measurable browser evidence such as navigation timing, DOMContentLoaded, load event, first content visibility when available, long tasks, failed requests, layout shifts, and interaction response time. Do not evaluate business goals, conversion, navigation findability, content quality, UI consistency, or the separate Business Impact Matrix formula.",
   delight: "Audit experience quality: visual consistency, brand expression, content clarity, feedback, motion, and microinteractions. Check default, hover, focus, active, disabled, loading, success, error, empty, expanded, collapsed, open-menu, modal, mobile, and reduced-motion states where applicable.",
 };
 
