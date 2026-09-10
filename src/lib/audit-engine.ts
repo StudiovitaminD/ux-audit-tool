@@ -769,6 +769,8 @@ type NarrativeReport = {
     summary: string;
     biggest_risk: string;
     best_opportunity: string;
+    top_problems?: string[];
+    whats_working?: string[];
   }>;
   section_narrative?: {
     delight_narrative?: string[];
@@ -1407,7 +1409,8 @@ async function writeNarrative(args: {
   const prompt = `You are a principal UX strategist writing a client-ready audit report.\n\nUse ONLY:\n1) intake context\n2) evidence capture text (headings/nav/text snippets)\n3) scored bucket findings/improvements\n4) competitor seeds\n${args.editContext ? "5) edited question changes from the report editor\\n" : ""}\nHard rules:\n- Do not invent screens or features not supported by evidence.\n- Do not write filler or score-only narrative like "Bucket scored 43/100" unless it directly supports a decision.\n- Executive summary must be specific, action-led, and useful for a client stakeholder.\n- Section narratives must explain what is happening and what to do next in bullet-ready sentences.\n- Competitor analysis must return real per-competitor positioning, CTA, strengths, gaps, and steal_this ideas based on compare_focus and available context. If truly unknown, return empty strings/arrays instead of generic placeholders.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON matching this schema:\n{\n  \"executive_summary\": {\n    \"one_line_verdict\": \"...\",\n    \"strongest_area\": \"...\",\n    \"main_issue\": \"...\",\n    \"top_problems\": [\"...\"],\n    \"whats_working\": [\"...\"],\n    \"first_priority\": [\"...\"],\n    \"top_3_quick_wins\": [\"...\"],\n    \"first_priority_recommendation\": \"...\"\n  },\n  \"overall_assessment\": \"...\",\n  \"top_risks\": [\"...\"],\n  \"quick_wins\": [{\"title\":\"...\",\"why\":\"...\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"recommendations\": [{\"title\":\"...\",\"details\":\"...\",\"priority\":\"P1|P2|P3|P4\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"strategic_insights\": [\"...\"],\n  \"per_bucket_notes\": [{\"bucket\":\"...\",\"summary\":\"...\",\"biggest_risk\":\"...\",\"best_opportunity\":\"...\"}],\n  \"section_narrative\": {\n    \"delight_narrative\": [\"...\"],\n    \"impact_narrative\": [\"...\"],\n    \"accessibility_narrative\": [\"...\"]\n  },\n  \"competitor_analysis\": {\n    \"competitors\": [{\"name\":\"...\",\"url\":\"...\",\"compare_focus\":\"...\",\"positioning\":\"...\",\"primary_cta\":\"...\",\"strengths\":[\"...\"],\"gaps\":[\"...\"],\"steal_this\":[\"...\"]}]\n  }\n}\n\nIntake:\n${JSON.stringify(compactIntake, null, 2)}\n\nCompetitor seeds:\n${JSON.stringify(competitorSeeds, null, 2)}\n\n${args.editContext ? `Edited question changes:\n${args.editContext}\n` : ""}Evidence:\n${compactEvidence}\n\nScored buckets:\n${JSON.stringify(compactBuckets, null, 2)}\n\nOverall score: ${args.overall_score}\n`;
 
   const contentWriterRules = `\n\nContent Writer Agent rules:\n- Preserve every score, answer state, pillar, and evidence record exactly.\n- Top Problems may contain only verified product defects supported by evidence. Each item must state the observed issue, user consequence, and practical action.\n- Never present missing evidence, untested states, unavailable screens, or inability to determine something as a product problem.\n- What's Working may contain only clearly positive, evidence-backed behavior. Exclude mixed or negative statements.\n- Keep coverage limitations separate from product findings.\n- Remove duplicates, contradictions, generic filler, and unsupported claims.\n- Performance/Impact covers loading, DOM readiness, runtime responsiveness, asset efficiency, and mobile performance only; never mix in business metrics.\n- Write for a reader with no UX, design, accessibility, or engineering knowledge.\n- Prefer familiar everyday words. Replace or briefly explain technical terms such as DOM readiness, cognitive load, affordance, hierarchy, latency, and interaction state.\n- Use short, direct sentences and one idea per sentence. Do not use vague consultant language.`;
-  const plainLanguagePrompt = `${prompt}${contentWriterRules}\n\nWriting requirement: Use clear layman's language that an everyday user can understand on the first read. Clearly state what is wrong, how it affects the user, and what should be done next.`;
+  const bucketContentSchema = `\n\nFor every item in per_bucket_notes, also return top_problems and whats_working arrays. top_problems must contain only verified defects. whats_working must contain only verified positive behavior. Return empty arrays when no valid content exists.`;
+  const plainLanguagePrompt = `${prompt}${contentWriterRules}${bucketContentSchema}\n\nWriting requirement: Use clear layman's language that an everyday user can understand on the first read. Clearly state what is wrong, how it affects the user, and what should be done next.`;
 
   const schemaHint =
     '{ "executive_summary": {"one_line_verdict":"...","strongest_area":"...","main_issue":"...","top_problems":["..."],"whats_working":["..."],"first_priority":["..."],"top_3_quick_wins":["..."],"first_priority_recommendation":"..."}, "overall_assessment": "...", "top_risks": ["..."], "quick_wins": [{"title":"...","why":"...","effort":"S|M|L","impact":"Low|Med|High"}], "recommendations": [{"title":"...","details":"...","priority":"P1|P2|P3|P4","effort":"S|M|L","impact":"Low|Med|High"}], "strategic_insights": ["..."], "per_bucket_notes": [{"bucket":"...","summary":"...","biggest_risk":"...","best_opportunity":"..."}], "section_narrative": {"delight_narrative":["..."],"impact_narrative":["..."],"accessibility_narrative":["..."]}, "competitor_analysis": {"competitors":[{"name":"...","url":"...","compare_focus":"...","positioning":"...","primary_cta":"...","strengths":["..."],"gaps":["..."],"steal_this":["..."]}] } }';
@@ -1673,6 +1676,7 @@ export type BucketResult = {
   }>;
   findings: Array<Record<string, unknown>>;
   improvements: Array<Record<string, unknown>>;
+  score_rationale?: Record<string, unknown>;
 };
 
 function buildInsufficientQuestions(
@@ -2967,6 +2971,40 @@ export async function finalizeAudit(args: {
     modelOverride: args.modelOverride,
   }).catch(() => null);
 
+  const writerNotes = new Map(
+    (Array.isArray(narrative?.per_bucket_notes) ? narrative.per_bucket_notes : []).map((note) => [
+      String(note.bucket || "").trim().toLowerCase(),
+      note,
+    ]),
+  );
+  const contentReviewedResults = onlyResults.map((bucket) => {
+    const note = writerNotes.get(String(bucket.bucket_name || "").trim().toLowerCase());
+    if (!note) return bucket;
+
+    const topProblems = uniqueSemanticList(
+      (Array.isArray(note.top_problems) ? note.top_problems : [])
+        .map((item) => String(item || "").trim())
+        .filter((item) => item && !isPlaceholderText(item) && !isAuditCoverageLimitation(item)),
+      4,
+    );
+    const whatsWorking = uniqueSemanticList(
+      (Array.isArray(note.whats_working) ? note.whats_working : [])
+        .map((item) => String(item || "").trim())
+        .filter((item) => item && !isPlaceholderText(item) && !isAuditCoverageLimitation(item) && !isNegativeStrength(item)),
+      4,
+    );
+    if (!topProblems.length && !whatsWorking.length) return bucket;
+
+    return {
+      ...bucket,
+      score_rationale: {
+        ...(bucket.score_rationale || {}),
+        ...(topProblems.length ? { what_is_risky: topProblems } : {}),
+        ...(whatsWorking.length ? { what_is_working: whatsWorking } : {}),
+      },
+    };
+  });
+
   const executiveSummaryFromNarrative =
     narrative && typeof narrative === "object"
       ? {
@@ -3192,7 +3230,10 @@ export async function finalizeAudit(args: {
         : "") || report.closing_note,
   };
 
-  return multiAgentReview ? { ...report, multi_agent_review: multiAgentReview } : report;
+  const contentReviewedReport = { ...report, bucket_results: contentReviewedResults };
+  return multiAgentReview
+    ? { ...contentReviewedReport, multi_agent_review: multiAgentReview }
+    : contentReviewedReport;
   } catch (error) {
     const message = getErrorMessage(error) || "Finalize failed";
     const onlyResults = args.bucket_results ?? [];

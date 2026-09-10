@@ -110,13 +110,18 @@ function isWorkingStrengthText(text: unknown) {
     !placeholderText(text) &&
     !looksLikeRecommendation(text) &&
     !looksLikeWeakStatus(text) &&
-    !/\b(no|not|without|lack|lacks|missing|fails|cannot|can't|won't|does not|do not|may not|might not|absence|absent|unclear|weak|poor|insufficient|problem|risk|confus(?:e|ing)|uncertain|abandonment)\b/i.test(normalized)
+    !/\b(no|not|without|lack|lacks|missing|fails|cannot|can't|won't|does not|do not|may not|might not|absence|absent|unclear|weak|poor|insufficient|problem|risk|confus(?:e|ing)|uncertain|abandonment|but|however|partially|inconsistent|could be improved|could degrade|reduce usability|obscur(?:e|ing))\b/i.test(normalized) &&
+    !isIncompleteNarrative(text)
   );
 }
 
 function isCoverageLimitation(text: unknown) {
   const normalized = normalizeKey(text);
-  return /\b(due to (?:a )?lack of evidence|lack of evidence|insufficient evidence|available evidence|captured evidence|evidence (?:was|is) not|not possible to (?:determine|assess|verify|observe)|could not (?:determine|assess|verify|observe|test)|cannot (?:determine|assess|verify|observe|test)|not tested|was not tested|were not tested|not observed|was not observed|were not observed|did not observe|did not capture|not captured)\b/i.test(normalized);
+  return /\b(due to (?:a )?lack of evidence|lack of evidence|without (?:direct )?evidence|without testing|without .*?(?:data|views|examples|inspection|output)|insufficient evidence|available evidence|captured evidence|evidence (?:was|is) not|not possible to (?:determine|assess|verify|observe|evaluate|confirm)|could not (?:determine|assess|verify|observe|test|evaluate|confirm)|cannot (?:determine|assess|verify|observe|test|evaluate|confirm)|unknown whether|not tested|was not tested|were not tested|not observed|was not observed|were not observed|did not observe|did not capture|not captured)\b/i.test(normalized);
+}
+
+function isIncompleteNarrative(text: unknown) {
+  return !/[.!?]$/.test(String(text || "").trim());
 }
 
 function synthesizeBucketStrengthFallback(bucket: Record<string, unknown>) {
@@ -365,12 +370,12 @@ function renderBucketContent(
 ) {
   const sanitizeProblemItems = (items?: readonly string[]) =>
     normalizeList(items ?? [], 8).map(cleanNarrativeText).filter(
-      (item) => Boolean(item && !placeholderText(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item)),
+      (item) => Boolean(item && !placeholderText(item) && !isCoverageLimitation(item) && !isIncompleteNarrative(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item)),
     );
   const sanitizeWorkingItems = (items?: readonly string[]) =>
     normalizeList(items ?? [], 8).map(cleanNarrativeText).filter(
       (item) =>
-        Boolean(item && !placeholderText(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item) && isWorkingStrengthText(item)),
+        Boolean(item && !placeholderText(item) && !isCoverageLimitation(item) && !isIncompleteNarrative(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item) && isWorkingStrengthText(item)),
     );
   const dataTopProblems = sanitizeProblemItems(bucketData?.topProblems);
   const dataWhatsWorking = sanitizeWorkingItems(bucketData?.whatsWorking);
