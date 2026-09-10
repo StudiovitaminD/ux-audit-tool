@@ -2411,18 +2411,8 @@ export function AuditForm() {
                               ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                      {sitePageGroups.some(([group]) => group === "home") ? (
-                        <div className="mx-auto mt-5 max-w-md">
-                          {sitePageGroups.find(([group]) => group === "home")?.[1].map((page) => (
-                            <label key={page.url} className="flex cursor-pointer items-start gap-2 rounded-xl border border-[color:var(--card-border)] bg-white px-3 py-2 text-sm dark:bg-white/5">
-                              <input type="checkbox" className="mt-1" checked={selectedSitePages.includes(page.url)} onChange={(event) => setSelectedSitePages((current) => event.target.checked ? [...current, page.url] : current.filter((url) => url !== page.url))} />
-                              <span className="min-w-0"><span className="block font-medium">{page.label}</span><span className="block truncate text-xs text-zinc-500">{page.url}</span></span>
-                            </label>
-                          ))}
                         </div>
-                      ) : null}
+                      ))}
                     </div>
                   </div>
                 ) : null}
