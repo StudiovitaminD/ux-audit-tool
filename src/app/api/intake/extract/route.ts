@@ -77,8 +77,13 @@ function normalizePatchCandidate(value: unknown): Record<string, unknown> | null
 
 function normalizeIntakePatch(patch: Record<string, unknown>) {
   const normalized = { ...patch };
-  if (!Array.isArray(normalized.businessCompetitors) && Array.isArray(normalized.competitors)) {
-    normalized.businessCompetitors = normalized.competitors
+  const competitorSource = Array.isArray(normalized.businessCompetitors)
+    ? normalized.businessCompetitors
+    : Array.isArray(normalized.competitors)
+      ? normalized.competitors
+      : null;
+  if (competitorSource) {
+    const businessCompetitors = competitorSource
       .map((item) => {
         if (!item || typeof item !== "object" || Array.isArray(item)) return null;
         const competitor = item as Record<string, unknown>;
@@ -94,6 +99,7 @@ function normalizeIntakePatch(patch: Record<string, unknown>) {
         };
       })
       .filter((item): item is { name: string; url: string; compareFocus: string } => Boolean(item?.name || item?.url));
+    if (businessCompetitors.length) normalized.businessCompetitors = businessCompetitors;
   }
   return normalized;
 }
@@ -172,7 +178,7 @@ export async function POST(req: Request) {
     const system = [
       "You are an expert UX researcher helping to fill a UX audit intake form from a transcript or product website.",
       "Return ONLY valid JSON. No markdown, no prose.",
-      "If you are unsure about a field, omit it (do NOT guess).",
+      "If you are unsure about a field, omit it rather than guessing, except for businessCompetitors, where you must suggest relevant established alternatives from the product category.",
       "Never return undefined; omit keys instead.",
       "Prefer short strings. For arrays, include only items you are confident about.",
     ].join("\n");
@@ -217,7 +223,7 @@ Return JSON with this shape:
 
 Important:
 - Fill businessFutureGoals from stated plans, roadmap language, expansion goals, or likely next-stage objectives supported by the source. Keep it concise and do not claim a confirmed plan when it is only inferred.
-- Fill businessCompetitors with direct competitors only when you are confident. Include a valid public URL and a short compareFocus explaining what is useful to compare.
+- Always suggest 2 to 3 relevant direct competitors for businessCompetitors, even when the source does not name them. Infer them from the product name, category, audience, and offering. Use each competitor's real public homepage URL, not a guessed internal page. Add a short compareFocus explaining what the user should compare, such as navigation, content, trust, features, or visual design.
 - Only include other keys you can fill confidently from the transcript.`;
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
