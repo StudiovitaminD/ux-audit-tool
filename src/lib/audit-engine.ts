@@ -1382,6 +1382,7 @@ function strengthenCompetitors(competitors: unknown) {
     });
 }
 
+// Final Content Writer Agent: turns scored evidence into client-ready narrative without changing scores.
 async function writeNarrative(args: {
   intake: Intake;
   evidence: EvidenceBundle | null;
