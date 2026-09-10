@@ -2334,6 +2334,7 @@ export function AuditForm() {
 
               {isPublicAuditType(primaryType) ? (
                 <>
+                  <div className="pt-5">
                   <Field label="Screenshots" required={false} action={<Button
                       type="button"
                       variant="secondary"
@@ -2393,6 +2394,7 @@ export function AuditForm() {
                       </div>
                     ) : null}
                   </Field>
+                  </div>
 
                 </>
               ) : (
