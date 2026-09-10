@@ -104,14 +104,13 @@ function isNeutralSummaryText(text: unknown) {
 }
 
 function isWorkingStrengthText(text: unknown) {
+  const normalized = normalizeKey(text);
   return (
     Boolean(text) &&
     !placeholderText(text) &&
     !looksLikeRecommendation(text) &&
     !looksLikeWeakStatus(text) &&
-    !/^\s*(no|not|without|lack|lacks|missing|fails|cannot|can't|won't|does not|do not|may not|might not)\b/i.test(
-      normalizeKey(text),
-    )
+    !/\b(no|not|without|lack|lacks|missing|fails|cannot|can't|won't|does not|do not|may not|might not|absence|absent|unclear|weak|poor|insufficient|problem|risk|confus(?:e|ing)|uncertain|abandonment)\b/i.test(normalized)
   );
 }
 
