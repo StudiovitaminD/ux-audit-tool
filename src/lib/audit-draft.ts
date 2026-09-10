@@ -11,6 +11,24 @@ function hasNonEmptyStringArray(value: unknown) {
   return Array.isArray(value) && value.some((item) => asText(item).length > 0);
 }
 
+function hasMeaningfulPersona(value: unknown) {
+  if (!Array.isArray(value)) return false;
+  const metadataLabels = new Set(["persona type"]);
+
+  return value.some((item) => {
+    const text = asText(item);
+    if (!text) return false;
+
+    return text.split(/\r?\n/).some((line) => {
+      const separatorIndex = line.indexOf(":");
+      if (separatorIndex < 0) return line.trim().length > 0;
+      const label = line.slice(0, separatorIndex).trim().toLowerCase();
+      const answer = line.slice(separatorIndex + 1).trim();
+      return !metadataLabels.has(label) && answer.length > 0;
+    });
+  });
+}
+
 function hasMeaningfulCompetitors(value: unknown) {
   if (!Array.isArray(value)) return false;
   return value.some((item) => {
@@ -76,7 +94,7 @@ export function hasMeaningfulAuditDraft(value: unknown) {
       asText(draft.artifacts?.loomLink) ||
       asText(draft.artifacts?.notes) ||
       asText(draft.artifacts?.extensionCaptureJson) ||
-      hasNonEmptyStringArray(draft.userPersona) ||
+      hasMeaningfulPersona(draft.userPersona) ||
       hasNonEmptyStringArray(draft.auditGoals) ||
       hasNonEmptyStringArray(draft.selectedBuckets) ||
       hasNonEmptyStringArray(draft.auditFlows) ||
@@ -94,4 +112,3 @@ export function hasMeaningfulAuditDraft(value: unknown) {
       hasMeaningfulDynamicAnswer(draft.dynamic_answers),
   );
 }
-
