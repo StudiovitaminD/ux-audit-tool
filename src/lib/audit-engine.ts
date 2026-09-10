@@ -977,7 +977,7 @@ function bucketLeadInsight(bucket: BucketResult) {
       improvement?.observation,
     ]
       .map((value) => String(value || "").trim())
-      .find((value) => value && !isPlaceholderText(value) && !isNegativeStrength(value) && !isAuditCoverageLimitation(value)) || "";
+      .find((value) => value && !isPlaceholderText(value)) || "";
   const action =
     [
       improvement?.recommendation,
@@ -1016,7 +1016,7 @@ function bucketStrengthStatement(bucket: BucketResult) {
       improvement?.benefit,
     ]
       .map((value) => String(value || "").trim())
-      .find((value) => value && !isPlaceholderText(value)) || "";
+      .find((value) => value && !isPlaceholderText(value) && !isNegativeStrength(value) && !isAuditCoverageLimitation(value)) || "";
   if (explicitStrength) {
     return explicitStrength;
   }
