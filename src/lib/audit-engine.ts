@@ -9,6 +9,7 @@ import {
 import { getErrorMessage } from "@/lib/error-utils";
 import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../shared/audit-framework";
 import { normalizeAnswerState, normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
+import { runMultiAgentAudit, type MultiAgentResult } from "@/lib/multi-agent-audit";
 
 const DEFAULT_OPENROUTER_MODEL = "openrouter/owl-alpha";
 
@@ -453,7 +454,7 @@ function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
     .join("\n\n---\n\n");
 }
 
-async function openRouterChat(
+export async function openRouterChat(
   prompt: string,
   opts?: { modelOverride?: string },
 ) {
@@ -2792,6 +2793,15 @@ export async function finalizeAudit(args: {
   modelOverride?: string;
 }) {
   try {
+  let multiAgentReview: MultiAgentResult | null = null;
+  if (process.env.MULTI_AGENT_AUDIT === "true") {
+    multiAgentReview = await runMultiAgentAudit({
+      chat: (prompt) => openRouterChat(prompt, { modelOverride: args.modelOverride }),
+      intake: compactIntakeForModel(args.intake),
+      evidence: narrativeEvidenceSummary(args.evidence),
+      bucketResults: args.bucket_results,
+    });
+  }
   const onlyResults = args.bucket_results;
   const scoredBuckets = onlyResults.filter((bucket) => bucket.bucket_status === "scored");
   const coverageStatus = args.evidence?.coverage?.status || null;
@@ -3172,7 +3182,7 @@ export async function finalizeAudit(args: {
         : "") || report.closing_note,
   };
 
-  return report;
+  return multiAgentReview ? { ...report, multi_agent_review: multiAgentReview } : report;
   } catch (error) {
     const message = getErrorMessage(error) || "Finalize failed";
     const onlyResults = args.bucket_results ?? [];
