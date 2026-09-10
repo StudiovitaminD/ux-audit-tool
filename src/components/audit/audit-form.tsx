@@ -992,7 +992,7 @@ export function AuditForm() {
       setPersonaCards(personaCardsFromPayload(sanitized));
       localStorage.setItem(
         AUDIT_DRAFT_KEY,
-        JSON.stringify({ ...sanitized, draftVersion: AUDIT_DRAFT_VERSION }),
+        JSON.stringify({ ...sanitized, auth: { ...sanitized.auth, password: "" }, draftVersion: AUDIT_DRAFT_VERSION }),
       );
     } catch {
       // ignore
@@ -1020,7 +1020,7 @@ export function AuditForm() {
         try {
           localStorage.setItem(
             AUDIT_DRAFT_KEY,
-            JSON.stringify({ ...nextPayload, draftVersion: AUDIT_DRAFT_VERSION }),
+            JSON.stringify({ ...nextPayload, auth: { ...nextPayload.auth, password: "" }, draftVersion: AUDIT_DRAFT_VERSION }),
           );
         } catch {
           // ignore
@@ -1051,7 +1051,7 @@ export function AuditForm() {
         }
         localStorage.setItem(
           AUDIT_DRAFT_KEY,
-          JSON.stringify({ ...payload, draftVersion: AUDIT_DRAFT_VERSION }),
+          JSON.stringify({ ...payload, auth: { ...payload.auth, password: "" }, draftVersion: AUDIT_DRAFT_VERSION }),
         );
       } catch {
         // ignore

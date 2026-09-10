@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getAccountSessionFromRequest } from "@/lib/account-server";
+import { assertPublicHttpUrl } from "@/lib/url-security";
 import {
   captureCompetitorSnapshot,
   makeFallbackSnapshot,
@@ -22,7 +24,9 @@ function timeoutAfter(ms: number): Promise<never> {
 
 export async function POST(req: Request) {
   try {
+    if (!(await getAccountSessionFromRequest(req))) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
     const body = BodySchema.parse(await req.json());
+    assertPublicHttpUrl(body.url);
     const result = await Promise.race([
       captureCompetitorSnapshot(body),
       timeoutAfter(50_000),

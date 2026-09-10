@@ -79,49 +79,6 @@ function resolveRoleAndPlan(email: string): { role: AppRole; plan: PlanType } {
   return { role: "free", plan: "free" };
 }
 
-function sessionFromClientHeader(req: Request): AccountSession | null {
-  const encoded = req.headers.get("x-ux-audit-session");
-  if (!encoded) return null;
-
-  try {
-    const payload = JSON.parse(decodeURIComponent(encoded)) as Partial<AccountSession>;
-    const id = typeof payload.id === "string" ? payload.id.trim() : "";
-    const email = typeof payload.email === "string" ? payload.email.trim() : "";
-    if (!id || !email) return null;
-
-    const role =
-      payload.role === "admin" || payload.role === "paid" || payload.role === "free"
-        ? payload.role
-        : "free";
-    const plan =
-      payload.plan === "paid" || payload.plan === "free"
-        ? payload.plan
-        : role === "admin"
-          ? "paid"
-          : "free";
-    const name = typeof payload.name === "string" && payload.name.trim() ? payload.name.trim() : "User";
-    const reportsUsed = typeof payload.reportsUsed === "number" ? payload.reportsUsed : 0;
-    const reportLimit = typeof payload.reportLimit === "number" ? payload.reportLimit : FREE_REPORT_LIMIT;
-    const reportAccessLevel = getReportAccessLevel(plan);
-
-    return {
-      id,
-      email,
-      name,
-      role,
-      plan,
-      reportsUsed,
-      reportLimit,
-      allowedProductTypes: getAllowedProductTypes(role),
-      reportAccessLevel,
-      lockedSections: getLockedSectionsForAccess(reportAccessLevel),
-      modelTier: getModelTierForRole(role, plan),
-    };
-  } catch {
-    return null;
-  }
-}
-
 export function sessionFromUserRecord(userId: string, rec: Record<string, unknown>): AccountSession {
   const email = typeof rec.email === "string" ? rec.email : "";
   const name = typeof rec.name === "string" && rec.name.trim() ? rec.name.trim() : "User";
@@ -323,7 +280,7 @@ export async function getAccountSessionFromRequest(req: Request): Promise<Accoun
     }
   }
 
-  return sessionFromClientHeader(req);
+  return null;
 }
 
 export async function clearAccountSession(sessionId: string) {

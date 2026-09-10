@@ -480,7 +480,7 @@ export function toWebhookPayload(payload: AuditPayload) {
     selected_buckets: payload.selectedBuckets,
     login_required: payload.auth.requiresLogin,
     login_email: payload.auth.usernameOrEmail,
-    login_password: payload.auth.password,
+    // Never send or persist passwords. Authenticated capture uses the browser session.
     access_mode: payload.accessMode,
 
     // Extra fields (safe to ignore in workflow if unused)
