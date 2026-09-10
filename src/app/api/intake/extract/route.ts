@@ -60,6 +60,8 @@ function normalizePatchCandidate(value: unknown): Record<string, unknown> | null
     "primaryUserIntent",
     "frequencyOfUse",
     "primaryBusinessObjective",
+    "businessFutureGoals",
+    "businessCompetitors",
     "competitors",
     "differentiation",
     "knownProblem",
@@ -71,6 +73,29 @@ function normalizePatchCandidate(value: unknown): Record<string, unknown> | null
   ];
   if (directKeys.some((key) => key in rec)) return rec;
   return null;
+}
+
+function normalizeIntakePatch(patch: Record<string, unknown>) {
+  const normalized = { ...patch };
+  if (!Array.isArray(normalized.businessCompetitors) && Array.isArray(normalized.competitors)) {
+    normalized.businessCompetitors = normalized.competitors
+      .map((item) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+        const competitor = item as Record<string, unknown>;
+        return {
+          name: typeof competitor.name === "string" ? competitor.name.trim() : "",
+          url: typeof competitor.url === "string" ? competitor.url.trim() : "",
+          compareFocus:
+            typeof competitor.compareFocus === "string"
+              ? competitor.compareFocus.trim()
+              : typeof competitor.compare_focus === "string"
+                ? competitor.compare_focus.trim()
+                : "",
+        };
+      })
+      .filter((item): item is { name: string; url: string; compareFocus: string } => Boolean(item?.name || item?.url));
+  }
+  return normalized;
 }
 
 function extractOpenRouterContent(raw: string): string {
@@ -177,6 +202,8 @@ Return JSON with this shape:
     "primaryUserIntent": string,
     "frequencyOfUse": string,
     "primaryBusinessObjective": string,
+    "businessFutureGoals": string,
+    "businessCompetitors": [{ "name": string, "url": string, "compareFocus": string }],
     "competitors": [{ "name": string, "url": string }],
     "differentiation": string,
     "knownProblem": string,
@@ -188,7 +215,10 @@ Return JSON with this shape:
   }
 }
 
-Important: Only include keys you can fill confidently from the transcript.`;
+Important:
+- Fill businessFutureGoals from stated plans, roadmap language, expansion goals, or likely next-stage objectives supported by the source. Keep it concise and do not claim a confirmed plan when it is only inferred.
+- Fill businessCompetitors with direct competitors only when you are confident. Include a valid public URL and a short compareFocus explaining what is useful to compare.
+- Only include other keys you can fill confidently from the transcript.`;
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -246,7 +276,7 @@ Important: Only include keys you can fill confidently from the transcript.`;
       );
     }
 
-    return NextResponse.json({ patch }, { status: 200 });
+    return NextResponse.json({ patch: normalizeIntakePatch(patch) }, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 400 });
