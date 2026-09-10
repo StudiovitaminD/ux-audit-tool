@@ -308,6 +308,10 @@ const primaryPlatforms: AuditSelectOption[] = [
   { label: "Mobile", value: "mobile_web" },
   { label: "Both Desktop + Mobile", value: "desktop_and_mobile_web" },
 ];
+const productTypeValues = new Set(["saas", "ecommerce", "marketing_website"]);
+const primaryPlatformValues = new Set(primaryPlatforms.map((option) => option.value));
+const personaGenderValues = new Set(["women", "men", "both"]);
+const personaPlatformValues = new Set(["desktop", "mobile", "both"]);
 
 // ADDED
 const frequencyOfUseOptions: AuditSelectOption[] = [
@@ -1265,13 +1269,22 @@ export function AuditForm() {
     }
 
     // UPDATED
-    if (!payload.product.type) errors.productType = "Select a primary type.";
+    if (!productTypeValues.has(payload.product.type))
+      errors.productType = "Select a primary type.";
     // UPDATED (n8n intake alignment)
     if (!payload.primaryUser.trim())
       errors.primaryUser = "Primary user is required.";
+    if (!payload.userAge.trim()) errors.userAge = "Age group is required.";
+    if (!personaGenderValues.has(payload.userGender))
+      errors.userGender = "Select a user gender.";
+    if (!personaPlatformValues.has(payload.primaryUserIntent))
+      errors.primaryUserIntent = "Select a preferred platform.";
+    if (!payload.userLanguage.trim()) errors.userLanguage = "User language is required.";
+    if (!payload.userGeography.trim()) errors.userGeography = "User location is required.";
     if (!payload.primaryUserGoal.trim())
       errors.primaryUserGoal = "Primary user goal is required.";
-    if (!payload.primaryPlatform) errors.primaryPlatform = "Select a primary platform.";
+    if (!primaryPlatformValues.has(payload.primaryPlatform))
+      errors.primaryPlatform = "Select a primary platform.";
     if (payload.product.type === "saas") {
       if (!payload.frequencyOfUse) errors.frequencyOfUse = "Select frequency of use.";
       if (!payload.dynamic_answers.saas.q16_solo_or_collab?.trim())
@@ -1339,9 +1352,14 @@ export function AuditForm() {
     });
     // ADDED
     payload.businessCompetitors.forEach((c, idx) => {
-      if (c.url && !isUrlLike(c.url)) {
+      if (!c.name.trim()) errors[`businessCompetitorName${idx}`] = "Competitor name is required.";
+      if (!c.url.trim()) errors[`businessCompetitorUrl${idx}`] = "Competitor URL is required.";
+      else if (!isUrlLike(c.url)) {
         errors[`businessCompetitorUrl${idx}`] =
           "Enter a valid URL (including https://).";
+      }
+      if (!c.compareFocus.trim()) {
+        errors[`businessCompetitorFocus${idx}`] = "Add what you want to compare.";
       }
     });
 
@@ -1352,9 +1370,10 @@ export function AuditForm() {
     const done = new Set<number>();
     // UPDATED: step 1 is primary audit details (type + required audit focus)
     if (
-      payload.product.type &&
+      productTypeValues.has(payload.product.type) &&
       payload.productName.trim() &&
-      payload.primaryPlatform &&
+      payload.productOneLiner.trim() &&
+      primaryPlatformValues.has(payload.primaryPlatform) &&
       payload.auditGoals.length > 0 &&
       payload.knownProblem.trim()
     )
@@ -1376,14 +1395,24 @@ export function AuditForm() {
       done.add(3);
 
     // ADDED: step 4 is user + business details
-    if (payload.primaryUser.trim() && payload.primaryUserGoal.trim()) done.add(4);
+    if (
+      payload.primaryUser.trim() &&
+      payload.userAge.trim() &&
+      personaGenderValues.has(payload.userGender) &&
+      personaPlatformValues.has(payload.primaryUserIntent) &&
+      payload.userLanguage.trim() &&
+      payload.userGeography.trim() &&
+      payload.primaryUserGoal.trim()
+    ) done.add(4);
     // UPDATED: step 5 is business competitors
     const filledBusinessCompetitors = payload.businessCompetitors.filter(
       (c) => c.name.trim() || c.url.trim() || c.compareFocus.trim(),
     );
     const businessCompetitorsOk =
       filledBusinessCompetitors.length > 0 &&
-      filledBusinessCompetitors.every((c) => !!c.name.trim() && !!c.url.trim() && isUrlLike(c.url));
+      filledBusinessCompetitors.every(
+        (c) => !!c.name.trim() && !!c.url.trim() && isUrlLike(c.url) && !!c.compareFocus.trim(),
+      );
     if (businessCompetitorsOk) done.add(5);
     // UPDATED: step 6 is product access details
     if (isPublicAuditType(primaryType)) {
@@ -1939,7 +1968,7 @@ export function AuditForm() {
                   onChange={(e) =>
                     setPayload((p) => ({ ...p, knownProblem: e.target.value }))
                   }
-                  placeholder="e.g. Users are dropping off on the signup form"
+                  placeholder="e.g. An online learning platform offering free classes and study resources."
                 />
               </Field>
 
@@ -2127,14 +2156,14 @@ export function AuditForm() {
                         />
                       </Field>
                       <div className="grid gap-4 md:grid-cols-3">
-                        <Field label="Age group">
+                        <Field label="Age group" error={showErrorsForStep && index === 0 ? validation.userAge : undefined}>
                           <TextInput
                             value={persona.userAge}
                             onChange={(e) => updatePersonaCard(index, { userAge: e.target.value })}
                             placeholder="e.g. 18-24, 25-34"
                           />
                         </Field>
-                        <Field label="User gender">
+                        <Field label="User gender" error={showErrorsForStep && index === 0 ? validation.userGender : undefined}>
                           <Select
                             value={persona.userGender}
                             onChange={(e) => updatePersonaCard(index, { userGender: e.target.value })}
@@ -2145,7 +2174,7 @@ export function AuditForm() {
                             <option value="both">Both</option>
                           </Select>
                         </Field>
-                        <Field label="User preferred Platform">
+                        <Field label="User preferred Platform" error={showErrorsForStep && index === 0 ? validation.primaryUserIntent : undefined}>
                           <Select
                             value={persona.primaryUserIntent}
                             onChange={(e) => updatePersonaCard(index, { primaryUserIntent: e.target.value })}
@@ -2158,14 +2187,14 @@ export function AuditForm() {
                         </Field>
                       </div>
                       <div className="grid gap-4 md:grid-cols-2">
-                        <Field label="User language">
+                        <Field label="User language" error={showErrorsForStep && index === 0 ? validation.userLanguage : undefined}>
                           <TextInput
                             value={persona.userLanguage}
                             onChange={(e) => updatePersonaCard(index, { userLanguage: e.target.value })}
                             placeholder="e.g. English, Hindi"
                           />
                         </Field>
-                        <Field label="User location">
+                        <Field label="User location" error={showErrorsForStep && index === 0 ? validation.userGeography : undefined}>
                           <TextInput
                             value={persona.userGeography}
                             onChange={(e) => updatePersonaCard(index, { userGeography: e.target.value })}
@@ -2244,7 +2273,7 @@ export function AuditForm() {
                   </div>
                   <div className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="Competitor name">
+                      <Field label="Competitor name" error={showErrorsForStep ? validation[`businessCompetitorName${idx}`] : undefined}>
                         <TextInput
                           value={c.name}
                           onChange={(e) =>
@@ -2279,7 +2308,7 @@ export function AuditForm() {
                         />
                       </Field>
                     </div>
-                    <Field label="What do you like about this competitor?">
+                    <Field label="What do you like about this competitor?" error={showErrorsForStep ? validation[`businessCompetitorFocus${idx}`] : undefined}>
                       <Textarea
                         rows={4}
                         value={c.compareFocus}
