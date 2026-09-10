@@ -463,6 +463,18 @@ export function AuditForm() {
   ]);
   const formRef = useRef<HTMLFormElement | null>(null);
 
+  const sitePageGroups = useMemo(() => {
+    const groups = new Map<string, Array<{ url: string; label: string }>>();
+    sitePages.forEach((page) => {
+      const path = new URL(page.url).pathname.replace(/^\//, "");
+      const group = path ? path.split("/")[0] : "home";
+      const items = groups.get(group) || [];
+      items.push(page);
+      groups.set(group, items);
+    });
+    return Array.from(groups.entries()).sort(([a], [b]) => a === "home" ? -1 : b === "home" ? 1 : a.localeCompare(b));
+  }, [sitePages]);
+
   async function discoverSitePages() {
     if (!isUrlLike(payload.productUrl)) return;
     setLoadingSitePages(true);
@@ -2363,23 +2375,43 @@ export function AuditForm() {
                     <h3 className="font-semibold">Choose pages to audit</h3>
                     <p className="text-sm text-zinc-500">Find pages from the site map, then select only the pages you want reviewed.</p>
                   </div>
-                  <Button type="button" variant="secondary" onClick={discoverSitePages} disabled={!isUrlLike(payload.productUrl) || loadingSitePages}>
-                    {loadingSitePages ? "Finding pages…" : "Find site pages"}
+                  <Button type="button" variant="secondary" onClick={() => {
+                    if (sitePages.length) {
+                      setSitePages([]);
+                      setSelectedSitePages([]);
+                      return;
+                    }
+                    void discoverSitePages();
+                  }} disabled={!isUrlLike(payload.productUrl) || loadingSitePages}>
+                    {loadingSitePages ? "Finding pages…" : sitePages.length ? "Remove site pages" : "Find site pages"}
                   </Button>
                 </div>
                 {sitePages.length ? (
-                  <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
-                    {sitePages.map((page) => (
-                      <label key={page.url} className="flex cursor-pointer items-start gap-3 rounded-xl border border-[color:var(--card-border)] px-3 py-2 text-sm hover:bg-black/[.03] dark:hover:bg-white/[.04]">
-                        <input
-                          type="checkbox"
-                          className="mt-1"
-                          checked={selectedSitePages.includes(page.url)}
-                          onChange={(event) => setSelectedSitePages((current) => event.target.checked ? [...current, page.url] : current.filter((url) => url !== page.url))}
-                        />
-                        <span className="min-w-0"><span className="block font-medium">{page.label}</span><span className="block truncate text-xs text-zinc-500">{page.url}</span></span>
-                      </label>
-                    ))}
+                  <div className="mt-4 max-h-[28rem] overflow-y-auto rounded-2xl border border-[color:var(--card-border)] bg-white/40 p-4 dark:bg-white/5">
+                    <div className="mx-auto max-w-3xl space-y-4">
+                      {sitePageGroups.map(([group, pages]) => (
+                        <div key={group} className="relative pl-8">
+                          <div className="absolute bottom-3 left-3 top-8 w-px bg-[color:var(--card-border)]" />
+                          <div className="relative rounded-xl border border-[color:var(--card-border)] bg-white px-4 py-3 font-semibold shadow-sm dark:bg-white/10">
+                            {group === "home" ? "Home" : `/${group}`}
+                          </div>
+                          <div className="ml-8 mt-2 space-y-2">
+                            {pages.map((page) => (
+                              <label key={page.url} className="relative flex cursor-pointer items-start gap-3 rounded-xl border border-[color:var(--card-border)] bg-white px-3 py-2 text-sm hover:bg-black/[.03] dark:bg-white/5 dark:hover:bg-white/[.08]">
+                                <span className="absolute -left-8 top-1/2 h-px w-6 bg-[color:var(--card-border)]" />
+                                <input
+                                  type="checkbox"
+                                  className="mt-1"
+                                  checked={selectedSitePages.includes(page.url)}
+                                  onChange={(event) => setSelectedSitePages((current) => event.target.checked ? [...current, page.url] : current.filter((url) => url !== page.url))}
+                                />
+                                <span className="min-w-0"><span className="block font-medium">{page.label}</span><span className="block truncate text-xs text-zinc-500">{page.url}</span></span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
               </div>
