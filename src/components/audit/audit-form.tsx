@@ -747,7 +747,9 @@ export function AuditForm() {
         data && typeof data === "object" && "patch" in data
           ? (data as Record<string, unknown>).patch
           : null;
-      setPayload((p) => deepMerge(p, patch));
+      const nextPayload = deepMerge(payload, patch);
+      setPayload(nextPayload);
+      setPersonaCards(personaCardsFromPayload(nextPayload));
     } catch (e) {
       setExtractError(getErrorMessage(e));
     } finally {
@@ -775,7 +777,12 @@ export function AuditForm() {
       const patch = data && typeof data === "object" && "patch" in data
         ? (data as Record<string, unknown>).patch
         : null;
-      setPayload((p) => deepMerge(p, patch));
+      const nextPayload = deepMerge(
+        { ...payload, productUrl: websiteUrl },
+        patch,
+      );
+      setPayload(nextPayload);
+      setPersonaCards(personaCardsFromPayload(nextPayload));
     } catch (e) {
       setError(getErrorMessage(e) || "AI form fill failed.");
     } finally {
