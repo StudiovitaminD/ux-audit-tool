@@ -955,6 +955,10 @@ function isNegativeStrength(value: string) {
   return /\b(?:cannot|can't|unable|lacks?|missing|without|no visible|not possible|not consistently|unclear|confus(?:e|ing)|impairs?|fails?|failure|problem|risk|weak|poor|insufficient|not available)\b/i.test(value);
 }
 
+function isAuditCoverageLimitation(value: string) {
+  return /\b(?:audit evidence|captured evidence|available evidence|evidence provided|evidence captured|not enough evidence|insufficient evidence|evidence was not|could not be assessed|cannot be assessed|required evidence|screen(?:s)? (?:was|were) not captured|interaction(?:s)? (?:was|were) not captured|not tested)\b/i.test(value);
+}
+
 function bucketLeadInsight(bucket: BucketResult) {
   const finding =
     Array.isArray(bucket.findings) && bucket.findings[0] && typeof bucket.findings[0] === "object"
@@ -1145,7 +1149,7 @@ function executiveSummaryLooksWeak(summary: Record<string, unknown> | null) {
   if (!summary) return true;
   const strongest = String(summary.strongest_area || "").trim();
   const mainIssue = String(summary.main_issue || "").trim();
-  const topProblems = Array.isArray(summary.top_problems) ? summary.top_problems.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  const topProblems = Array.isArray(summary.top_problems) ? summary.top_problems.map((item) => String(item || "").trim()).filter((item) => item && !isAuditCoverageLimitation(item)) : [];
   const whatsWorking = Array.isArray(summary.whats_working) ? summary.whats_working.map((item) => String(item || "").trim()).filter((item) => item && !isNegativeStrength(item)) : [];
 
   if (!strongest || /^not scored$/i.test(strongest)) return true;
@@ -3147,7 +3151,7 @@ export async function finalizeAudit(args: {
               [
                 ...((executiveSummaryFromNarrative?.top_problems as string[]) || []),
                 ...derivedExecutiveSummary.top_problems,
-              ],
+              ].filter((item) => !isAuditCoverageLimitation(item)),
               5,
             ),
             top_3_problems: uniqueSemanticList(
@@ -3161,7 +3165,7 @@ export async function finalizeAudit(args: {
               [
                 ...((executiveSummaryFromNarrative?.whats_working as string[]) || []),
                 ...derivedExecutiveSummary.whats_working,
-              ].filter((item) => !isNegativeStrength(item)),
+              ].filter((item) => !isNegativeStrength(item) && !isAuditCoverageLimitation(item)),
               4,
             ),
             first_priority: uniqueSemanticList(
