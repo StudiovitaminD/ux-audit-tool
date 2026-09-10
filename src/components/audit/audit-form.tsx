@@ -2395,7 +2395,7 @@ export function AuditForm() {
                         {sitePageGroups.filter(([group]) => group !== "home").map(([group, pages]) => (
                           <div key={group} className="relative pt-2">
                             <div className="absolute -top-5 left-1/2 h-5 w-px -translate-x-1/2 bg-[color:var(--card-border)]" />
-                            <div className="rounded-xl border-2 border-orange-300 bg-orange-100 px-3 py-3 text-center font-semibold text-orange-950 dark:bg-orange-950/40 dark:text-orange-100">/{group}</div>
+                            <div className="px-3 py-2 text-center text-base font-semibold text-zinc-700 dark:text-zinc-200">/{group}</div>
                             <div className="mx-auto h-5 w-px bg-[color:var(--card-border)]" />
                             <div className="space-y-2 border-l border-[color:var(--card-border)] pl-3">
                               {pages.map((page) => (
