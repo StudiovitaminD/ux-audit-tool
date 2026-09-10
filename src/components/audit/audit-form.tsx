@@ -445,9 +445,6 @@ export function AuditForm() {
   const [transcriptFileName, setTranscriptFileName] = useState<string | null>(null);
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
-  const [sitePages, setSitePages] = useState<Array<{ url: string; label: string }>>([]);
-  const [selectedSitePages, setSelectedSitePages] = useState<string[]>([]);
-  const [loadingSitePages, setLoadingSitePages] = useState(false);
   const [, setVideoFileName] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<number>(1);
   // ADDED: show validation only after user presses Next (or Submit)
@@ -462,27 +459,6 @@ export function AuditForm() {
     createEmptyPersonaCard("primary"),
   ]);
   const formRef = useRef<HTMLFormElement | null>(null);
-
-  async function discoverSitePages() {
-    if (!isUrlLike(payload.productUrl)) return;
-    setLoadingSitePages(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/site-map", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: payload.productUrl.trim() }),
-      });
-      const data = await response.json() as { ok?: boolean; pages?: Array<{ url: string; label: string }>; error?: string };
-      if (!response.ok || !data.ok) throw new Error(data.error || "Could not discover site pages.");
-      setSitePages(data.pages || []);
-      setSelectedSitePages((data.pages || []).map((page) => page.url));
-    } catch (error) {
-      setError(getErrorMessage(error) || "Could not discover site pages.");
-    } finally {
-      setLoadingSitePages(false);
-    }
-  }
 
   // ADDED
   const primaryType = payload.product.type;
@@ -1486,7 +1462,6 @@ export function AuditForm() {
     try {
       const submissionPayload: AuditPayload = {
         ...payload,
-        selectedSitePages,
         userAccess: auditUserAccessFromSession(appSession),
       };
       const response = await fetch("/api/audit", {
@@ -2356,48 +2331,6 @@ export function AuditForm() {
                   placeholder="https://yourproduct.com"
                 />
               </Field>
-
-              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/60 p-4 dark:bg-white/5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold">Choose pages to audit</h3>
-                    <p className="text-sm text-zinc-500">Find pages from the site map, then select only the pages you want reviewed.</p>
-                  </div>
-                  <Button type="button" variant="secondary" onClick={discoverSitePages} disabled={!isUrlLike(payload.productUrl) || loadingSitePages}>
-                    {loadingSitePages ? "Finding pages…" : "Find site pages"}
-                  </Button>
-                </div>
-                {sitePages.length ? (
-                  <div className="mt-4 max-h-[32rem] overflow-auto rounded-2xl border border-[color:var(--card-border)] bg-white/40 p-6 dark:bg-white/5">
-                    <div className="min-w-[760px] pb-3">
-                      <div className="mx-auto w-44 rounded-xl border-2 border-emerald-400 bg-emerald-100 px-4 py-3 text-center font-semibold text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100">Home</div>
-                      <div className="mx-auto h-8 w-px bg-[color:var(--card-border)]" />
-                      <div className="relative grid grid-cols-2 gap-5 border-t border-[color:var(--card-border)] pt-5 md:grid-cols-4">
-                        {sitePageGroups.filter(([group]) => group !== "home").map(([group, pages]) => (
-                          <div key={group} className="relative pt-2">
-                            <div className="absolute -top-5 left-1/2 h-5 w-px -translate-x-1/2 bg-[color:var(--card-border)]" />
-                            <div className="px-3 py-2 text-center text-base font-semibold text-zinc-700 dark:text-zinc-200">/{group}</div>
-                            <div className="mx-auto h-5 w-px bg-[color:var(--card-border)]" />
-                            <div className="space-y-2 border-l border-[color:var(--card-border)] pl-3">
-                              {pages.map((page) => (
-                                <label key={page.url} className="flex cursor-pointer items-start gap-2 rounded-xl border border-[color:var(--card-border)] bg-white px-3 py-2 text-sm hover:bg-black/[.03] dark:bg-white/5 dark:hover:bg-white/[.08]">
-                                  <input
-                                    type="checkbox"
-                                    className="mt-1"
-                                    checked={selectedSitePages.includes(page.url)}
-                                    onChange={(event) => setSelectedSitePages((current) => event.target.checked ? [...current, page.url] : current.filter((url) => url !== page.url))}
-                                  />
-                                  <span className="min-w-0"><span className="block truncate font-medium">{page.label}</span><span className="block truncate text-xs text-zinc-500">{page.url}</span></span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
 
               {isPublicAuditType(primaryType) ? (
                 <>

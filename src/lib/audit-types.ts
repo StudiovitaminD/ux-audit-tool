@@ -218,7 +218,6 @@ export type AuditPayload = {
   internalRoutesText: string;
   auditFlowText: string;
   auditFlows: string[];
-  selectedSitePages: string[];
   userAccess: AuditUserAccess;
 };
 
@@ -297,7 +296,6 @@ export const AUDIT_DEFAULTS: AuditPayload = {
   internalRoutesText: "",
   auditFlowText: "",
   auditFlows: [""],
-  selectedSitePages: [],
   userAccess: {
     userId: "",
     email: "",
@@ -479,7 +477,6 @@ export function toWebhookPayload(payload: AuditPayload) {
     audit_flow_instructions: auditFlowText,
     guided_capture_steps: guidedCaptureSteps,
     internal_routes: internalRoutes,
-    selected_site_pages: payload.selectedSitePages,
     selected_buckets: payload.selectedBuckets,
     login_required: payload.auth.requiresLogin,
     login_email: payload.auth.usernameOrEmail,
