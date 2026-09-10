@@ -3,6 +3,20 @@ import { type AuditPayload } from "@/lib/audit-types";
 export const AUDIT_DRAFT_KEY = "ux_audit:draft_v1";
 export const AUDIT_DRAFT_VERSION = 2;
 
+export function getAuditDraftProductName(value: unknown) {
+  if (!value || typeof value !== "object") return "";
+  const draft = value as Partial<AuditPayload>;
+  const productType = draft.product?.type;
+  if (
+    productType !== "saas" &&
+    productType !== "ecommerce" &&
+    productType !== "marketing_website"
+  ) {
+    return "";
+  }
+  return asText(draft.productName);
+}
+
 function asText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
