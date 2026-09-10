@@ -81,6 +81,16 @@ function normalizePatchCandidate(value: unknown): Record<string, unknown> | null
 
 function normalizeIntakePatch(patch: Record<string, unknown>) {
   const normalized = { ...patch };
+  const productTypeAliases: Record<string, string> = {
+    saas: "saas",
+    "software as a service": "saas",
+    ecommerce: "ecommerce",
+    "e-commerce": "ecommerce",
+    marketing: "marketing_website",
+    website: "marketing_website",
+    marketing_website: "marketing_website",
+    "marketing website": "marketing_website",
+  };
   const platformAliases: Record<string, string> = {
     desktop: "desktop",
     web: "desktop",
@@ -97,6 +107,45 @@ function normalizeIntakePatch(patch: Record<string, unknown>) {
     const platform = platformAliases[normalized.primaryPlatform.trim().toLowerCase()];
     if (platform) normalized.primaryPlatform = platform;
     else delete normalized.primaryPlatform;
+  }
+  if (normalized.product && typeof normalized.product === "object" && !Array.isArray(normalized.product)) {
+    const product = { ...(normalized.product as Record<string, unknown>) };
+    if (typeof product.type === "string") {
+      const type = productTypeAliases[product.type.trim().toLowerCase()];
+      if (type) product.type = type;
+      else delete product.type;
+    }
+    normalized.product = product;
+  }
+  const genderAliases: Record<string, string> = {
+    women: "women",
+    woman: "women",
+    female: "women",
+    men: "men",
+    man: "men",
+    male: "men",
+    both: "both",
+    all: "both",
+    "all genders": "both",
+  };
+  if (typeof normalized.userGender === "string") {
+    const gender = genderAliases[normalized.userGender.trim().toLowerCase()];
+    if (gender) normalized.userGender = gender;
+    else delete normalized.userGender;
+  }
+  const personaPlatformAliases: Record<string, string> = {
+    desktop: "desktop",
+    web: "desktop",
+    mobile: "mobile",
+    mobile_web: "mobile",
+    both: "both",
+    desktop_and_mobile_web: "both",
+    "desktop and mobile": "both",
+  };
+  if (typeof normalized.primaryUserIntent === "string") {
+    const platform = personaPlatformAliases[normalized.primaryUserIntent.trim().toLowerCase()];
+    if (platform) normalized.primaryUserIntent = platform;
+    else delete normalized.primaryUserIntent;
   }
   const competitorSource = Array.isArray(normalized.businessCompetitors)
     ? normalized.businessCompetitors
@@ -248,9 +297,10 @@ Return JSON with this shape:
 
 Important:
 - Always fill productName, productOneLiner, product.type, primaryPlatform, auditGoals, and knownProblem. Use only desktop, mobile_web, or desktop_and_mobile_web for primaryPlatform.
+- Always select relevant selectedBuckets values using only these exact names: Visual Feedback, Color & Contrast, Typography & Readability, Keyboard Navigation, Screen Reader Support, Navigation & Findability, Consistency & UI Patterns, Content (Impact), Performance, Visual Consistency, Motion & Microinteractions, Content (Delight), Brand Expression, Icons & Imagery. Never return an empty selectedBuckets array.
 - The knownProblem field is displayed as "About the product". Write 1 to 3 plain, neutral sentences describing what the product offers, who it serves, and its main value. Do not write a UX problem, criticism, recommendation, vague challenge, or phrase beginning with "Complexity in".
 - productOneLiner must be one concise factual sentence describing the product, not an audit finding.
-- Fill businessFutureGoals from stated plans, roadmap language, expansion goals, or likely next-stage objectives supported by the source. Keep it concise and do not claim a confirmed plan when it is only inferred.
+- Always fill all Business Details fields: differentiation with the product's clear USPs, primaryBusinessObjective with the main measurable business objective, and businessFutureGoals with sensible next-stage goals. Replace meaningless existing values such as one-word fragments. Keep inferred goals concise and do not present them as confirmed plans.
 - Always suggest 2 to 3 relevant direct competitors for businessCompetitors, even when the source does not name them. Infer them from the product name, category, audience, and offering. Use each competitor's real public homepage URL, not a guessed internal page. Add a short compareFocus explaining what the user should compare, such as navigation, content, trust, features, or visual design.
 - Always fill the primary user persona fields: primaryUser, userAge, userGender, userLanguage, userGeography, primaryUserGoal, and primaryUserIntent. Infer a reasonable primary audience from the website content when it is not explicitly stated. Use only women, men, or both for userGender. Use only desktop, mobile, or both for primaryUserIntent.
 - Do not invent login credentials or private information. For optional fields not covered above, omit values you cannot support.`;
