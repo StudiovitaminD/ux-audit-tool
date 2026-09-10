@@ -229,7 +229,17 @@ function parsePersonaCard(value: string): PersonaCard | null {
     if (label === "user goal") card.primaryUserGoal = valueText;
   }
 
-  return Object.values(card).some((field) => field.trim().length > 0) ? card : null;
+  const hasPersonaDetails = [
+    card.primaryUser,
+    card.userAge,
+    card.userGender,
+    card.userLanguage,
+    card.primaryUserIntent,
+    card.userGeography,
+    card.primaryUserGoal,
+  ].some((field) => field.trim().length > 0);
+
+  return hasPersonaDetails ? card : null;
 }
 
 function personaCardsFromPayload(payload: AuditPayload): PersonaCard[] {
@@ -244,20 +254,32 @@ function personaCardsFromPayload(payload: AuditPayload): PersonaCard[] {
     })
     .filter((entry): entry is PersonaCard => entry !== null);
 
-  if (parsedCards.length > 0) return parsedCards;
+  const primaryFromPayload: PersonaCard = {
+    personaType: "primary",
+    primaryUser: payload.primaryUser,
+    userAge: payload.userAge,
+    userGender: payload.userGender,
+    userLanguage: payload.userLanguage,
+    primaryUserIntent: payload.primaryUserIntent,
+    userGeography: payload.userGeography,
+    primaryUserGoal: payload.primaryUserGoal,
+  };
 
-  return [
-    {
-      personaType: "primary",
-      primaryUser: payload.primaryUser,
-      userAge: payload.userAge,
-      userGender: payload.userGender,
-      userLanguage: payload.userLanguage,
-      primaryUserIntent: payload.primaryUserIntent,
-      userGeography: payload.userGeography,
-      primaryUserGoal: payload.primaryUserGoal,
-    },
-  ];
+  if (parsedCards.length === 0) return [primaryFromPayload];
+
+  const first = parsedCards[0];
+  parsedCards[0] = {
+    ...first,
+    personaType: "primary",
+    primaryUser: primaryFromPayload.primaryUser || first.primaryUser,
+    userAge: primaryFromPayload.userAge || first.userAge,
+    userGender: primaryFromPayload.userGender || first.userGender,
+    userLanguage: primaryFromPayload.userLanguage || first.userLanguage,
+    primaryUserIntent: primaryFromPayload.primaryUserIntent || first.primaryUserIntent,
+    userGeography: primaryFromPayload.userGeography || first.userGeography,
+    primaryUserGoal: primaryFromPayload.primaryUserGoal || first.primaryUserGoal,
+  };
+  return parsedCards;
 }
 
 const allProductTypes: AuditSelectOption[] = [
