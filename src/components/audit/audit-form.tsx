@@ -463,18 +463,6 @@ export function AuditForm() {
   ]);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  const sitePageGroups = useMemo(() => {
-    const groups = new Map<string, Array<{ url: string; label: string }>>();
-    sitePages.forEach((page) => {
-      const path = new URL(page.url).pathname.replace(/^\//, "");
-      const group = path ? path.split("/")[0] : "home";
-      const items = groups.get(group) || [];
-      items.push(page);
-      groups.set(group, items);
-    });
-    return Array.from(groups.entries()).sort(([a], [b]) => a === "home" ? -1 : b === "home" ? 1 : a.localeCompare(b));
-  }, [sitePages]);
-
   async function discoverSitePages() {
     if (!isUrlLike(payload.productUrl)) return;
     setLoadingSitePages(true);
@@ -2375,15 +2363,8 @@ export function AuditForm() {
                     <h3 className="font-semibold">Choose pages to audit</h3>
                     <p className="text-sm text-zinc-500">Find pages from the site map, then select only the pages you want reviewed.</p>
                   </div>
-                  <Button type="button" variant="secondary" onClick={() => {
-                    if (sitePages.length) {
-                      setSitePages([]);
-                      setSelectedSitePages([]);
-                      return;
-                    }
-                    void discoverSitePages();
-                  }} disabled={!isUrlLike(payload.productUrl) || loadingSitePages}>
-                    {loadingSitePages ? "Finding pages…" : sitePages.length ? "Remove site pages" : "Find site pages"}
+                  <Button type="button" variant="secondary" onClick={discoverSitePages} disabled={!isUrlLike(payload.productUrl) || loadingSitePages}>
+                    {loadingSitePages ? "Finding pages…" : "Find site pages"}
                   </Button>
                 </div>
                 {sitePages.length ? (
