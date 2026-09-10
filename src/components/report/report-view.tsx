@@ -1283,14 +1283,9 @@ export function ReportView() {
     return (
       <div className="px-6 pb-6 pt-10">
         <div className="mx-auto max-w-2xl rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex items-start gap-4">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[color:var(--orange)]/10">
-              <LoadingSpinner />
-            </div>
-            <div className="min-w-0">
-              <div className="text-lg font-semibold">Creating your report…</div>
-              <div className="mt-1 text-sm text-[color:var(--muted)]">{progressMessage}</div>
-            </div>
+          <div>
+            <div className="text-lg font-semibold">Creating your report…</div>
+            <div className="mt-1 text-sm text-[color:var(--muted)]">{progressMessage}</div>
           </div>
           <div className="mt-7 h-2 overflow-hidden rounded-full bg-[color:var(--cream-dark)]" aria-label={`${progressPercent}% complete`}>
             <div className="h-full rounded-full bg-[color:var(--orange)] transition-all duration-700" style={{ width: `${progressPercent}%` }} />
