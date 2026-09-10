@@ -2393,11 +2393,9 @@ export function AuditForm() {
                       <div className="mx-auto h-8 w-px bg-[color:var(--card-border)]" />
                       <div className="relative grid grid-cols-2 gap-5 border-t border-[color:var(--card-border)] pt-5 md:grid-cols-4">
                         {sitePageGroups.filter(([group]) => group !== "home").map(([group, pages]) => (
-                          <div key={group} className="relative pt-2">
+                          <div key={group} className="relative px-2 pt-2">
                             <div className="absolute -top-5 left-1/2 h-5 w-px -translate-x-1/2 bg-[color:var(--card-border)]" />
-                            <div className="px-3 py-2 text-center text-base font-semibold text-zinc-700 dark:text-zinc-200">/{group}</div>
-                            <div className="mx-auto h-5 w-px bg-[color:var(--card-border)]" />
-                            <div className="space-y-2 border-l border-[color:var(--card-border)] pl-3">
+                            <div className="space-y-2">
                               {pages.map((page) => (
                                 <label key={page.url} className="flex cursor-pointer items-start gap-2 rounded-xl border border-[color:var(--card-border)] bg-white px-3 py-2 text-sm hover:bg-black/[.03] dark:bg-white/5 dark:hover:bg-white/[.08]">
                                   <input
