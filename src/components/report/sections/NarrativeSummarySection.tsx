@@ -155,6 +155,36 @@ function bucketRationaleItems(
   bucket: Record<string, unknown>,
   key: "what_is_risky" | "what_is_working",
 ) {
+  const scoredQuestionItems = asArray(bucket.questions)
+    .map((item) => asRecord(item) ?? {})
+    .filter((question) => {
+      const mark = asNumber(question.mark);
+      const state = normalizeKey(question.selected_option_state || question.answer_state);
+      const status = normalizeKey(question.answer_status);
+      if (mark === null || state === "not_tested" || state === "n_a") return false;
+      if (status === "insufficient_evidence" || status === "scoring_unavailable") return false;
+      return key === "what_is_working" ? mark >= 1 : mark < 1;
+    })
+    .map((question) =>
+      cleanNarrativeText(
+        key === "what_is_working"
+          ? synthesizeWorkingQuestionTakeaway(bucketLabel(bucket), question)
+          : synthesizeQuestionTakeaway(bucketLabel(bucket), question, "risk"),
+      ),
+    )
+    .filter((item) =>
+      Boolean(
+        item &&
+          !placeholderText(item) &&
+          !isCoverageLimitation(item) &&
+          !isIncompleteNarrative(item) &&
+          !looksEllipsizedText(item) &&
+          !isNeutralSummaryText(item) &&
+          (key === "what_is_risky" || isWorkingStrengthText(item)),
+      ),
+    );
+  if (scoredQuestionItems.length) return normalizeList(scoredQuestionItems, 4);
+
   const rationale = asRecord(bucket.score_rationale) ?? {};
   const directItems = normalizeList(rationale[key], 8).map(cleanNarrativeText).filter(
     (item) =>
@@ -292,7 +322,8 @@ function synthesizeQuestionTakeaway(
   const selectedMark = Number(asString(question.selected_option || question.mark));
   const isPassLike = selectedState === "pass" || (Number.isFinite(selectedMark) && selectedMark >= 1);
 
-  if (mode === "risk" && (isPassLike || selectedState === "partial" || selectedState === "fail")) return "";
+  if (mode === "risk" && isPassLike) return "";
+  if (mode === "risk" && (selectedState === "not_tested" || selectedState === "n_a")) return "";
 
   const selected = cleanNarrativeText(asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, ""));
   if (selected && !placeholderText(selected)) {
