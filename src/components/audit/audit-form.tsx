@@ -1824,7 +1824,7 @@ export function AuditForm() {
             <div className="mt-5 space-y-5">
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                 <Field
-                  label="Primary audit goal(s)"
+                  label="Primary audit goals"
                   error={showErrorsForStep ? validation.auditGoals : undefined}
                 >
                   <MultiSelect
