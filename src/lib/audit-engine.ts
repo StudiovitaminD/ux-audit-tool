@@ -977,7 +977,7 @@ function bucketLeadInsight(bucket: BucketResult) {
       improvement?.observation,
     ]
       .map((value) => String(value || "").trim())
-      .find((value) => value && !isPlaceholderText(value)) || "";
+      .find((value) => value && !isPlaceholderText(value) && !isNegativeStrength(value) && !isAuditCoverageLimitation(value)) || "";
   const action =
     [
       improvement?.recommendation,
