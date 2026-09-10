@@ -2334,15 +2334,14 @@ export function AuditForm() {
 
               {isPublicAuditType(primaryType) ? (
                 <>
-                  <Field label="Screenshots" required={false}>
-                    <Button
+                  <Field label="Screenshots" required={false} action={<Button
                       type="button"
                       variant="secondary"
                       disabled={!isUrlLike(payload.productUrl)}
                       onClick={() => window.open(payload.productUrl.trim(), "_blank", "noopener,noreferrer")}
                     >
                       Capture Pages for Audit
-                    </Button>
+                    </Button>}>
                     {uploadingScreenshots ? (
                       <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
                         Uploading screenshots…
