@@ -82,11 +82,12 @@ export async function runMultiAgentAudit(args: {
   const context = JSON.stringify({ intake: args.intake, evidence: args.evidence, bucketResults: args.bucketResults }).slice(0, 28000);
   const outputs = await Promise.all(Object.entries(ROLE_PROMPTS).map(async ([pillar, role]) => {
     const prompt = `You are the ${pillar} specialist in a UX audit team. ${role}
-The browser evidence was collected through Playwright. Analyze the supplied screenshots, DOM observations, URLs, and action traces.
+Use the supplied full-page screenshots as the primary evidence for everything visibly rendered: layout, typography, contrast, content, visible labels, visual hierarchy, consistency, and visible loading, success, error, or empty states. Use Playwright evidence only when the question requires interaction, keyboard behavior, DOM semantics, screen-reader-related structure, navigation timing, network behavior, or runtime performance. Analyze the supplied screenshots, DOM observations, URLs, and action traces together without requiring Playwright for screenshot-verifiable answers.
 Rules:
 - Use only verified evidence. Never invent screens, interactions, measurements, or WCAG failures.
-- A state may be scored only when Playwright reached it successfully and evidence identifies the state.
-- If a state was not reached, mark it not_tested and do not reduce the score.
+- A visibly verifiable state may be scored from a clear screenshot when the state is identified in the evidence.
+- An interaction, DOM, or performance state may be scored only when Playwright reached or measured it successfully.
+- If the required evidence for a state is missing, mark it not_tested and do not reduce the score.
 - Distinguish confirmed failures from recommendations for further testing.
 - Every finding must include page, component/state, evidence references, tested actions, and confidence.
 Return JSON only: {"summary":"...","tested_states":[{"page":"...","state":"...","status":"tested|not_tested","evidence":["..."]}],"findings":[{"title":"...","severity":"critical|high|medium|low","page":"...","state":"...","evidence":["..."],"tested_actions":["..."],"confidence":0.0,"recommendation":"..."}]}
