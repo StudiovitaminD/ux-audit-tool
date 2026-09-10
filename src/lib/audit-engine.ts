@@ -456,16 +456,16 @@ function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
 
 export async function openRouterChat(
   prompt: string,
-  opts?: { modelOverride?: string },
+  opts?: { modelOverride?: string; maxTokens?: number },
 ) {
   const model = normalizeModelName(
     opts?.modelOverride || process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL,
   );
-  const requestedMaxTokens = Number(process.env.OPENROUTER_MAX_TOKENS || 2200);
+  const requestedMaxTokens = Number(opts?.maxTokens ?? process.env.OPENROUTER_MAX_TOKENS ?? 2200);
   const initialMaxTokens = capModelMaxTokens(
     model,
     Number.isFinite(requestedMaxTokens)
-      ? Math.max(600, Math.min(2600, requestedMaxTokens))
+      ? Math.max(600, Math.min(5000, requestedMaxTokens))
       : 2200,
   );
   const openRouterApiKey = process.env.OPENROUTER_API_KEY;
@@ -1411,7 +1411,7 @@ async function writeNarrative(args: {
     '{ "executive_summary": {"one_line_verdict":"...","strongest_area":"...","main_issue":"...","top_problems":["..."],"whats_working":["..."],"first_priority":["..."],"top_3_quick_wins":["..."],"first_priority_recommendation":"..."}, "overall_assessment": "...", "top_risks": ["..."], "quick_wins": [{"title":"...","why":"...","effort":"S|M|L","impact":"Low|Med|High"}], "recommendations": [{"title":"...","details":"...","priority":"P1|P2|P3|P4","effort":"S|M|L","impact":"Low|Med|High"}], "strategic_insights": ["..."], "per_bucket_notes": [{"bucket":"...","summary":"...","biggest_risk":"...","best_opportunity":"..."}], "section_narrative": {"delight_narrative":["..."],"impact_narrative":["..."],"accessibility_narrative":["..."]}, "competitor_analysis": {"competitors":[{"name":"...","url":"...","compare_focus":"...","positioning":"...","primary_cta":"...","strengths":["..."],"gaps":["..."],"steal_this":["..."]}] } }';
 
   try {
-    const raw = await openRouterChat(plainLanguagePrompt, { modelOverride: args.modelOverride });
+    const raw = await openRouterChat(plainLanguagePrompt, { modelOverride: args.modelOverride, maxTokens: 4500 });
     const parsed = safeJsonParse(raw);
     if (parsed && typeof parsed === "object") return parsed as NarrativeReport;
 
@@ -1426,7 +1426,7 @@ async function writeNarrative(args: {
       message.toLowerCase().includes("maximum context")
     ) {
       const compactPrompt = `You are a senior UX lead writing a client-ready audit report.\nReturn ONLY valid JSON matching this schema:\n${schemaHint}\n\nIntake:\n${JSON.stringify(compactIntake, null, 2)}\n\n${args.editContext ? `Edited question changes:\n${trimText(args.editContext, 1200)}\n\n` : ""}Evidence:\n${trimText(compactEvidence, 1400)}\n\nScored buckets:\n${JSON.stringify(compactBuckets, null, 2)}\n\nOverall score: ${args.overall_score}\n`;
-      const raw = await openRouterChat(compactPrompt, { modelOverride: args.modelOverride });
+      const raw = await openRouterChat(compactPrompt, { modelOverride: args.modelOverride, maxTokens: 4500 });
       const parsed = safeJsonParse(raw);
       if (parsed && typeof parsed === "object") return parsed as NarrativeReport;
       const repaired = await repairToJson(raw, schemaHint, args.modelOverride);
@@ -1434,7 +1434,7 @@ async function writeNarrative(args: {
       return null;
     }
     if (message.includes("429") || message.toLowerCase().includes("rate-limit")) {
-      const raw = await openRouterChat(prompt, { modelOverride: args.modelOverride });
+      const raw = await openRouterChat(prompt, { modelOverride: args.modelOverride, maxTokens: 4500 });
       const parsed = safeJsonParse(raw);
       if (parsed && typeof parsed === "object") return parsed as NarrativeReport;
       const repaired = await repairToJson(raw, schemaHint, args.modelOverride);

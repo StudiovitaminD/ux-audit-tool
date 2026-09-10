@@ -4,10 +4,10 @@ const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4.1-mini";
 
 export async function openRouterChat(env: WorkerEnv, args: { prompt: string; model?: string }) {
   const model = args.model || env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL;
-  const requestedMaxTokens = Number(process.env.OPENROUTER_MAX_TOKENS || 1200);
+  const requestedMaxTokens = Number(process.env.OPENROUTER_MAX_TOKENS || 3000);
   const maxTokens = Number.isFinite(requestedMaxTokens)
-    ? Math.max(300, Math.min(1200, requestedMaxTokens))
-    : 1200;
+    ? Math.max(300, Math.min(3500, requestedMaxTokens))
+    : 3000;
   const retryAttemptsRaw = Number(process.env.OPENROUTER_RETRY_ATTEMPTS || 3);
   const retryAttempts = Number.isFinite(retryAttemptsRaw)
     ? Math.max(1, Math.min(5, retryAttemptsRaw))
