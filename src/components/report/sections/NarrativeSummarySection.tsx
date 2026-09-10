@@ -114,6 +114,11 @@ function isWorkingStrengthText(text: unknown) {
   );
 }
 
+function isCoverageLimitation(text: unknown) {
+  const normalized = normalizeKey(text);
+  return /\b(due to (?:a )?lack of evidence|lack of evidence|insufficient evidence|available evidence|captured evidence|evidence (?:was|is) not|not possible to (?:determine|assess|verify|observe)|could not (?:determine|assess|verify|observe|test)|cannot (?:determine|assess|verify|observe|test)|not tested|was not tested|were not tested|not observed|was not observed|were not observed|did not observe|did not capture|not captured)\b/i.test(normalized);
+}
+
 function synthesizeBucketStrengthFallback(bucket: Record<string, unknown>) {
   const bucketName = bucketLabel(bucket);
   const score = asNumber(bucket.score);
@@ -149,6 +154,7 @@ function bucketRationaleItems(
   const directItems = normalizeList(rationale[key], 8).map(cleanNarrativeText).filter(
     (item) =>
       !placeholderText(item) &&
+      !isCoverageLimitation(item) &&
       !looksEllipsizedText(item) &&
       !isNeutralSummaryText(item) &&
       (key === "what_is_risky" || isWorkingStrengthText(item)),
@@ -158,6 +164,7 @@ function bucketRationaleItems(
   const summaryItems = normalizeList(rationale.summary, 4).map(cleanNarrativeText).filter(
     (item) =>
       !placeholderText(item) &&
+      !isCoverageLimitation(item) &&
       !looksEllipsizedText(item) &&
       !isNeutralSummaryText(item) &&
       (key === "what_is_risky" || isWorkingStrengthText(item)),
@@ -172,6 +179,7 @@ function bucketRationaleItems(
         (item) =>
           item &&
           !placeholderText(item) &&
+          !isCoverageLimitation(item) &&
           !looksEllipsizedText(item) &&
           !isNeutralSummaryText(item) &&
           isWorkingStrengthText(item),
@@ -188,6 +196,7 @@ function bucketRationaleItems(
       (item) =>
         item &&
         !placeholderText(item) &&
+        !isCoverageLimitation(item) &&
         !looksEllipsizedText(item) &&
         !isNeutralSummaryText(item) &&
         !looksLikeWeakStatus(item),
@@ -201,6 +210,7 @@ function bucketRationaleItems(
       (item) =>
         item &&
         !placeholderText(item) &&
+        !isCoverageLimitation(item) &&
         !looksEllipsizedText(item) &&
         !isNeutralSummaryText(item) &&
         !looksLikeWeakStatus(item),
@@ -210,11 +220,11 @@ function bucketRationaleItems(
   const questionItems = asArray(bucket.questions)
     .map((item) => asRecord(item) ?? {})
     .map((item) => cleanNarrativeText(synthesizeQuestionTakeaway(bucketLabel(bucket), item, "risk")))
-    .filter((item) => item && !placeholderText(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item));
+    .filter((item) => item && !placeholderText(item) && !isCoverageLimitation(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item));
   if (questionItems.length) return normalizeList(questionItems, 4);
 
   return normalizeList(bucket.summary || bucket.note || bucket.rationale || "", 4).filter(
-    (item) => !placeholderText(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item),
+    (item) => !placeholderText(item) && !isCoverageLimitation(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item),
   );
 }
 
