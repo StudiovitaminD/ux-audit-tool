@@ -860,9 +860,9 @@ export function ReportView() {
 
         {loadingHistory ? (
           <div className="rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-6">
-            <div className="flex items-center gap-3 text-sm text-[color:var(--ink-muted)]">
+            <div className="flex w-full items-center justify-center gap-3 text-center text-sm text-[color:var(--ink-muted)]">
               <LoadingSpinner />
-              Loading reports…
+              Loading reports
             </div>
           </div>
         ) : historyError ? (
