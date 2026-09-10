@@ -445,6 +445,9 @@ export function AuditForm() {
   const [transcriptFileName, setTranscriptFileName] = useState<string | null>(null);
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [sitePages, setSitePages] = useState<Array<{ url: string; label: string }>>([]);
+  const [selectedSitePages, setSelectedSitePages] = useState<string[]>([]);
+  const [loadingSitePages, setLoadingSitePages] = useState(false);
   const [, setVideoFileName] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<number>(1);
   // ADDED: show validation only after user presses Next (or Submit)
@@ -459,6 +462,27 @@ export function AuditForm() {
     createEmptyPersonaCard("primary"),
   ]);
   const formRef = useRef<HTMLFormElement | null>(null);
+
+  async function discoverSitePages() {
+    if (!isUrlLike(payload.productUrl)) return;
+    setLoadingSitePages(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/site-map", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: payload.productUrl.trim() }),
+      });
+      const data = await response.json() as { ok?: boolean; pages?: Array<{ url: string; label: string }>; error?: string };
+      if (!response.ok || !data.ok) throw new Error(data.error || "Could not discover site pages.");
+      setSitePages(data.pages || []);
+      setSelectedSitePages((data.pages || []).map((page) => page.url));
+    } catch (error) {
+      setError(getErrorMessage(error) || "Could not discover site pages.");
+    } finally {
+      setLoadingSitePages(false);
+    }
+  }
 
   // ADDED
   const primaryType = payload.product.type;
@@ -1462,6 +1486,7 @@ export function AuditForm() {
     try {
       const submissionPayload: AuditPayload = {
         ...payload,
+        selectedSitePages,
         userAccess: auditUserAccessFromSession(appSession),
       };
       const response = await fetch("/api/audit", {
@@ -2331,6 +2356,33 @@ export function AuditForm() {
                   placeholder="https://yourproduct.com"
                 />
               </Field>
+
+              <div className="rounded-2xl border border-[color:var(--card-border)] bg-white/60 p-4 dark:bg-white/5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">Choose pages to audit</h3>
+                    <p className="text-sm text-zinc-500">Find pages from the site map, then select only the pages you want reviewed.</p>
+                  </div>
+                  <Button type="button" variant="secondary" onClick={discoverSitePages} disabled={!isUrlLike(payload.productUrl) || loadingSitePages}>
+                    {loadingSitePages ? "Finding pages…" : "Find site pages"}
+                  </Button>
+                </div>
+                {sitePages.length ? (
+                  <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
+                    {sitePages.map((page) => (
+                      <label key={page.url} className="flex cursor-pointer items-start gap-3 rounded-xl border border-[color:var(--card-border)] px-3 py-2 text-sm hover:bg-black/[.03] dark:hover:bg-white/[.04]">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={selectedSitePages.includes(page.url)}
+                          onChange={(event) => setSelectedSitePages((current) => event.target.checked ? [...current, page.url] : current.filter((url) => url !== page.url))}
+                        />
+                        <span className="min-w-0"><span className="block font-medium">{page.label}</span><span className="block truncate text-xs text-zinc-500">{page.url}</span></span>
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
 
               {isPublicAuditType(primaryType) ? (
                 <>
