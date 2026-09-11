@@ -494,6 +494,9 @@ export function ReportView() {
         | null;
       if (res.status === 202 || res.status === 429) {
         setProcessDelayMs(6000);
+      } else if (res.status === 502 || res.status === 503 || res.status === 504) {
+        setProcessDelayMs(6000);
+        setLastError("The report service is taking longer than expected. We are continuing automatically.");
       } else if (!res.ok) {
         setProcessDelayMs(3500);
         const errorMessage =
@@ -614,6 +617,11 @@ export function ReportView() {
         });
         const data = (await res.json()) as unknown;
         if (!res.ok) {
+          if (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) {
+            if (cancelled) return;
+            setLastError("The report service is taking longer than expected. We are continuing automatically.");
+            return;
+          }
           const errRec =
             data && typeof data === "object" ? (data as Record<string, unknown>) : null;
           if (cancelled) return;
@@ -1323,14 +1331,24 @@ export function ReportView() {
 
   if (!effectiveReport) {
     return (
-      <div className="grid min-h-[60vh] place-items-center p-6">
-        <div className="book-loader" role="status" aria-label="Loading">
-          <div className="book-loader__shadow" />
-          <div className="book-loader__page" />
-          <div className="book-loader__page book-loader__page--2" />
-          <div className="book-loader__page book-loader__page--3" />
-          <div className="book-loader__page book-loader__page--4" />
-          <div className="book-loader__page book-loader__page--5" />
+      <div className="px-6 pb-6 pt-10">
+        <div className="mx-auto max-w-2xl rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-6 shadow-sm sm:p-8" role="status">
+          <div className="text-lg font-semibold">Preparing your report</div>
+          <div className="mt-1 text-sm text-[color:var(--muted)]">
+            Your findings are ready and the report is being assembled.
+          </div>
+          <div className="mt-7 h-2 overflow-hidden rounded-full bg-[color:var(--cream-dark)]">
+            <div className="h-full w-[96%] animate-pulse rounded-full bg-[color:var(--orange)]" />
+          </div>
+          <div className="mt-6 flex items-center gap-3 text-sm text-[color:var(--ink)]">
+            <span className="grid h-6 w-6 place-items-center rounded-full border border-[color:var(--orange)]">
+              <LoadingSpinner />
+            </span>
+            Finalizing your report
+          </div>
+          <p className="mt-7 text-xs text-[color:var(--muted)]">
+            Keep this tab open. We will continue automatically if the service takes longer than expected.
+          </p>
         </div>
       </div>
     );
