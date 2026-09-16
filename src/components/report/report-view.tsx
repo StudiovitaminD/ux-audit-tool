@@ -1138,6 +1138,23 @@ export function ReportView() {
     }
   }
 
+  // Opening an existing report starts with no server status. Keep this brief
+  // fetch state visually distinct from an audit that is actively processing.
+  if (reportId && status === null && !effectiveReport) {
+    return (
+      <div className="grid min-h-[60vh] place-items-center p-6">
+        <div className="book-loader" role="status" aria-label="Loading report">
+          <div className="book-loader__shadow" />
+          <div className="book-loader__page" />
+          <div className="book-loader__page book-loader__page--2" />
+          <div className="book-loader__page book-loader__page--3" />
+          <div className="book-loader__page book-loader__page--4" />
+          <div className="book-loader__page book-loader__page--5" />
+        </div>
+      </div>
+    );
+  }
+
   if (reportId && status === "error") {
     const failureMessage =
       jobError || lastError || "The automation returned an error, so report creation has stopped.";
