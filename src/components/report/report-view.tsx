@@ -1257,6 +1257,21 @@ export function ReportView() {
     );
   }
 
+  if (reportId && !effectiveReport) {
+    return (
+      <div className="grid min-h-[60vh] place-items-center p-6">
+        <div className="book-loader" role="status" aria-label="Loading report">
+          <div className="book-loader__shadow" />
+          <div className="book-loader__page" />
+          <div className="book-loader__page book-loader__page--2" />
+          <div className="book-loader__page book-loader__page--3" />
+          <div className="book-loader__page book-loader__page--4" />
+          <div className="book-loader__page book-loader__page--5" />
+        </div>
+      </div>
+    );
+  }
+
   if (reportId && status !== "complete") {
     const completedBuckets =
       debugDetails && typeof debugDetails.completedBuckets === "number"
