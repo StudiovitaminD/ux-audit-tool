@@ -178,6 +178,17 @@ export function LiveReport({
     setPage(boundedPage);
   }
 
+  function turnPage(direction: "next" | "prev") {
+    const nextPage = direction === "next" ? page + 1 : page - 1;
+    const pageFlip = flipBookRef.current?.pageFlip?.();
+    if (pageFlip) {
+      if (direction === "next") pageFlip.flipNext();
+      else pageFlip.flipPrev();
+      return;
+    }
+    goToPage(nextPage);
+  }
+
   useEffect(() => {
     setPage((currentPage) => Math.max(0, Math.min(currentPage, Math.max(0, pages.length - 1))));
   }, [pages.length]);
@@ -453,12 +464,12 @@ export function LiveReport({
           />
         ) : null}
         </div>
+      </div>
 
-        <div
-          className="no-print fixed bottom-6 left-1/2 z-30 w-[794px] max-w-[calc(100%-3rem)] -translate-x-1/2 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
-          data-report-pagination
-          onPointerDown={(event) => event.stopPropagation()}
-        >
+      <div
+        className="no-print fixed bottom-6 left-1/2 z-50 w-[794px] max-w-[calc(100%-3rem)] -translate-x-1/2 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
+        data-report-pagination
+      >
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2" data-report-pagination-controls>
               <Link
@@ -516,7 +527,7 @@ export function LiveReport({
                 type="button"
                 className="floatingBarSecondary"
                 data-report-prev
-                onClick={() => flipBookRef.current?.pageFlip().flipPrev()}
+                onClick={() => turnPage("prev")}
                 disabled={page === 0}
                 aria-disabled={page === 0}
                 style={page === 0 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
@@ -530,7 +541,7 @@ export function LiveReport({
                 type="button"
                 className="floatingBarPrimary"
                 data-report-next
-                onClick={() => flipBookRef.current?.pageFlip().flipNext()}
+                onClick={() => turnPage("next")}
                 disabled={page === pages.length - 1}
                 aria-disabled={page === pages.length - 1}
                 style={
@@ -541,7 +552,6 @@ export function LiveReport({
               </button>
             </div>
           </div>
-        </div>
       </div>
 
       {downloadError ? (
