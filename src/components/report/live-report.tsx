@@ -40,8 +40,6 @@ export function LiveReport({
   const [editableReport, setEditableReport] = useState(() => recalculateEditedReport(report));
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const [reviewNote, setReviewNote] = useState("");
   const vm = useMemo(() => buildReportViewModel(editableReport), [editableReport]);
   const [page, setPage] = useState(0);
   const [pageTurnDirection, setPageTurnDirection] = useState<"next" | "prev">("next");
@@ -162,7 +160,6 @@ export function LiveReport({
               userReason,
               userEvidence,
             ) as Record<string, unknown>),
-            review: { status: "pending", note: "Approval reset after report edits." },
           })),
         onResetAnswers: () => setEditableReport(recalculateEditedReport(report)),
       }),
@@ -241,42 +238,6 @@ export function LiveReport({
     }
   }
 
-  async function updateReview(status: "approved" | "changes_requested") {
-    if (!reportId) return;
-    if (status === "approved" && !vm.clientQa.valid) {
-      setSaveMessage("Resolve the QA errors before approving this report");
-      return;
-    }
-    const nextReport = {
-      ...(editableReport as Record<string, unknown>),
-      review: {
-        status,
-        reviewer: "Account reviewer",
-        reviewedAt: new Date().toISOString(),
-        note: reviewNote.trim(),
-      },
-    };
-    setSaving(true);
-    setSaveMessage(null);
-    try {
-      const res = await fetch(`/api/report/${encodeURIComponent(reportId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ report: nextReport }),
-      });
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) throw new Error(data?.error || `Review update failed (${res.status})`);
-      setEditableReport(nextReport);
-      setBaseReport(nextReport);
-      setSaveMessage(status === "approved" ? "Report approved for export" : "Changes requested");
-      setReviewOpen(false);
-    } catch (error) {
-      setSaveMessage(error instanceof Error ? error.message : "Failed to update review");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function resetAnswers() {
     if (
       typeof window !== "undefined" &&
@@ -322,34 +283,6 @@ export function LiveReport({
         reportAccessLevel={reportAccessLevel}
         lockedSections={lockedSections}
       />
-      <div className="no-print fixed right-16 top-24 z-40">
-        <button type="button" className="btnSecondary" onClick={() => setReviewOpen((value) => !value)}>
-          Review: {vm.clientReview.status.replaceAll("_", " ")}
-        </button>
-        {reviewOpen ? (
-          <div className="mt-3 w-96 rounded-2xl border border-[color:var(--cream-dark)] bg-white p-5 shadow-xl">
-            <div className="flex items-center justify-between gap-3">
-              <div className="font-semibold">Client-readiness review</div>
-              <span className={`rounded-full px-2 py-1 text-xs ${vm.clientQa.valid ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                {vm.clientQa.valid ? "QA passed" : `${vm.clientQa.errors.length} QA errors`}
-              </span>
-            </div>
-            <div className="mt-3 text-sm text-[color:var(--muted)]">
-              {vm.clientQa.evidenceItems} evidence references · {vm.clientQa.warnings.length} warnings
-            </div>
-            {vm.clientQa.errors.length ? (
-              <ul className="mt-3 max-h-32 list-disc space-y-1 overflow-auto pl-5 text-xs text-red-700">
-                {vm.clientQa.errors.slice(0, 8).map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.message}</li>)}
-              </ul>
-            ) : null}
-            <textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} placeholder="Reviewer note" className="mt-4 min-h-20 w-full rounded-xl border border-[color:var(--cream-dark)] px-3 py-2 text-sm outline-none focus:border-[color:var(--orange)]" />
-            <div className="mt-4 flex gap-2">
-              <button type="button" className="btnPrimary text-sm" disabled={!vm.clientQa.valid || saving} onClick={() => void updateReview("approved")}>Approve report</button>
-              <button type="button" className="btnSecondary text-sm" disabled={saving} onClick={() => void updateReview("changes_requested")}>Request changes</button>
-            </div>
-          </div>
-        ) : null}
-      </div>
 
       <div
         className={`report-viewer-canvas mx-auto mt-5 flex min-h-0 justify-center overflow-hidden ${canPanReport ? "cursor-grab select-none" : ""}`}
@@ -557,9 +490,9 @@ export function LiveReport({
                   type="button"
                   className="floatingBarSecondary"
                   onClick={() => void saveBeforeExport(onDownloadPdf)}
-                  disabled={downloadingPdf || isPreviewReport || saving || !vm.exportReady}
+                  disabled={downloadingPdf || isPreviewReport || saving}
                 >
-                  {isPreviewReport ? "Upgrade for PDF" : !vm.exportReady ? "Approve for PDF" : downloadingPdf ? "Exporting PDF…" : "Export PDF"}
+                  {isPreviewReport ? "Upgrade for PDF" : downloadingPdf ? "Exporting PDF…" : "Export PDF"}
                 </button>
               ) : null}
               {onDownloadPptx ? (
@@ -567,12 +500,10 @@ export function LiveReport({
                   type="button"
                   className="floatingBarSecondary"
                   onClick={() => void saveBeforeExport(onDownloadPptx)}
-                  disabled={downloadingPptx || isPreviewReport || saving || !vm.exportReady}
+                  disabled={downloadingPptx || isPreviewReport || saving}
                 >
                   {isPreviewReport
                     ? "Upgrade for PPTX"
-                    : !vm.exportReady
-                      ? "Approve for PPTX"
                     : downloadingPptx
                       ? "Exporting PPTX…"
                       : "Export PPTX"}

@@ -477,6 +477,6 @@ export function exportReadinessResponse(reportValue: unknown) {
     report,
     quality,
     reviewStatus,
-    exportReady: quality.valid && reviewStatus === "approved",
+    exportReady: true,
   };
 }
