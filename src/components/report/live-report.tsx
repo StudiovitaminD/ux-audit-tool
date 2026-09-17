@@ -11,7 +11,7 @@ import { ReportAccessPanel } from "@/components/account/access-panels";
 const DEFAULT_REPORT_ZOOM = 0.6;
 const REPORT_RENDER_SCALE = 0.82;
 const REPORT_SPREAD_WIDTH = 1588;
-const REPORT_TOOLBAR_WIDTH = REPORT_SPREAD_WIDTH * DEFAULT_REPORT_ZOOM * REPORT_RENDER_SCALE;
+const REPORT_VIEWER_WIDTH = 789;
 
 export function LiveReport({
   report,
@@ -473,7 +473,7 @@ export function LiveReport({
 
       <div
         className="no-print fixed bottom-6 left-1/2 z-50 max-w-[calc(100%-3rem)] -translate-x-1/2 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
-        style={{ width: `${REPORT_TOOLBAR_WIDTH}px` }}
+        style={{ width: `${REPORT_VIEWER_WIDTH}px` }}
         data-report-pagination
       >
           <div className="flex flex-wrap items-center justify-between gap-4">
