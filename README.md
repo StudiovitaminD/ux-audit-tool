@@ -99,6 +99,7 @@ npm run build
 ## Related docs
 
 - `docs/report-export-flow.md` — how report rendering stays aligned across live, print, PDF, DOCX, and PPTX flows
+- `docs/market-leading-report-workflow.md` — evidence, scoring, QA, review, and delivery workflow for client-ready AI UX reports
 - `chrome-extension/README.md` — browser extension capture setup and usage
 
 ## Main APIs

@@ -5,6 +5,7 @@ import {
   stringifyValue,
 } from "@/lib/report-model";
 import { loadStoredReport } from "@/lib/report-record";
+import { exportReadinessResponse } from "@/lib/report-quality";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -215,6 +216,24 @@ function buildDocxXml(report: unknown, reportId: string) {
   normalizeList(vm.roadmap.quarter_1, 12).forEach((item) => parts.push(bulletParagraph(item)));
   parts.push(spacer());
 
+  parts.push(paragraph("Methodology & Scope", "Heading1"));
+  parts.push(paragraph(vm.methodology.framework));
+  parts.push(paragraph(`Selected buckets: ${vm.methodology.selectedBuckets.join(", ") || "—"}`));
+  parts.push(paragraph(`Scored criteria: ${vm.methodology.questionsScoreable} of ${vm.methodology.questionsTotal}`));
+  parts.push(paragraph(`Capture status: ${vm.methodology.captureStatus}`));
+  parts.push(spacer());
+
+  parts.push(paragraph("Evidence Appendix", "Heading1"));
+  if (!vm.evidenceAppendix.length) {
+    parts.push(paragraph("No traceable evidence references were available."));
+  } else {
+    vm.evidenceAppendix.forEach((item) => {
+      parts.push(paragraph(`${item.evidenceId} — ${item.bucket} / ${item.questionId}`, "Heading2"));
+      parts.push(paragraph(item.observation || item.evidence || item.question));
+    });
+  }
+  parts.push(spacer());
+
   if (vm.closingNote) {
     parts.push(spacer());
     parts.push(paragraph("Closing Note", "Heading1"));
@@ -303,7 +322,14 @@ export async function GET(
     const loaded = await loadStoredReport(id);
     if (!loaded) return Response.json({ error: "Not found" }, { status: 404 });
 
-    const report = loaded.report;
+    const readiness = exportReadinessResponse(loaded.report);
+    if (!readiness.exportReady) {
+      return Response.json(
+        { error: readiness.quality.valid ? "Report must be approved before export" : "Report failed quality validation", quality: readiness.quality, reviewStatus: readiness.reviewStatus },
+        { status: 422 },
+      );
+    }
+    const report = readiness.report;
     const vm = buildReportViewModel(report);
     const filename = `${fileNameFrom(asString(vm.productName) || "ux-audit-report")}.docx`;
     const xml = buildDocxXml(report, id);

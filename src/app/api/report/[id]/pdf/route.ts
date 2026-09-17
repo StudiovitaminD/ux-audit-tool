@@ -6,6 +6,7 @@ import {
   storeReportExportOverride,
 } from "@/lib/report-export-overrides";
 import { loadStoredReport } from "@/lib/report-record";
+import { exportReadinessResponse } from "@/lib/report-quality";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -52,7 +53,14 @@ async function generatePdf(req: Request, { params }: { params: { id: string } })
     const loaded = reportOverride ? null : await loadStoredReport(id);
     if (!reportOverride && !loaded) return Response.json({ error: "Not found" }, { status: 404 });
 
-    const reportRecord = asRecord(reportOverride ?? loaded?.report) ?? {};
+    const readiness = exportReadinessResponse(reportOverride ?? loaded?.report);
+    if (!readiness.exportReady) {
+      return Response.json(
+        { error: readiness.quality.valid ? "Report must be approved before export" : "Report failed quality validation", quality: readiness.quality, reviewStatus: readiness.reviewStatus },
+        { status: 422 },
+      );
+    }
+    const reportRecord = asRecord(readiness.report) ?? {};
     const filename = `${fileNameFrom(asString(reportRecord.product_name) || asString(reportRecord.productName) || "ux-audit-report")}.pdf`;
 
     const executablePath = await chromium.executablePath();
@@ -70,7 +78,7 @@ async function generatePdf(req: Request, { params }: { params: { id: string } })
 
     const printUrl = new URL(`/report/${encodeURIComponent(id)}/print`, new URL(req.url).origin);
     if (reportOverride) {
-      overrideToken = await storeReportExportOverride(reportOverride);
+      overrideToken = await storeReportExportOverride(reportRecord);
       printUrl.searchParams.set("token", overrideToken);
     }
 

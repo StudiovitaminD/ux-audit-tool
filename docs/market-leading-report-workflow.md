@@ -1,0 +1,456 @@
+# Market-Leading AI UX Report Workflow
+
+## Goal
+
+Produce a UX audit that is evidence-led, internally consistent, explainable, editable, and safe to deliver to a client without manually correcting basic report errors.
+
+The product should not compete by generating the most text. It should compete by making every claim traceable, separating facts from uncertainty, and preventing unsupported output from reaching the final report.
+
+## Non-negotiable report rules
+
+1. No scored answer without evidence.
+2. No finding from `not tested`, `not observed`, or `insufficient evidence`.
+3. No bucket outside the user's selected bucket set.
+4. Every finding belongs to exactly one canonical bucket and one tested question.
+5. Every Top Problem is a confirmed failed or partial criterion.
+6. Every What's Working item is a confirmed passed criterion.
+7. Mixed statements are split into separate strength and problem statements.
+8. Performance claims require measured performance data.
+9. Business metrics require analytics or must be explicitly labeled as modeled estimates.
+10. No export while validation errors remain.
+
+## End-to-end workflow
+
+### Stage 1: Validate audit intake
+
+Required inputs:
+
+- Product name and product type
+- Canonical product URL
+- Primary platform and viewports
+- Audit objective
+- Selected buckets
+- Pages or user flows in scope
+- Authentication and capture requirements
+
+Validation gate:
+
+- Required fields must contain meaningful values, not placeholders or one-character text.
+- At least one bucket must be selected.
+- The URL must resolve successfully.
+- A new audit must not inherit completion state from an older audit.
+- AI form filling must populate every required field or show the remaining fields as incomplete.
+- Persona and competitor steps cannot be marked complete while required fields are empty.
+
+Output: immutable `audit_scope` containing the selected buckets, pages, viewports, goals, and evidence requirements.
+
+### Stage 2: Build an evidence plan
+
+Each selected question declares the evidence it requires before collection begins.
+
+Evidence types:
+
+- Desktop screenshot
+- Mobile screenshot
+- DOM and accessibility tree snapshot
+- Keyboard interaction trace
+- Form success and error-state trace
+- Network and Core Web Vitals data
+- Computed contrast values
+- Reduced-motion test
+- Text zoom and spacing test
+- Structured content extraction
+
+The planner assigns every question one of these states:
+
+- `ready_to_test`
+- `not_applicable`
+- `blocked`
+
+It must never infer a failure before testing.
+
+Output: `evidence_plan[]`, keyed by canonical bucket and question ID.
+
+### Stage 3: Collect evidence
+
+Use deterministic tools before AI interpretation:
+
+- Browser automation for pages, viewports, forms, navigation, and interaction states
+- Accessibility tooling for roles, names, focus order, and violations
+- Contrast calculation from computed foreground and background colors
+- Lighthouse or equivalent measurements for performance
+- DOM inspection for headings, labels, landmarks, duplicate content, and alternative text
+- Screenshots with page URL, viewport, timestamp, and interaction state
+
+Every evidence item must store:
+
+```ts
+type AuditEvidence = {
+  evidenceId: string;
+  auditId: string;
+  bucketId: string;
+  questionId: string;
+  pageUrl: string;
+  viewport: "desktop" | "tablet" | "mobile";
+  testMethod: string;
+  observedAt: string;
+  screenshotUrl?: string;
+  measuredValues?: Record<string, number | string>;
+  observation: string;
+  status: "confirmed" | "inconclusive" | "blocked";
+};
+```
+
+Evidence quality gate:
+
+- Confirmed evidence includes a URL and test method.
+- Visual claims include a screenshot or measured value.
+- Interaction claims include an interaction trace.
+- Performance claims include metrics and test conditions.
+- Inconclusive evidence cannot generate a scored defect.
+
+### Stage 4: Evaluate each question
+
+Question evaluation happens only after evidence collection.
+
+Allowed states:
+
+- `pass`
+- `partial`
+- `fail`
+- `not_tested`
+- `not_applicable`
+- `blocked`
+
+Required evaluation fields:
+
+```ts
+type QuestionEvaluation = {
+  bucketId: string;
+  questionId: string;
+  state: "pass" | "partial" | "fail" | "not_tested" | "not_applicable" | "blocked";
+  score: number | null;
+  confidence: number;
+  evidenceIds: string[];
+  observation: string;
+  userImpact?: string;
+  recommendation?: string;
+};
+```
+
+Evaluation rules:
+
+- Only `pass`, `partial`, and `fail` contribute to scores.
+- `not_tested`, `blocked`, and `not_applicable` have `score: null`.
+- A failure requires at least one confirmed evidence item.
+- Confidence is based on evidence coverage and reliability, not form completion.
+- AI may interpret evidence, but it cannot invent evidence or override deterministic measurements.
+
+### Stage 5: Calculate scores deterministically
+
+Scoring must be code-driven, not generated by the language model.
+
+Recommended calculation:
+
+- Question score: fixed value from the selected answer state
+- Bucket score: weighted average of tested questions only
+- Pillar score: weighted average of tested selected buckets only
+- Overall score: weighted average of tested selected pillars only
+- Coverage: tested applicable questions divided by applicable questions
+- Confidence: weighted evidence coverage multiplied by evidence-quality score
+
+Display requirements:
+
+- Show `Not Tested` instead of `0` when no valid score exists.
+- Show coverage beside every score.
+- Explain weights and formulas in the report methodology.
+- Do not display estimated conversion, satisfaction, or drop-off metrics as measured facts.
+
+### Stage 6: Generate canonical findings
+
+Generate findings from failed and partial evaluations, not from summary prose.
+
+Canonical finding schema:
+
+```ts
+type AuditFinding = {
+  findingId: string;
+  bucketId: string;
+  questionId: string;
+  evidenceIds: string[];
+  severity: "critical" | "high" | "medium" | "low";
+  observation: string;
+  userImpact: string;
+  recommendation: string;
+  acceptanceCriteria: string[];
+  confidence: number;
+};
+```
+
+Severity must be calculated from:
+
+- User impact
+- Frequency or reach
+- Task criticality
+- Accessibility or legal risk
+- Recoverability
+- Confidence in evidence
+
+Missing evidence is never a severity input.
+
+Finding quality gate:
+
+- The observation states what was seen, not what might exist.
+- The impact explains the user consequence without exaggeration.
+- The recommendation directly resolves the observation.
+- Acceptance criteria are testable.
+- The finding has evidence from the same bucket and question.
+
+### Stage 7: Build report narratives from the canonical data
+
+All report sections must derive from the same evaluated question and finding records.
+
+- **What's Working:** confirmed `pass` evaluations only
+- **Top Problems:** canonical findings for that bucket only
+- **Critical Findings:** high and critical canonical findings only
+- **Quick Wins:** high-value findings with low implementation effort
+- **Roadmap:** findings grouped by impact, effort, and dependency
+- **Executive Summary:** deterministic rollup of the strongest strengths, highest risks, coverage, and confidence
+- **Testing Limitations:** all `not_tested`, `blocked`, and inconclusive evaluations
+
+Narrative rules:
+
+- Never use a coverage limitation as a problem.
+- Never put a sentence containing a negative qualification under What's Working.
+- Split mixed sentences into separate strength and problem records.
+- Deduplicate semantically equivalent claims.
+- Preserve the canonical bucket ID through every transformation.
+- Add page and evidence references to client-facing findings.
+
+### Stage 8: Validate report consistency
+
+Run a deterministic pre-export validator.
+
+Blocking checks:
+
+- Every displayed bucket was selected by the user.
+- Every score has scored questions and confirmed evidence.
+- Every finding references an existing selected bucket and question.
+- Every critical finding appears in the matching bucket's Top Problems.
+- No What's Working item is also a Top Problem.
+- No `not tested` language appears in Critical Findings.
+- No duplicate bullets or findings exist.
+- Bucket, pillar, and overall score arithmetic reconciles.
+- Confidence matches evidence coverage.
+- Performance scores include measured metrics.
+- Business metrics identify their data source or carry an estimate label.
+- Competitor claims include captured evidence and a timestamp.
+- No placeholder, malformed HTML, prompt text, or truncated sentence remains.
+
+Warnings that require review:
+
+- Very high score with low evidence coverage
+- Critical severity with low confidence
+- Bucket containing only strengths or only problems
+- Generic recommendation reused across unrelated findings
+- Competitor screenshot unavailable
+- Excessive blank report space
+
+The report UI should show a QA panel with errors, warnings, and links to the affected content. Export buttons remain disabled while blocking errors exist.
+
+### Stage 9: Human review
+
+AI should accelerate the audit, not silently approve itself.
+
+Reviewer checklist:
+
+- Confirm scope and selected buckets
+- Review low-confidence evaluations
+- Approve high and critical findings
+- Confirm severity and user impact
+- Edit client-sensitive wording
+- Review competitor comparisons
+- Confirm score and confidence explanations
+- Approve final export
+
+Record reviewer identity, timestamp, changed fields, and approval status.
+
+### Stage 10: Render and export
+
+Use the live report components as the single presentation source for browser, print, PDF, DOCX, and PPTX wherever format constraints allow.
+
+Automated visual QA:
+
+- Render every page to an image.
+- Detect clipping, overlap, footer collisions, overflow, and excessive empty space.
+- Check minimum readable font size.
+- Check repeated bullets and missing screenshots.
+- Confirm page numbers and section order.
+- Confirm URLs, dates, and brand names.
+- Compare browser and PDF snapshots for major layout drift.
+
+Export gate:
+
+- Data validator passes.
+- Visual validator passes.
+- Human approval exists for client-ready reports.
+
+### Stage 11: Learn from corrections
+
+Store all reviewer edits as structured feedback:
+
+- Original AI value
+- Reviewer value
+- Bucket and question ID
+- Reason for correction
+- Model and prompt version
+- Evidence available at generation time
+
+Use this dataset for regression tests, prompt evaluation, and model comparison. Do not train on unapproved report text.
+
+## Model architecture
+
+Use specialized agents with narrow responsibilities:
+
+1. **Scope agent:** converts intake into a canonical audit plan.
+2. **Evidence agent:** decides what must be collected but does not score.
+3. **Evaluator agent:** interprets evidence question by question.
+4. **Finding agent:** converts failed evaluations into structured findings.
+5. **Narrative agent:** writes concise client-facing language from approved structured data.
+6. **Consistency critic:** searches for contradictions, unsupported claims, and bucket leakage.
+7. **Export critic:** validates visual and document quality.
+
+Agents exchange typed JSON only. Free-form text is generated at the final narrative stage.
+
+## Automated test suite
+
+### Unit tests
+
+- Selected-bucket filtering
+- State-to-score conversion
+- Coverage and confidence formulas
+- Severity calculation
+- Bucket alias normalization
+- Positive/negative statement classification
+- Deduplication
+- Evidence-to-finding linkage
+
+### Contract tests
+
+- Every agent output matches its schema.
+- Unknown fields and malformed values fail validation.
+- Missing evidence cannot produce `pass`, `partial`, or `fail`.
+- Findings cannot reference unselected buckets.
+
+### Golden report tests
+
+Maintain approved reports for:
+
+- Marketing website
+- Ecommerce product
+- SaaS application
+- Mobile-only product
+- Limited-evidence audit
+- Audit containing inaccessible or blocked pages
+
+Compare generated JSON, scores, findings, and rendered pages against approved snapshots.
+
+### Adversarial tests
+
+- Empty fields and nonsense intake
+- Duplicate screenshots
+- Contradictory evidence
+- Malformed page text and HTML fragments
+- Missing competitor screenshots
+- 504 and model timeout recovery
+- Partial model response
+- Very long narratives
+- No findings or no strengths
+- Unselected buckets present in raw model output
+
+## Quality metrics
+
+Track these per model and release:
+
+- Evidence-backed claim rate: target 100%
+- Unsupported finding rate: target 0%
+- Bucket leakage rate: target 0%
+- Strength/problem classification accuracy: target above 98%
+- Duplicate finding rate: target below 1%
+- Score reconciliation rate: target 100%
+- Export clipping/overflow rate: target 0%
+- Reviewer acceptance without edits: initial target 80%, mature target above 95%
+- High/critical false-positive rate: target below 2%
+- Report generation completion rate: target above 99%
+
+## Delivery plan
+
+### Implementation status
+
+Phase 1 is implemented in the application pipeline:
+
+- Canonical evidence-aware question normalization
+- Deterministic score and confidence recalculation
+- Selected-bucket enforcement for generated and stored reports
+- Unsupported finding removal
+- Dedicated Testing Limitations report pages
+- Pre-export validation for PDF, DOCX, and PPTX
+
+The remaining phases require deeper deterministic browser measurements, reviewer tooling, and visual export regression automation.
+
+### Phase 1: Trust foundation
+
+- Introduce canonical bucket, question, evidence, evaluation, and finding schemas.
+- Separate testing limitations from findings.
+- Make scoring deterministic.
+- Enforce selected-bucket filtering everywhere.
+- Add the pre-export consistency validator.
+
+Exit criterion: the Studio Vitamin-D report regenerates without unsupported Critical Findings, duplicated bullets, or bucket-summary contradictions.
+
+### Phase 2: Evidence depth
+
+- Add deterministic contrast, accessibility, performance, keyboard, zoom, and reduced-motion testing.
+- Add traceable evidence references to findings.
+- Add coverage and confidence calculations.
+
+Implementation status: complete in the report pipeline. Each selected question now receives an evidence plan and stable evidence IDs. Browser captures record DOM semantics, form labelling, contrast samples, keyboard focus traversal, viewport overflow, 200% layout reflow, reduced-motion state, and navigation/resource timing. Unsupported checks are emitted as named limitations instead of inferred failures. Question confidence is derived from confirmed evidence coverage, and specialist findings without registered evidence IDs are rejected.
+
+Exit criterion: every scored criterion can be opened from the report and traced to evidence.
+
+### Phase 3: Client-ready reporting
+
+- Add reviewer QA panel and approval workflow.
+- Add methodology, limitations, and evidence appendix.
+- Add export visual regression tests.
+- Improve competitor evidence collection and freshness.
+
+Implementation status: complete in the client report pipeline. Reports now include methodology, scope, coverage, and a paginated evidence appendix across the live/PDF, DOCX, and PPTX formats. Automated QA blocks scored questions without evidence IDs, reviewer approval is persisted with notes and timestamps, edits reset approval, and all exports require a clean QA result plus explicit approval. Competitor captures now include source URLs, capture timestamps, and verification status, with incomplete or stale provenance surfaced as QA warnings. `npm run qa:report-layout -- <authenticated-report-url>` performs automated page-boundary and overflow checks before release.
+
+Exit criterion: PDF, DOCX, and PPTX exports pass data and visual QA without manual cleanup.
+
+### Phase 4: Market differentiation
+
+- Add before/after recommendation mockups for selected findings.
+- Add role-specific summaries for design, product, engineering, and leadership.
+- Add benchmark ranges based on verified anonymized audits.
+- Add remediation tracking and re-audit comparisons.
+- Measure whether implemented recommendations improve real product metrics.
+
+Exit criterion: the product demonstrates measurable audit accuracy and remediation value, not only faster report generation.
+
+## Definition of a client-ready report
+
+A report is client-ready only when:
+
+- Scope and tested pages are explicit.
+- Selected buckets are the only buckets shown.
+- Every score is explainable.
+- Every problem is confirmed by evidence.
+- Every limitation is labeled as a limitation.
+- Strengths and problems are correctly separated.
+- Findings, summaries, priorities, and roadmap agree.
+- Competitor claims are evidence-backed.
+- No unsupported business metric is presented as fact.
+- The exported document has no duplicate, malformed, clipped, or overflowing content.
+- A reviewer has approved all high and critical findings.

@@ -25,7 +25,8 @@
     "dev": "next dev",
     "build": "next build && node scripts/fix-sites-entry.mjs",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "qa:report-layout": "node scripts/validate-report-layout.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

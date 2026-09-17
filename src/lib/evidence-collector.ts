@@ -8,8 +8,12 @@ import {
   type AuditAccessMode,
 } from "@/lib/browser-provider";
 import { getErrorMessage } from "@/lib/error-utils";
+import type { EvidencePlan, EvidenceRecord } from "@/lib/evidence-depth";
 
 export type EvidencePage = {
+  evidenceId?: string;
+  capturedAt?: string;
+  viewport?: string;
   label?: string;
   url: string;
   title: string;
@@ -27,9 +31,21 @@ export type EvidencePage = {
   tableHeaders?: string[];
   emptyStateHints?: string[];
   textSnippet: string;
+  deterministic?: {
+    contrast?: { tested: boolean; samplesTested: number; failures: number };
+    semantics?: { tested: boolean; landmarks: number; unlabeledControls: number; imagesMissingAlt: number; headingOrderIssues: number };
+    keyboard?: { tested: boolean; focusableCount: number; visibleFocusCount: number; trapDetected: boolean };
+    responsive?: { tested: boolean; horizontalOverflow: boolean; overflowPixels: number };
+    zoom?: { tested: boolean; scale: number; horizontalOverflow: boolean; overflowPixels: number };
+    reducedMotion?: { tested: boolean; mediaQueryMatched: boolean; animationsDetected: number };
+    performance?: { tested: boolean; domContentLoadedMs: number; loadMs: number; requestCount: number; transferSize: number };
+    forms?: { tested: boolean; formCount: number; requiredFields: number; unlabeledFields: number; statusRegions: number };
+  };
 };
 
 export type EvidenceScreenshot = {
+  evidenceId?: string;
+  capturedAt?: string;
   label: string;
   url: string;
   source?: "browserbase" | "local_playwright" | "guided_step" | "recorded_journey" | "route" | "upload" | "auto_explore";
@@ -78,6 +94,8 @@ export type EvidenceBundle = {
   pages: EvidencePage[];
   screenshotDataUrl: string | null;
   screenshots: EvidenceScreenshot[];
+  evidencePlan?: EvidencePlan;
+  evidenceRecords?: EvidenceRecord[];
   warnings: string[];
   visitedFlows: string[];
   coverage?: EvidenceCoverage;
@@ -1061,6 +1079,60 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
     const mainText =
       (document.querySelector("main")?.textContent || document.body?.textContent || "") + "";
 
+    const visible = (element: Element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+    };
+    const accessibleName = (element: Element) =>
+      (element.getAttribute("aria-label") ||
+        element.getAttribute("title") ||
+        (element.getAttribute("aria-labelledby")
+          ? document.getElementById(element.getAttribute("aria-labelledby") || "")?.textContent
+          : "") ||
+        element.textContent || "").trim();
+    const parseColor = (value: string) => {
+      const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+    };
+    const luminance = (rgb: number[]) => {
+      const channels = rgb.map((channel) => {
+        const value = channel / 255;
+        return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const contrastRatio = (foreground: number[], background: number[]) => {
+      const a = luminance(foreground);
+      const b = luminance(background);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    };
+    const contrastSamples = Array.from(document.querySelectorAll("p, li, a, button, label, h1, h2, h3"))
+      .filter(visible)
+      .slice(0, 120)
+      .map((element) => {
+        const style = getComputedStyle(element);
+        const foreground = parseColor(style.color);
+        let backgroundElement: Element | null = element;
+        let background: number[] | null = null;
+        while (backgroundElement && !background) {
+          const candidate = parseColor(getComputedStyle(backgroundElement).backgroundColor);
+          if (candidate && getComputedStyle(backgroundElement).backgroundColor !== "rgba(0, 0, 0, 0)") background = candidate;
+          backgroundElement = backgroundElement.parentElement;
+        }
+        if (!foreground || !background) return null;
+        const fontSize = Number.parseFloat(style.fontSize || "16");
+        const fontWeight = Number.parseInt(style.fontWeight || "400", 10);
+        const large = fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700);
+        return { ratio: contrastRatio(foreground, background), threshold: large ? 3 : 4.5 };
+      })
+      .filter((sample): sample is { ratio: number; threshold: number } => Boolean(sample));
+    const interactive = Array.from(document.querySelectorAll("a[href], button, input, select, textarea, [role='button'], [role='link'], [tabindex]"));
+    const headings = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6")).map((node) => Number(node.tagName.slice(1)));
+    const controls = Array.from(document.querySelectorAll("input, select, textarea"));
+    const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+
     return {
       title: document.title || "",
       metaDescription:
@@ -1081,10 +1153,66 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
       tableHeaders: textList("th, [role='columnheader']", 12),
       emptyStateHints: textList(".empty, .no-data, [data-empty-state], [data-testid*='empty']", 8),
       mainText,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      deterministic: {
+        contrast: { tested: contrastSamples.length > 0, samplesTested: contrastSamples.length, failures: contrastSamples.filter((sample) => sample.ratio < sample.threshold).length },
+        semantics: {
+          tested: true,
+          landmarks: document.querySelectorAll("main, nav, header, footer, aside, [role='main'], [role='navigation'], [role='banner'], [role='contentinfo'], [role='complementary']").length,
+          unlabeledControls: interactive.filter((element) => visible(element) && !accessibleName(element)).length,
+          imagesMissingAlt: Array.from(document.images).filter((image) => !image.hasAttribute("alt")).length,
+          headingOrderIssues: headings.filter((level, index) => index > 0 && level - headings[index - 1] > 1).length,
+        },
+        responsive: { tested: true, horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1, overflowPixels: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth) },
+        reducedMotion: { tested: true, mediaQueryMatched: matchMedia("(prefers-reduced-motion: reduce)").matches, animationsDetected: document.getAnimations().length },
+        performance: { tested: Boolean(navigation), domContentLoadedMs: Math.round(navigation?.domContentLoadedEventEnd || 0), loadMs: Math.round(navigation?.loadEventEnd || 0), requestCount: resources.length, transferSize: resources.reduce((sum, resource) => sum + (resource.transferSize || 0), 0) },
+        forms: {
+          tested: true,
+          formCount: document.forms.length,
+          requiredFields: controls.filter((control) => control.hasAttribute("required") || control.getAttribute("aria-required") === "true").length,
+          unlabeledFields: controls.filter((control) => !accessibleName(control) && !(control as HTMLInputElement).labels?.length).length,
+          statusRegions: document.querySelectorAll("[role='alert'], [role='status'], [aria-live]").length,
+        },
+      },
     };
   });
 
+  const keyboard = { tested: true, focusableCount: 0, visibleFocusCount: 0, trapDetected: false };
+  try {
+    keyboard.focusableCount = await page.locator("a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])").count();
+    const seen = new Set<string>();
+    for (let index = 0; index < Math.min(20, keyboard.focusableCount); index += 1) {
+      await page.keyboard.press("Tab");
+      const focus = await page.evaluate(() => {
+        const element = document.activeElement as HTMLElement | null;
+        if (!element || element === document.body) return { key: "body", visible: false };
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return { key: `${element.tagName}:${element.id}:${element.textContent?.trim().slice(0, 30)}`, visible: rect.width > 0 && rect.height > 0 && (style.outlineStyle !== "none" || style.boxShadow !== "none") };
+      });
+      if (focus.visible) keyboard.visibleFocusCount += 1;
+      if (seen.has(focus.key) && seen.size < Math.min(3, keyboard.focusableCount)) keyboard.trapDetected = true;
+      seen.add(focus.key);
+    }
+  } catch {
+    keyboard.tested = false;
+  }
+  const zoom = await page.evaluate(() => {
+    const root = document.documentElement;
+    const previousZoom = root.style.zoom;
+    try {
+      root.style.zoom = "2";
+      const overflowPixels = Math.max(0, root.scrollWidth - root.clientWidth);
+      return { tested: true, scale: 2, horizontalOverflow: overflowPixels > 1, overflowPixels };
+    } finally {
+      root.style.zoom = previousZoom;
+    }
+  }).catch(() => ({ tested: false, scale: 2, horizontalOverflow: false, overflowPixels: 0 }));
+
   return {
+    evidenceId: `page-${Date.now()}`,
+    capturedAt: new Date().toISOString(),
+    viewport: data.viewport,
     url: page.url(),
     title: safeText(data.title),
     metaDescription: safeText(data.metaDescription),
@@ -1105,6 +1233,7 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
     tableHeaders: (data.tableHeaders || []).map(safeText).filter(Boolean),
     emptyStateHints: (data.emptyStateHints || []).map(safeText).filter(Boolean),
     textSnippet: truncate(String(data.mainText || "")),
+    deterministic: { ...data.deterministic, keyboard, zoom },
   };
 }
 
@@ -1149,6 +1278,8 @@ async function captureCurrentPage(
     const validation = validateCapturedEvidencePage(input, entry, previousPage, options);
     const image = await captureScreenshotDataUrl(page);
     screenshots.push({
+      evidenceId: `shot-${Date.now()}`,
+      capturedAt: new Date().toISOString(),
       label: entry.label,
       url: image,
       source: "local_playwright",

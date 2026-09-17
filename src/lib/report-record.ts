@@ -1,5 +1,6 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { loadStoredIntake } from "@/lib/intake-storage.server";
+import { sanitizeAuditReport } from "@/lib/report-quality";
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -128,7 +129,7 @@ export async function mergeReportWithDoc(
   ]);
   const intake = { ...(docIntake ?? {}), ...(reportIntake ?? {}) };
 
-  return {
+  return sanitizeAuditReport({
     ...report,
     evidence: preferReportOrDoc(report.evidence, data.evidence),
     captureDebug: preferReportOrDoc(report.captureDebug, data.captureDebug),
@@ -172,7 +173,7 @@ export async function mergeReportWithDoc(
     differentiation: safeString(report.differentiation || intake.differentiation),
     success_metric: safeString(report.success_metric || intake.success_metric),
     who_implements: safeString(report.who_implements || intake.who_implements),
-  };
+  });
 }
 
 const reportLookupFields = [

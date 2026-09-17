@@ -1,5 +1,6 @@
 import { QUESTION_BANK, normalizeBucketName } from "@/lib/question-bank";
 import { normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
+import { buildClientReadiness } from "@/lib/report-client-readiness";
 
 export type AnyRecord = Record<string, unknown>;
 
@@ -54,6 +55,42 @@ export type ReportViewModel = {
     accessibility_narrative: string;
   };
   findingsDetailed: AnyRecord[];
+  testingLimitations: AnyRecord[];
+  methodology: {
+    framework: string;
+    selectedBuckets: string[];
+    productUrl: string;
+    captureStatus: string;
+    testedPages: string[];
+    missingCoverage: string[];
+    questionsTotal: number;
+    questionsScoreable: number;
+    generatedAt: string;
+  };
+  evidenceAppendix: Array<{
+    evidenceId: string;
+    bucket: string;
+    questionId: string;
+    question: string;
+    evidence: string;
+    observation: string;
+    confidence: number;
+  }>;
+  clientReview: {
+    status: string;
+    reviewer: string;
+    reviewedAt: string;
+    note: string;
+  };
+  clientQa: {
+    valid: boolean;
+    errors: Array<{ code: string; message: string; bucket?: string; questionId?: string }>;
+    warnings: Array<{ code: string; message: string; bucket?: string; questionId?: string }>;
+    checkedAt: string;
+    questionsWithoutEvidenceIds: number;
+    evidenceItems: number;
+  };
+  exportReady: boolean;
   quickWinsTable: AnyRecord[];
   roadmap: {
     week_1_2: string[];
@@ -2652,6 +2689,7 @@ function buildCaptureCoverage(report: AnyRecord) {
 
 export function buildReportViewModel(input: unknown): ReportViewModel {
   const report = normalizeReportCollections(asRecord(input) ?? {});
+  const clientReadiness = buildClientReadiness(report);
   const captureCoverage = buildCaptureCoverage(report);
   const intake = getNestedRecord(report, "intake");
   const rawExecutiveSummary = getNestedRecord(report, "executive_summary");
@@ -3228,6 +3266,12 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
       isLimitedCoverage || (isScoringUnavailable && !hasPartialScoring)
         ? []
         : mergedFindingsSource.map((item, index) => normalizedFinding(report, item, index)),
+    testingLimitations: asRecordArray(report.testing_limitations),
+    methodology: clientReadiness.methodology,
+    evidenceAppendix: clientReadiness.evidenceAppendix,
+    clientReview: clientReadiness.review,
+    clientQa: clientReadiness.qa,
+    exportReady: clientReadiness.exportReady,
     quickWinsTable:
       isLimitedCoverage || (isScoringUnavailable && !hasPartialScoring)
         ? []

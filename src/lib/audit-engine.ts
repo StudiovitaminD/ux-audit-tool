@@ -10,6 +10,13 @@ import { getErrorMessage } from "@/lib/error-utils";
 import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../shared/audit-framework";
 import { normalizeAnswerState, normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
 import { runMultiAgentAudit, type MultiAgentResult } from "@/lib/multi-agent-audit";
+import { sanitizeAuditReport } from "@/lib/report-quality";
+import {
+  attachEvidenceDepth,
+  buildEvidencePlan,
+  evidenceConfidence,
+  questionEvidence,
+} from "@/lib/evidence-depth";
 
 const DEFAULT_OPENROUTER_MODEL = "openrouter/owl-alpha";
 
@@ -430,7 +437,7 @@ function bucketPrompt(intake: Intake, bucket: string, questions: BucketQuestion[
 
 function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
   if (!evidence?.pages?.length) return "No evidence pages were captured.";
-  return evidence.pages
+  const pageSummary = evidence.pages
     .slice(0, 3)
     .map((page, index) => {
       const lines = [
@@ -452,6 +459,12 @@ function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
       return lines.filter(Boolean).join("\n");
     })
     .join("\n\n---\n\n");
+  const registry = (evidence.evidenceRecords || [])
+    .filter((record) => record.status !== "blocked")
+    .slice(0, 80)
+    .map((record) => `${record.evidenceId} | ${record.bucketId}/${record.questionId} | ${record.kind} | ${record.status} | ${record.observation}`)
+    .join("\n");
+  return `${pageSummary}\n\nEvidence registry (cite only these IDs):\n${registry || "No verified evidence records."}`;
 }
 
 export async function openRouterChat(
@@ -1673,6 +1686,8 @@ export type BucketResult = {
     observation: string;
     answer_status?: "answered" | "insufficient_evidence" | "scoring_unavailable";
     missing_evidence?: string[];
+    evidence_ids?: string[];
+    confidence?: number;
   }>;
   findings: Array<Record<string, unknown>>;
   improvements: Array<Record<string, unknown>>;
@@ -2058,6 +2073,12 @@ function missingEvidenceForQuestion(
   productType: "saas" | "ecommerce" | "marketing_website" = "saas",
 ) {
   bucket = normalizeBucketName(bucket);
+  const plannedRecords = questionEvidence(evidence, bucket, questionId);
+  if (plannedRecords.length > 0) {
+    return plannedRecords
+      .filter((record) => record.status === "blocked")
+      .map((record) => record.kind);
+  }
   const coverageStatus = evidence?.coverage?.status || "";
   const coverageSummary = (evidence?.coverage?.evidenceSummary || {}) as Record<string, unknown>;
   const pages = Array.isArray(evidence?.pages) ? evidence.pages : [];
@@ -2375,7 +2396,7 @@ export async function prepareEvidence(intake: Intake) {
     evidence,
   );
 
-  const normalizedEvidence = {
+  const normalizedEvidence: EvidenceBundle = {
     ...evidence,
     coverage,
     screenshotDataUrl: null,
@@ -2396,7 +2417,7 @@ export async function prepareEvidence(intake: Intake) {
       : undefined,
   };
 
-  return normalizedEvidence;
+  return attachEvidenceDepth(normalizedEvidence, buildEvidencePlan(getSelectedBuckets(intake)));
 }
 
 export async function auditOneBucket(args: {
@@ -2674,6 +2695,11 @@ export async function auditOneBucket(args: {
       question.selected_option = 3;
     }
     const missingEvidence = missingEvidenceForQuestion(bucket, question.id, evidence, intake.product_type);
+    const records = questionEvidence(evidence, bucket, question.id);
+    question.evidence_ids = records
+      .filter((record) => record.status !== "blocked")
+      .map((record) => record.evidenceId);
+    question.confidence = evidenceConfidence(records);
     if (missingEvidence.length > 0) {
       question.mark = null;
       question.selected_option = null;
@@ -2722,6 +2748,7 @@ export async function auditOneBucket(args: {
       effort: q.effort,
       impact: q.impact,
       confidence: q.confidence,
+      evidence_ids: q.evidence_ids,
       severity: q.mark === 1 ? "Critical" : "High",
     }))
     : [];
@@ -3277,9 +3304,9 @@ export async function finalizeAudit(args: {
   };
 
   const contentReviewedReport = { ...report, bucket_results: contentReviewedResults };
-  return multiAgentReview
+  return sanitizeAuditReport(multiAgentReview
     ? { ...contentReviewedReport, multi_agent_review: multiAgentReview }
-    : contentReviewedReport;
+    : contentReviewedReport);
   } catch (error) {
     const message = getErrorMessage(error) || "Finalize failed";
     const onlyResults = args.bucket_results ?? [];
@@ -3333,7 +3360,7 @@ export async function finalizeAudit(args: {
           ) / safeBucketResults.length,
         )
       : null;
-    return {
+    return sanitizeAuditReport({
       overall_score: null,
       overall_health: "Scoring unavailable",
       overall_risk: message,
@@ -3377,7 +3404,7 @@ export async function finalizeAudit(args: {
       },
       executive_summary: fallbackExecutiveSummary,
       section_narrative: deriveSectionNarrativeFromBuckets(safeBucketResults),
-    };
+    });
   }
 }
 

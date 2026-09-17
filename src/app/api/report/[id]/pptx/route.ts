@@ -7,6 +7,7 @@ import {
   type AnyRecord,
 } from "@/lib/report-model";
 import { loadStoredReport } from "@/lib/report-record";
+import { exportReadinessResponse } from "@/lib/report-quality";
 import { QUESTION_BANK } from "@/lib/question-bank";
 
 export const runtime = "nodejs";
@@ -410,8 +411,16 @@ function overviewScoreRows(vm: ReturnType<typeof buildReportViewModel>) {
 
 async function buildPptxResponse(req: Request, id: string) {
   try {
-    const reportRecord = await resolveExportReport(req, id);
-    if (!reportRecord) return Response.json({ error: "Missing report" }, { status: 500 });
+    const rawReport = await resolveExportReport(req, id);
+    if (!rawReport) return Response.json({ error: "Missing report" }, { status: 500 });
+    const readiness = exportReadinessResponse(rawReport);
+    if (!readiness.exportReady) {
+      return Response.json(
+        { error: readiness.quality.valid ? "Report must be approved before export" : "Report failed quality validation", quality: readiness.quality, reviewStatus: readiness.reviewStatus },
+        { status: 422 },
+      );
+    }
+    const reportRecord = readiness.report;
 
     const mod = (await import("pptxgenjs")) as unknown as { default?: unknown };
     const PptxGenCtor = (mod.default ?? mod) as unknown as new () => PptxLike;
@@ -748,6 +757,30 @@ async function buildPptxResponse(req: Request, id: string) {
         text:
           "This report is based on an expert review using a structured UX Audit Framework. It provides an indicative assessment of the user experience with an estimated 70% accuracy level and is intended to guide design decisions.",
         line: SOFT_LINE,
+      });
+    });
+
+    addSectionSlide(pptx, id, "Methodology & Scope", subtitle, (slide) => {
+      addCard(slide, pptx, { x: 0.65, y: 1.25, w: 11.75, h: 1.35, title: "Evidence policy", text: vm.methodology.framework, line: SOFT_LINE });
+      addCard(slide, pptx, { x: 0.65, y: 2.85, w: 5.7, h: 1.55, title: "Selected buckets", text: vm.methodology.selectedBuckets.join(" • ") || "None recorded", line: SOFT_LINE });
+      addCard(slide, pptx, { x: 6.7, y: 2.85, w: 5.7, h: 1.55, title: "Coverage", text: `${vm.methodology.questionsScoreable} of ${vm.methodology.questionsTotal} criteria scored\nCapture status: ${vm.methodology.captureStatus}`, line: SOFT_LINE });
+    });
+
+    chunk(vm.evidenceAppendix, 6).forEach((items, index) => {
+      addSectionSlide(pptx, id, "Evidence Appendix", `Traceable evidence ${index + 1}`, (slide) => {
+        items.forEach((item, itemIndex) => {
+          const column = itemIndex % 2;
+          const row = Math.floor(itemIndex / 2);
+          addCard(slide, pptx, {
+            x: 0.65 + column * 6.05,
+            y: 1.2 + row * 1.75,
+            w: 5.7,
+            h: 1.45,
+            title: `${item.evidenceId} · ${item.bucket}`,
+            text: truncate(item.observation || item.evidence || item.question, 240),
+            line: SOFT_LINE,
+          });
+        });
       });
     });
 

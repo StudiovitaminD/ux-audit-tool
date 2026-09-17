@@ -90,6 +90,8 @@ export async function runMultiAgentAudit(args: {
   bucketResults: unknown;
 }): Promise<MultiAgentResult> {
   const context = JSON.stringify({ intake: args.intake, evidence: args.evidence, bucketResults: args.bucketResults }).slice(0, 28000);
+  const evidenceText = typeof args.evidence === "string" ? args.evidence : JSON.stringify(args.evidence || {});
+  const validEvidenceIds = new Set((evidenceText.match(/\bev-[a-z0-9-]+\b/g) || []));
   const selectedBuckets = Array.isArray(args.bucketResults)
     ? args.bucketResults
         .map((item) => item && typeof item === "object" ? String((item as Record<string, unknown>).bucket_name || "") : "")
@@ -106,6 +108,7 @@ Rules:
 - If the required evidence for a state is missing, mark it not_tested and do not reduce the score.
 - Distinguish confirmed failures from recommendations for further testing.
 - Every finding must include the exact matching bucket name, page, component/state, evidence references, tested actions, and confidence.
+- Evidence references must be exact evidence IDs from the supplied registry. Do not cite prose as evidence and do not create IDs.
 - bucket must be one of: ${selectedBuckets.join(", ") || "none"}. If no bucket matches, do not return the finding.
 Return JSON only: {"summary":"...","tested_states":[{"page":"...","state":"...","status":"tested|not_tested","evidence":["..."]}],"findings":[{"bucket":"...","title":"...","severity":"critical|high|medium|low","page":"...","state":"...","evidence":["..."],"tested_actions":["..."],"confidence":0.0,"recommendation":"..."}]}
 Evidence and context:
@@ -115,7 +118,10 @@ ${context}`;
       return [key, {
         status: "complete" as const,
         summary: String(parsed.summary || ""),
-        findings: normalizeFindings(parsed.findings, key).filter((finding) => selectedBuckets.includes(finding.bucket)),
+        findings: normalizeFindings(parsed.findings, key).filter((finding) =>
+          selectedBuckets.includes(finding.bucket) &&
+          finding.evidence.some((reference) => validEvidenceIds.has(reference.trim())),
+        ),
         testedStates: normalizeTestedStates(parsed.tested_states),
       }] as const;
     } catch (error) {
@@ -145,7 +151,7 @@ ${context}`;
   let review: Record<string, unknown> = {};
   let reviewer: MultiAgentResult["reviewer"] = { status: "complete" };
   try {
-    review = parseJson(await args.chat(`You are the senior UX audit reviewer. Deduplicate overlapping findings, reject findings without evidence, and keep the strongest evidence-backed version. Preserve the original bucket, pillar, page, state, and tested actions. bucket must remain one of: ${selectedBuckets.join(", ")}. Return JSON only: {"findings":[{"bucket":"...","pillar":"accessibility|impact|delight","title":"...","severity":"critical|high|medium|low","page":"...","state":"...","evidence":["..."],"tested_actions":["..."],"confidence":0.0,"recommendation":"..."}]}\nCandidate findings:\n${JSON.stringify(findings).slice(0, 18000)}`));
+    review = parseJson(await args.chat(`You are the senior UX audit reviewer. Deduplicate overlapping findings, reject findings without an exact evidence ID from the supplied candidates, and keep the strongest evidence-backed version. Never invent or rewrite evidence IDs. Preserve the original bucket, pillar, page, state, and tested actions. bucket must remain one of: ${selectedBuckets.join(", ")}. Return JSON only: {"findings":[{"bucket":"...","pillar":"accessibility|impact|delight","title":"...","severity":"critical|high|medium|low","page":"...","state":"...","evidence":["ev-..."],"tested_actions":["..."],"confidence":0.0,"recommendation":"..."}]}\nCandidate findings:\n${JSON.stringify(findings).slice(0, 18000)}`));
   } catch (error) {
     reviewer = { status: "failed", error: error instanceof Error ? error.message : String(error) };
   }
@@ -158,7 +164,10 @@ ${context}`;
       : original?.pillar || finding.pillar;
     const bucket = selectedBuckets.includes(finding.bucket) ? finding.bucket : original?.bucket || "";
     return original ? { ...original, ...finding, pillar, bucket } : { ...finding, pillar, bucket };
-  }).filter((finding) => selectedBuckets.includes(finding.bucket));
+  }).filter((finding) =>
+    selectedBuckets.includes(finding.bucket) &&
+    finding.evidence.some((reference) => validEvidenceIds.has(reference.trim())),
+  );
   const failedCount = outputs.filter(([, output]) => output.status === "failed").length;
   return {
     status: failedCount === 0 && reviewer.status === "complete" ? "complete" : "partial",

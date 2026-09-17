@@ -7,6 +7,8 @@ import { buildCriticalFindingsPages } from "./sections/FindingsSection";
 import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
 import { IntroPageSection } from "./sections/IntroPageSection";
 import { ThankYouPageSection } from "./sections/ThankYouPageSection";
+import { buildTestingLimitationsPages } from "./sections/TestingLimitationsSection";
+import { buildMethodologyEvidencePages } from "./sections/MethodologyEvidenceSection";
 import type { ReportPage } from "./sections/shared";
 
 export type BuildReportPagesOptions = {
@@ -99,6 +101,14 @@ export function buildReportPages({
   }
 
   pages.push(
+    ...buildMethodologyEvidencePages(vm).map((page) => ({
+      ...page,
+      locked: isLocked("methodology_evidence"),
+    })),
+    ...buildTestingLimitationsPages(vm.testingLimitations).map((page) => ({
+      ...page,
+      locked: isLocked("testing_limitations"),
+    })),
     ...buildCriticalFindingsPages({ findings: displayedFindings }).map((page) => ({
       ...page,
       locked: isLocked("critical_findings"),

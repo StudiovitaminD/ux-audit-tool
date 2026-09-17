@@ -27,6 +27,9 @@ export type CompetitorSnapshotResult = {
   page_text: string;
   screenshot: string;
   screenshot_url: string;
+  source_url: string;
+  captured_at: string;
+  evidence_status: "captured" | "unavailable";
   warning?: string;
 };
 
@@ -158,6 +161,9 @@ export function makeFallbackSnapshot(
     page_text: "",
     screenshot: "",
     screenshot_url: "",
+    source_url: body.url,
+    captured_at: new Date().toISOString(),
+    evidence_status: "unavailable",
     warning,
   };
 }
@@ -405,6 +411,9 @@ export async function captureCompetitorSnapshot(
       page_text: result.pageText,
       screenshot: result.dataUrl,
       screenshot_url: result.dataUrl,
+      source_url: body.url,
+      captured_at: new Date().toISOString(),
+      evidence_status: "captured",
       warning: result.warning || undefined,
     };
   } catch (error) {
