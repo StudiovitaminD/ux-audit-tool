@@ -9,6 +9,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const isAuthRoute = pathname === "/sign-in" || pathname === "/sign-up";
   const isPrintRoute = pathname?.startsWith("/report/") && pathname?.endsWith("/print");
+  const isAdminRoute = pathname === "/admin";
 
   useEffect(() => {
     const root = document.body;
@@ -38,6 +39,8 @@ export function AppShell({ children }: PropsWithChildren) {
             ? "fixed inset-0 w-full overflow-hidden pt-0"
             : isPrintRoute
               ? "mx-0 mb-0 mt-0 min-h-dvh w-full overflow-visible pt-0"
+            : isAdminRoute
+              ? "mx-0 mb-0 mt-20 min-h-dvh w-full pt-0"
             : "mt-20 mx-16 mb-16 min-h-dvh w-[calc(100%-8rem)] pt-0"
         }
       >
