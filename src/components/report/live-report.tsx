@@ -8,6 +8,11 @@ import { buildReportPages } from "@/components/report/report-pages";
 import { recalculateEditedReport, updateReportAnswer } from "@/lib/report-editing";
 import { ReportAccessPanel } from "@/components/account/access-panels";
 
+const DEFAULT_REPORT_ZOOM = 0.6;
+const REPORT_RENDER_SCALE = 0.82;
+const REPORT_SPREAD_WIDTH = 1588;
+const REPORT_TOOLBAR_WIDTH = REPORT_SPREAD_WIDTH * DEFAULT_REPORT_ZOOM * REPORT_RENDER_SCALE;
+
 export function LiveReport({
   report,
   reportId,
@@ -38,7 +43,7 @@ export function LiveReport({
   const vm = useMemo(() => buildReportViewModel(editableReport), [editableReport]);
   const [page, setPage] = useState(0);
   const [pageTurnDirection, setPageTurnDirection] = useState<"next" | "prev">("next");
-  const [zoom, setZoom] = useState(0.6);
+  const [zoom, setZoom] = useState(DEFAULT_REPORT_ZOOM);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const panStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const flipBookRef = useRef<any>(null);
@@ -57,7 +62,7 @@ export function LiveReport({
   );
   const reportAccessLevel = asString(reportRecord.report_access_level) || "full";
   const isPreviewReport = reportAccessLevel === "free_preview";
-  const canPanReport = zoom > 0.6;
+  const canPanReport = zoom > DEFAULT_REPORT_ZOOM;
 
   useEffect(() => {
     if (!canPanReport) setPan({ x: 0, y: 0 });
@@ -291,9 +296,9 @@ export function LiveReport({
         <div
           className="report-page-flipbook mx-auto mt-5"
           style={{
-            width: "1588px",
+            width: `${REPORT_SPREAD_WIDTH}px`,
             height: "1123px",
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom * 0.82})`,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom * REPORT_RENDER_SCALE})`,
             transformOrigin: "top center",
             position: "relative",
           }}
@@ -468,7 +473,7 @@ export function LiveReport({
 
       <div
         className="no-print fixed bottom-6 left-1/2 z-50 max-w-[calc(100%-3rem)] -translate-x-1/2 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
-        style={{ width: `${1588 * zoom * 0.82}px` }}
+        style={{ width: `${REPORT_TOOLBAR_WIDTH}px` }}
         data-report-pagination
       >
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -508,8 +513,8 @@ export function LiveReport({
               <button
                 type="button"
                 className="floatingBarSecondary"
-                onClick={() => setZoom((value) => Math.max(0.6, Math.round((value - 0.1) * 100) / 100))}
-                disabled={zoom <= 0.6}
+                onClick={() => setZoom((value) => Math.max(DEFAULT_REPORT_ZOOM, Math.round((value - 0.1) * 100) / 100))}
+                disabled={zoom <= DEFAULT_REPORT_ZOOM}
                 aria-label="Zoom out"
               >
                 −
