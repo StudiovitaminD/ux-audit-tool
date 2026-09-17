@@ -212,11 +212,13 @@ export function OverviewSection({ vm }: SharedSectionProps) {
   }
   const groupedScoreRows = pillarOrder.map((pillar) => ({
     pillar,
-    rows: PILLAR_BUCKETS[pillar as keyof typeof PILLAR_BUCKETS].map((bucketName) => ({
-      bucketName,
-      row: scoreRowLookup.get(`${pillar}::${normalizeKey(bucketName)}`) ?? null,
-    })),
-  })).filter((group) => group.rows.some((item) => item.row));
+    rows: PILLAR_BUCKETS[pillar as keyof typeof PILLAR_BUCKETS]
+      .map((bucketName) => ({
+        bucketName,
+        row: scoreRowLookup.get(`${pillar}::${normalizeKey(bucketName)}`) ?? null,
+      }))
+      .filter((item) => item.row !== null),
+  })).filter((group) => group.rows.length > 0);
 
   return (
     <div className="flex w-full flex-col items-start bg-[color:var(--report-white)]">
