@@ -13,7 +13,7 @@ type AdminDashboardClientProps = {
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-5 sm:p-8 lg:p-10">
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="h-[148px] rounded-[28px] border border-[color:var(--cream-dark)] bg-white/80 p-6">
@@ -151,19 +151,20 @@ export function AdminDashboardClient({ session }: AdminDashboardClientProps) {
   if (!data) return <DashboardSkeleton />;
 
   return (
-    <div className="space-y-4">
+    <div>
       {choiceError ? (
-        <div className="rounded-[20px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mx-5 mt-5 rounded-[20px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:mx-8 lg:mx-10">
           {choiceError}
         </div>
       ) : null}
-      <div className="rounded-[28px] border border-[color:var(--cream-dark)] bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.05)]">
+      <AdminDashboard {...data} auditModelChoice={auditModelChoice} />
+      <div className="mx-5 mb-5 rounded-[30px] bg-white p-6 sm:mx-8 sm:mb-8 lg:mx-10 lg:mb-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
+            <div className="text-sm font-semibold text-[#111]">
               AI model tier
             </div>
-            <p className="mt-1 text-sm text-[color:var(--ink-muted)]">
+            <p className="mt-1 text-sm text-[#8d8d88]">
               Choose which model tier new admin audits should use.
             </p>
           </div>
@@ -182,8 +183,8 @@ export function AdminDashboardClient({ session }: AdminDashboardClientProps) {
                   className={[
                     "rounded-full border px-5 py-2 text-sm font-semibold transition-colors",
                     active
-                      ? "border-[color:var(--ink)] bg-[color:var(--ink)] text-[color:var(--cream)]"
-                      : "border-[color:var(--cream-dark)] bg-white text-[color:var(--ink)] hover:bg-[color:var(--cream)]",
+                      ? "border-[#111] bg-[#111] text-white"
+                      : "border-[#e4e4e1] bg-[#f7f7f5] text-[#111] hover:bg-[#eeeeeb]",
                     savingChoice ? "opacity-60" : "",
                   ].join(" ")}
                 >
@@ -193,11 +194,10 @@ export function AdminDashboardClient({ session }: AdminDashboardClientProps) {
             })}
           </div>
         </div>
-        <div className="mt-3 text-xs text-[color:var(--ink-faint)]">
+        <div className="mt-3 text-xs text-[#aaa]">
           {hasChanges ? "Saving… please wait" : "Changes are saved automatically."}
         </div>
       </div>
-      <AdminDashboard {...data} auditModelChoice={auditModelChoice} />
     </div>
   );
 }

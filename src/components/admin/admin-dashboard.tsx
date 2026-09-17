@@ -135,14 +135,18 @@ function MetricCard({
   note: string;
 }) {
   return (
-    <Card className="p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)]">
-      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
+    <Card className="rounded-[30px] border-0 bg-white p-6 shadow-none">
+      <div className="flex items-center justify-between">
+        <div className="grid h-9 w-9 place-items-center rounded-full bg-[#f5f5f3] text-[#e76043]">↗</div>
+        <span className="rounded-full border border-[#e8e8e5] px-3 py-1 text-[11px] text-[#777]">Live</span>
+      </div>
+      <div className="mt-7 text-xs font-medium text-[#8d8d88]">
         {label}
       </div>
-      <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-[color:var(--ink)]">
+      <div className="mt-2 text-4xl font-semibold tracking-[-0.055em] text-[#111]">
         {value}
       </div>
-      <p className="mt-2 text-sm leading-6 text-[color:var(--ink-muted)]">{note}</p>
+      <p className="mt-3 text-sm leading-5 text-[#8d8d88]">{note}</p>
     </Card>
   );
 }
@@ -158,14 +162,14 @@ function ProgressBarChart({
 }) {
   const maxValue = Math.max(1, ...data.map((point) => point.value));
   return (
-    <Card className="p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)]">
+    <Card className="rounded-[30px] border-0 bg-white p-7 shadow-none">
       <CardHeader title={title} description={description} />
       <div className="mt-6 grid h-72 grid-cols-[repeat(auto-fit,minmax(20px,1fr))] items-end gap-3">
         {data.map((point) => (
           <div key={point.label} className="flex h-full flex-col justify-end gap-2">
             <div className="flex flex-1 items-end justify-center">
               <div
-                className="w-full rounded-t-2xl bg-[linear-gradient(180deg,#191a23_0%,#ff805f_100%)] shadow-[0_12px_24px_rgba(25,26,35,0.12)]"
+                className="w-full rounded-full bg-[linear-gradient(180deg,#ea6548_0%,#f2a18e_100%)]"
                 style={{ height: `${Math.max(8, (point.value / maxValue) * 100)}%` }}
                 aria-hidden="true"
               />
@@ -207,7 +211,7 @@ function DonutCard({
       : "#ece7df 0% 100%";
 
   return (
-    <Card className="p-6 shadow-[0_20px_60px_rgba(15,23,42,0.05)]">
+    <Card className="rounded-[30px] border-0 bg-white p-7 shadow-none">
       <CardHeader title={title} description={description} />
       <div className="mt-6 grid gap-6 lg:grid-cols-[180px_1fr] lg:items-center">
         <div className="mx-auto flex w-[180px] flex-col items-center">
@@ -215,7 +219,7 @@ function DonutCard({
             className="relative grid h-[180px] w-[180px] place-items-center rounded-full"
             style={{ background: `conic-gradient(${gradient})` }}
           >
-            <div className="grid h-[110px] w-[110px] place-items-center rounded-full border border-[color:var(--cream-dark)] bg-white text-center">
+            <div className="grid h-[110px] w-[110px] place-items-center rounded-full bg-white text-center">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
                   Total
@@ -231,7 +235,7 @@ function DonutCard({
           {data.map((item) => {
             const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
             return (
-              <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl border border-[color:var(--cream-dark)] px-4 py-3">
+              <div key={item.label} className="flex items-center justify-between gap-4 rounded-2xl bg-[#f7f7f5] px-4 py-3">
                 <div className="flex items-center gap-3">
                   <span
                     className="h-3 w-3 rounded-full"
@@ -264,8 +268,8 @@ function TableShell({
   right?: ReactNode;
 }) {
   return (
-    <Card className="p-0 shadow-[0_20px_60px_rgba(15,23,42,0.05)]">
-      <div className="border-b border-[color:var(--cream-dark)] px-6 py-5">
+    <Card className="overflow-hidden rounded-[30px] border-0 bg-white p-0 shadow-none">
+      <div className="border-b border-[#eeeeeb] px-6 py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
@@ -305,8 +309,61 @@ export function AdminDashboard({
   recentPayments,
 }: AdminDashboardProps) {
   const maxStatusValue = Math.max(1, ...statusMix.map((entry) => entry.value));
+  const today = new Intl.DateTimeFormat("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
+  const firstName = session.name?.trim().split(/\s+/)[0] || "Admin";
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 p-5 sm:p-8 lg:p-10">
+      <header className="flex flex-col gap-6 border-b border-[#ecece9] pb-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="grid h-14 w-14 place-items-center rounded-full bg-[#111] text-lg font-bold text-white">DA</div>
+          <div>
+            <div className="text-xl font-semibold tracking-[-0.035em] text-[#111]">Design AID</div>
+            <div className="text-lg text-[#9b9b96]">Admin dashboard</div>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/audit" className="grid h-12 w-12 place-items-center rounded-full border border-[#e2e2df] bg-white text-2xl text-[#111]" aria-label="Start a new audit">+</Link>
+          <div className="flex items-center gap-3 rounded-full bg-white py-2 pl-2 pr-5">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-[#f3d2c9] font-semibold text-[#a33e28]">
+              {firstName.slice(0, 1).toUpperCase()}
+            </div>
+            <div className="leading-tight">
+              <div className="text-sm font-semibold text-[#111]">{session.name || "Administrator"}</div>
+              <div className="mt-1 max-w-[220px] truncate text-xs text-[#8c8c87]">{session.email}</div>
+            </div>
+          </div>
+          <label className="flex h-12 min-w-[240px] items-center gap-3 rounded-full border border-[#e2e2df] bg-white px-4 text-sm text-[#989893]">
+            <span className="text-lg text-[#111]">⌕</span>
+            <span>Search dashboard</span>
+          </label>
+        </div>
+      </header>
+
+      <section className="grid gap-6 rounded-[34px] bg-white p-6 sm:p-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+        <div className="flex items-center gap-5">
+          <div className="grid h-24 w-24 shrink-0 place-items-center rounded-full border border-[#e5e5e2] text-center">
+            <div>
+              <div className="text-3xl font-semibold tracking-[-0.05em] text-[#111]">{new Date().getDate()}</div>
+              <div className="text-[11px] uppercase tracking-[0.12em] text-[#999]">Today</div>
+            </div>
+          </div>
+          <div>
+            <div className="text-sm font-medium text-[#222]">{today}</div>
+            <Link href="/report" className="mt-4 inline-flex items-center gap-8 rounded-full bg-[#e76043] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#d65337]">
+              View reports <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </div>
+        <div className="lg:border-l lg:border-[#eeeeeb] lg:pl-10">
+          <h1 className="text-4xl font-medium tracking-[-0.055em] text-[#111] sm:text-5xl">Hey {firstName}, need help?</h1>
+          <p className="mt-2 text-3xl font-light tracking-[-0.04em] text-[#b7b7b2] sm:text-4xl">Your audit workspace is ready.</p>
+        </div>
+      </section>
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Total audits"
@@ -330,7 +387,7 @@ export function AdminDashboard({
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
+      <section className="grid gap-6 xl:grid-cols-[1.45fr_0.9fr]">
         <ProgressBarChart
           title="Report volume over the last 14 days"
           description="Daily audit creation volume helps us see whether usage is growing, flat, or slowing down."
@@ -343,7 +400,7 @@ export function AdminDashboard({
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
+      <section className="grid gap-6 xl:grid-cols-[1.45fr_0.9fr]">
         <TableShell
           title="Recent reports"
           description="The latest audits help us understand what is being generated, for whom, and at what quality."
