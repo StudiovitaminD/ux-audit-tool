@@ -317,32 +317,6 @@ export function AdminDashboard({
   const firstName = session.name?.trim().split(/\s+/)[0] || "Admin";
   return (
     <div className="space-y-6 p-5 sm:p-8 lg:p-10">
-      <header className="flex flex-col gap-6 border-b border-[#ecece9] pb-8 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="grid h-14 w-14 place-items-center rounded-full bg-[#111] text-lg font-bold text-white">DA</div>
-          <div>
-            <div className="text-xl font-semibold tracking-[-0.035em] text-[#111]">Design AID</div>
-            <div className="text-lg text-[#9b9b96]">Admin dashboard</div>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link href="/audit" className="grid h-12 w-12 place-items-center rounded-full border border-[#e2e2df] bg-white text-2xl text-[#111]" aria-label="Start a new audit">+</Link>
-          <div className="flex items-center gap-3 rounded-full bg-white py-2 pl-2 pr-5">
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-[#f3d2c9] font-semibold text-[#a33e28]">
-              {firstName.slice(0, 1).toUpperCase()}
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-semibold text-[#111]">{session.name || "Administrator"}</div>
-              <div className="mt-1 max-w-[220px] truncate text-xs text-[#8c8c87]">{session.email}</div>
-            </div>
-          </div>
-          <label className="flex h-12 min-w-[240px] items-center gap-3 rounded-full border border-[#e2e2df] bg-white px-4 text-sm text-[#989893]">
-            <span className="text-lg text-[#111]">⌕</span>
-            <span>Search dashboard</span>
-          </label>
-        </div>
-      </header>
-
       <section className="grid gap-6 rounded-[34px] bg-white p-6 sm:p-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
         <div className="flex items-center gap-5">
           <div className="grid h-24 w-24 shrink-0 place-items-center rounded-full border border-[#e5e5e2] text-center">

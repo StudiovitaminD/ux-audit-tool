@@ -25,8 +25,8 @@ export default async function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#f8f8f7]">
-      <div className="w-full overflow-hidden bg-[#f8f8f7]">
+    <div className="min-h-screen w-full">
+      <div className="w-full overflow-hidden">
         <AdminDashboardClient session={{ email: session.email, name: session.name }} />
       </div>
     </div>
