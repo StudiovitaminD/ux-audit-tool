@@ -1655,13 +1655,12 @@ function hasRichEvidence(evidence: EvidenceBundle | null) {
   );
 }
 
-function parseOptionalMark(value: unknown): number | null {
+function parseModelMark(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const text = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (["pass", "partial", "fail", "not_tested", "n_a", "na", "n/a"].includes(text)) return null;
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return null;
-  if (numeric === 1 || numeric === 0.5 || numeric === 0) return numeric;
   if (numeric >= 4) return 1;
   if (numeric >= 3) return 0.5;
   return 0;
@@ -2612,12 +2611,12 @@ export async function auditOneBucket(args: {
         q.answer_status === "insufficient_evidence" ||
         q.answer_status === "scoring_unavailable"
           ? null
-          : parseOptionalMark(q.mark),
+          : parseModelMark(q.mark),
       selected_option:
         q.answer_status === "insufficient_evidence" ||
         q.answer_status === "scoring_unavailable"
           ? null
-          : parseOptionalMark(q.selected_option ?? q.mark),
+          : parseModelMark(q.selected_option ?? q.mark),
       evidence: String(q.evidence ?? ""),
       observation: String(q.observation ?? ""),
       answer_status:
@@ -2637,7 +2636,7 @@ export async function auditOneBucket(args: {
 
   if (
     questions.length > 0 &&
-    questions.every((question) => question.mark === 3) &&
+    questions.every((question) => question.mark === 0.5) &&
     hasRichEvidence(evidence)
   ) {
     const retryPrompt = `${prompt}\nImportant correction: your previous pass returned mark 3 for every question.\nRe-evaluate using the full 1-5 scale.\nIf visible evidence is clearly positive, use 4 or 5.\nIf visible evidence is clearly negative, use 1 or 2.\nUse 3 only where evidence is genuinely mixed or missing.\nReturn the same JSON schema only.`;
@@ -2655,12 +2654,12 @@ export async function auditOneBucket(args: {
             q.answer_status === "insufficient_evidence" ||
             q.answer_status === "scoring_unavailable"
               ? null
-              : parseOptionalMark(q.mark),
+              : parseModelMark(q.mark),
           selected_option:
             q.answer_status === "insufficient_evidence" ||
             q.answer_status === "scoring_unavailable"
               ? null
-              : parseOptionalMark(q.selected_option ?? q.mark),
+              : parseModelMark(q.selected_option ?? q.mark),
           evidence: String(q.evidence ?? ""),
           observation: String(q.observation ?? ""),
           answer_status:
@@ -2682,7 +2681,7 @@ export async function auditOneBucket(args: {
           impact?: string;
           confidence?: number;
         }>;
-      if (retryQuestions.some((question) => question.mark !== 3)) {
+      if (retryQuestions.some((question) => question.mark !== 0.5)) {
         questions.splice(0, questions.length, ...retryQuestions);
       }
     } catch {}
@@ -2690,9 +2689,9 @@ export async function auditOneBucket(args: {
   for (const question of questions) {
     const caveatText = `${question.evidence} ${question.observation}`.toLowerCase();
     const hasMaterialCaveat = /\bhowever\b|\bbut\b|\bmissing\b|\black(?:s|ing)?\b|\bgeneric\b|\binconsistent\b|\blimit(?:s|ed|ing)?\b|\bunclear\b|\bweak\b|\bproblem(?:s)?\b|\bcould be improved\b|\bnot consistently\b/.test(caveatText);
-    if (hasMaterialCaveat && question.mark !== null && question.mark >= 5) {
-      question.mark = 3;
-      question.selected_option = 3;
+    if (hasMaterialCaveat && question.mark === 1) {
+      question.mark = 0.5;
+      question.selected_option = 0.5;
     }
     const missingEvidence = missingEvidenceForQuestion(bucket, question.id, evidence, intake.product_type);
     const records = questionEvidence(evidence, bucket, question.id);
@@ -2730,13 +2729,13 @@ export async function auditOneBucket(args: {
   const totalMarks = enoughEvidence
     ? scoredQuestions.reduce((sum, q) => sum + Number(q.mark || 0), 0)
     : 0;
-  const maxMarks = enoughEvidence ? scoredQuestions.length * 5 : 0;
+  const maxMarks = enoughEvidence ? scoredQuestions.length : 0;
   const score = enoughEvidence && maxMarks > 0 ? Math.round((totalMarks / maxMarks) * 100) : null;
   const health = score === null ? null : getHealth(score);
 
   const findings = enoughEvidence
     ? questions
-    .filter((q) => typeof q.mark === "number" && q.mark <= 2)
+    .filter((q) => typeof q.mark === "number" && q.mark < 1)
     .map((q) => ({
       bucket,
       question_id: q.id,
@@ -2749,13 +2748,13 @@ export async function auditOneBucket(args: {
       impact: q.impact,
       confidence: q.confidence,
       evidence_ids: q.evidence_ids,
-      severity: q.mark === 1 ? "Critical" : "High",
+      severity: q.mark === 0 ? "Critical" : "High",
     }))
     : [];
 
   const improvements = enoughEvidence
     ? questions
-    .filter((q) => q.answer_status !== "insufficient_evidence" && q.mark === 3)
+    .filter((q) => q.answer_status !== "insufficient_evidence" && q.mark === 0.5)
     .map((q) => ({
       bucket,
       question_id: q.id,
