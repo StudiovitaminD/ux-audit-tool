@@ -101,14 +101,6 @@ export function buildReportPages({
   }
 
   pages.push(
-    ...buildMethodologyEvidencePages(vm).map((page) => ({
-      ...page,
-      locked: isLocked("methodology_evidence"),
-    })),
-    ...buildTestingLimitationsPages(vm.testingLimitations).map((page) => ({
-      ...page,
-      locked: isLocked("testing_limitations"),
-    })),
     ...buildCriticalFindingsPages({ findings: displayedFindings }).map((page) => ({
       ...page,
       locked: isLocked("critical_findings"),
@@ -116,6 +108,14 @@ export function buildReportPages({
     ...buildQuickWinsRoadmapPages({ vm }).map((page) => ({
       ...page,
       locked: isLocked("quick_wins_roadmap"),
+    })),
+    ...buildMethodologyEvidencePages(vm).map((page) => ({
+      ...page,
+      locked: isLocked("methodology_evidence"),
+    })),
+    ...buildTestingLimitationsPages(vm.testingLimitations).map((page) => ({
+      ...page,
+      locked: isLocked("testing_limitations"),
     })),
   );
 
