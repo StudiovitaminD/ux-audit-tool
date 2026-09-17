@@ -50,14 +50,11 @@ export function isTestedAnswerState(state: UXAuditAnswerState | null | undefined
 
 export function validateAnswerSemantics(question: ScoredAuditQuestion) {
   const answer = normalizeAnswerState(question.answer_state) || normalizeAnswerState(question.selected_option_state);
-  const text = `${question.evidence || ""} ${question.observation || ""}`.toLowerCase();
-  const insufficient = /unable to evaluate|insufficient evidence|not tested|not captured|could not be scored|cannot be evaluated/.test(text);
-  const negative = /\bhowever\b|\bbut\b|\bmissing\b|\black(?:s|ing)?\b|\bgeneric\b|\binconsistent\b|\blimit(?:s|ed|ing)?\b|\bunclear\b|\bweak\b|\bproblem(?:s)?\b|\bdoes not\b|\bnot consistently\b|\bno evidence\b/.test(text);
-  if (insufficient && (answer === "pass" || answer === "partial" || answer === "fail")) {
+  const explicitlyUntested =
+    question.answer_status === "insufficient_evidence" ||
+    question.answer_status === "scoring_unavailable";
+  if (explicitlyUntested && (answer === "pass" || answer === "partial" || answer === "fail")) {
     return { ...question, answer_state: "not_tested" as const, selected_option_state: "not_tested" as const, mark: null };
-  }
-  if (negative && answer === "pass") {
-    return { ...question, answer_state: "partial" as const, selected_option_state: "partial" as const, mark: 0.5 };
   }
   return question;
 }

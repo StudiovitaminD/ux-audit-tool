@@ -80,7 +80,7 @@ function isCoverageLimitation(value: unknown) {
 
 function hasEvidence(question: AnyRecord) {
   const evidence = asString(question.evidence);
-  return Boolean(evidence && !isCoverageLimitation(evidence));
+  return Boolean(evidence);
 }
 
 function uniqueRecords(records: AnyRecord[], key: (record: AnyRecord) => string) {
@@ -134,16 +134,13 @@ function healthForScore(score: number | null) {
 
 function sanitizeQuestion(questionValue: unknown): AnyRecord {
   const question = asRecord(questionValue) ?? {};
-  const normalized = validateAnswerSemantics(
-    normalizeQuestionAnswer(question as ScoredAuditQuestion),
-  ) as AnyRecord;
+  const normalized = validateAnswerSemantics(normalizeQuestionAnswer(question as ScoredAuditQuestion)) as AnyRecord;
   const state = questionState(normalized);
   const untested =
     state === "not_tested" ||
     state === "n_a" ||
     asString(normalized.answer_status) === "insufficient_evidence" ||
     asString(normalized.answer_status) === "scoring_unavailable" ||
-    isCoverageLimitation(`${asString(normalized.evidence)} ${asString(normalized.observation)}`) ||
     !hasEvidence(normalized);
 
   if (untested) {

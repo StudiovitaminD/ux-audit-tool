@@ -288,7 +288,8 @@ export function AIBucketAnswersRoute() {
         const normalized = normalizedReportFromResponse(data, rid);
         if (!normalized) throw new Error("Unable to read report data.");
         if (cancelled) return;
-        const initial = recalculateEditedReport(normalized);
+        // Opening the editor must be read-only. Recalculate only after an explicit answer change.
+        const initial = normalized;
         setBaseReport(initial);
         setEditableReport(initial);
       })
