@@ -263,6 +263,36 @@ function bucketRationaleItems(
   );
 }
 
+function bucketFindingProblems(bucket: Record<string, unknown>) {
+  return normalizeList(
+    asArray(bucket.findings)
+      .map((item) => asRecord(item) ?? {})
+      .filter((finding) => {
+        const severity = normalizeKey(finding.severity || finding.priority || finding.impact);
+        return !severity || severity === "critical" || severity === "high" || severity === "p1";
+      })
+      .map((finding) =>
+        cleanNarrativeText(
+          finding.what_we_found ||
+            finding.observation ||
+            finding.finding ||
+            finding.title ||
+            finding.evidence,
+        ),
+      )
+      .filter(
+        (item) =>
+          item &&
+          !placeholderText(item) &&
+          !isCoverageLimitation(item) &&
+          !looksEllipsizedText(item) &&
+          !isNeutralSummaryText(item) &&
+          !looksLikeWeakStatus(item),
+      ),
+    4,
+  );
+}
+
 function bucketLabel(bucket: Record<string, unknown>) {
   return (
     asString(bucket.bucket_name) ||
@@ -410,12 +440,12 @@ function renderBucketContent(
     );
   const dataTopProblems = sanitizeProblemItems(bucketData?.topProblems);
   const dataWhatsWorking = sanitizeWorkingItems(bucketData?.whatsWorking);
-  const topProblems =
-    dataTopProblems.length
-      ? dataTopProblems
-      : bucket
-        ? bucketRationaleItems(bucket, "what_is_risky")
-        : [];
+  const findingTopProblems = bucket ? bucketFindingProblems(bucket) : [];
+  const rationaleTopProblems = bucket ? bucketRationaleItems(bucket, "what_is_risky") : [];
+  const topProblems = normalizeList(
+    [...dataTopProblems, ...findingTopProblems, ...rationaleTopProblems],
+    4,
+  );
   const topProblemKeys = new Set(topProblems.map((item) => normalizeKey(cleanNarrativeText(item))));
   const whatsWorkingFromBucket = bucket ? bucketRationaleItems(bucket, "what_is_working") : [];
   const whatsWorking =
@@ -623,11 +653,36 @@ function resolveSummaryBucketEntries({
     .map((spec) => {
       const matched = (bucketsByPillar.get(pillar) || []).find((bucket) => matchesBucket(bucket, spec));
       const directBucketData = bucketData?.[spec.name];
-      const resolved = renderBucketContent(matched ?? null, directBucketData);
+      const detailedFindings = vm.findingsDetailed.filter((finding) => {
+        const severity = normalizeKey(finding.severity || finding.priority || finding.impact);
+        if (severity && severity !== "critical" && severity !== "high" && severity !== "p1") {
+          return false;
+        }
+        const findingBucket = normalizeKey(
+          finding.bucket || finding.bucket_name || finding.section || finding.category,
+        );
+        return (
+          findingBucket === normalizeKey(spec.name) ||
+          spec.aliases.some((alias) => findingBucket === normalizeKey(alias))
+        );
+      });
+      const bucketWithDetailedFindings = matched
+        ? {
+            ...matched,
+            findings: [...asArray(matched.findings), ...detailedFindings],
+          }
+        : detailedFindings.length
+          ? {
+              bucket_name: spec.name,
+              pillar,
+              findings: detailedFindings,
+            }
+          : null;
+      const resolved = renderBucketContent(bucketWithDetailedFindings, directBucketData);
       if (!resolved.topProblems.length && !resolved.whatsWorking.length) return null;
       return {
         spec,
-        bucket: matched ?? null,
+        bucket: bucketWithDetailedFindings,
         bucketData: directBucketData,
         topProblems: resolved.topProblems,
         whatsWorking: resolved.whatsWorking,
