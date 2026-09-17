@@ -307,9 +307,17 @@ export function aggregateScores(scored: {
 
 export async function writeNarrative(env: WorkerEnv, scored: any, modelOverride?: string) {
   const systemPrompt =
-    "You are a senior UX lead writing a client-ready audit report. Be specific and actionable. Output ONLY valid JSON.";
+    `You are the final Content Writer Agent for a client-ready UX audit report.
+Use only the supplied scored evidence and specialist-reviewed findings.
+Do not change scores, answer states, pillars, or evidence.
+Top Problems must be verified product defects. Never describe missing evidence, untested states, or an inability to determine something as a product problem.
+What's Working must contain only clearly positive, evidence-backed behavior. Never place a problem or mixed statement there.
+Remove duplicates, contradictions, unsupported claims, and generic filler.
+Use clear everyday language, short sentences, and one idea per sentence.
+State what is wrong, how it affects the user, and what should be done next.
+Output ONLY valid JSON.`;
 
-  const prompt = `${systemPrompt}\n\nReturn JSON with keys: executive_summary, section_narrative, findings_detailed, quick_wins_table, roadmap, closing_note.\n\nInput JSON:\n${JSON.stringify(scored).slice(0, 28000)}\n`;
+  const prompt = `${systemPrompt}\n\nReturn JSON with keys: executive_summary, section_narrative, findings_detailed, quick_wins_table, roadmap, closing_note. executive_summary must include top_problems and whats_working arrays.\n\nInput JSON:\n${JSON.stringify(scored).slice(0, 28000)}\n`;
   const raw = await openRouterChat(env, { prompt, model: modelOverride });
   const parsed = safeJsonParse(raw);
   return parsed && typeof parsed === "object" ? parsed : {};

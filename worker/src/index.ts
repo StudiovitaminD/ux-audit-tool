@@ -4,6 +4,7 @@ import { getFirestore, getStorage } from "./firebase.js";
 import { IntakeSchema, type Intake } from "./types.js";
 import { collectEvidence } from "./evidence.js";
 import { auditOneBucket, aggregateScores, writeNarrative } from "./audit.js";
+import { runSpecialistReview } from "./multi-agent.js";
 import { QUESTION_BANK, normalizeBucketName } from "./question-bank.js";
 
 const FREE_AUDIT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
@@ -156,7 +157,6 @@ async function runJob(env: ReturnType<typeof getEnv>, reportId: string) {
     primary_user_goal: intake.primary_user_goal || "",
   };
 
-  const scored = aggregateScores({ meta, bucketResults });
   const userRole = typeof doc.user_role === "string" ? doc.user_role : "";
   const planType = typeof doc.plan_type === "string" ? doc.plan_type : "";
   const narrativeModel =
@@ -165,6 +165,34 @@ async function runJob(env: ReturnType<typeof getEnv>, reportId: string) {
       : typeof doc.model_tier === "string" && doc.model_tier === "free_limited"
         ? FREE_AUDIT_MODEL
         : env.OPENROUTER_MODEL;
+  const specialistReview = await runSpecialistReview(env, {
+    intake,
+    evidence,
+    bucketResults,
+    model: narrativeModel,
+  });
+  const reviewedBucketResults = bucketResults.map((bucket) => {
+    const findings = specialistReview.reviewedFindings.filter((finding) => finding.bucket === bucket.bucket_name);
+    if (!findings.length) return bucket;
+    return {
+      ...bucket,
+      findings: [
+        ...(bucket.findings || []),
+        ...findings.map((finding) => ({
+          bucket: bucket.bucket_name,
+          question_id: "specialist_review",
+          question: finding.title,
+          evidence: finding.evidence.join(" "),
+          observation: finding.title,
+          recommendation: finding.recommendation,
+          confidence: finding.confidence,
+          severity: finding.severity,
+          source: `specialist_${finding.pillar.toLowerCase()}`,
+        })),
+      ],
+    };
+  });
+  const scored = aggregateScores({ meta, bucketResults: reviewedBucketResults });
   const narrative = await writeNarrative(env, scored, narrativeModel);
 
   const merged = {
@@ -175,6 +203,7 @@ async function runJob(env: ReturnType<typeof getEnv>, reportId: string) {
     quick_wins_table: (narrative as any).quick_wins_table || [],
     roadmap: (narrative as any).roadmap || scored.roadmap || {},
     closing_note: (narrative as any).closing_note || "",
+    multi_agent_review: specialistReview,
   };
 
   await ref.set({ status: "complete", completedAt: new Date().toISOString(), report: merged }, { merge: true });

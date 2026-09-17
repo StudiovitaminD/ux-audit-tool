@@ -2807,16 +2807,62 @@ export async function finalizeAudit(args: {
   modelOverride?: string;
 }) {
   try {
+  const scoredResults = args.bucket_results;
   let multiAgentReview: MultiAgentResult | null = null;
-  if (process.env.MULTI_AGENT_AUDIT === "true") {
+  // Enabled by default so specialist review is part of the report pipeline. Set
+  // MULTI_AGENT_AUDIT=false only for an intentional emergency/cost fallback.
+  if (process.env.MULTI_AGENT_AUDIT !== "false" && args.evidence) {
     multiAgentReview = await runMultiAgentAudit({
       chat: (prompt) => openRouterChat(prompt, { modelOverride: args.modelOverride }),
       intake: compactIntakeForModel(args.intake),
       evidence: narrativeEvidenceSummary(args.evidence),
-      bucketResults: args.bucket_results,
+      bucketResults: scoredResults,
     });
   }
-  const onlyResults = args.bucket_results;
+  const specialistFindingsByBucket = new Map<string, MultiAgentResult["reviewedFindings"]>();
+  for (const finding of multiAgentReview?.reviewedFindings || []) {
+    const key = finding.bucket.trim().toLowerCase();
+    if (!key) continue;
+    specialistFindingsByBucket.set(key, [...(specialistFindingsByBucket.get(key) || []), finding]);
+  }
+  const onlyResults = scoredResults.map((bucket) => {
+    const specialistFindings = specialistFindingsByBucket.get(bucket.bucket_name.trim().toLowerCase()) || [];
+    if (!specialistFindings.length) return bucket;
+
+    const verifiedFindings = specialistFindings.map((finding) => ({
+      bucket: bucket.bucket_name,
+      question_id: "specialist_review",
+      question: finding.title,
+      mark: null,
+      evidence: finding.evidence.join(" "),
+      observation: finding.title,
+      recommendation: finding.recommendation,
+      effort: "",
+      impact: finding.severity === "critical" || finding.severity === "high" ? "High" : "Med",
+      confidence: finding.confidence,
+      severity: finding.severity,
+      page: finding.page,
+      state: finding.state,
+      tested_actions: finding.testedActions,
+      source: `specialist_${finding.pillar}`,
+    }));
+    const specialistProblems = specialistFindings.map((finding) =>
+      [finding.title, finding.recommendation].filter(Boolean).join(" "),
+    );
+    return {
+      ...bucket,
+      findings: [...bucket.findings, ...verifiedFindings],
+      score_rationale: {
+        ...(bucket.score_rationale || {}),
+        what_is_risky: uniqueSemanticList([
+          ...((Array.isArray(bucket.score_rationale?.what_is_risky)
+            ? bucket.score_rationale.what_is_risky
+            : []) as string[]),
+          ...specialistProblems,
+        ], 6),
+      },
+    };
+  });
   const scoredBuckets = onlyResults.filter((bucket) => bucket.bucket_status === "scored");
   const coverageStatus = args.evidence?.coverage?.status || null;
   const totalQuestions = onlyResults.reduce((sum, bucket) => sum + bucket.questions.length, 0);

@@ -30,17 +30,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   wget \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json* ./
-RUN npm install --omit=dev
+COPY worker/package.json worker/package-lock.json* ./worker/
+RUN npm install --prefix worker
 
-COPY tsconfig.json ./
-COPY src ./src
+COPY worker/tsconfig.json ./worker/tsconfig.json
+COPY worker/src ./worker/src
+COPY shared ./shared
 
-RUN npm run build
+RUN npm run build --prefix worker
+RUN npm prune --omit=dev --prefix worker
 
 ENV NODE_ENV=production
 ENV PORT=8080
 
 EXPOSE 8080
-CMD ["node", "dist/index.js"]
-
+CMD ["node", "worker/dist/worker/src/index.js"]

@@ -2,6 +2,7 @@ export type PillarAgent = "accessibility" | "impact" | "delight";
 
 export type MultiAgentFinding = {
   pillar: PillarAgent;
+  bucket: string;
   title: string;
   severity: "critical" | "high" | "medium" | "low";
   page: string;
@@ -20,7 +21,15 @@ export type TestedState = {
 };
 
 export type MultiAgentResult = {
-  agents: Record<PillarAgent, { findings: MultiAgentFinding[]; summary: string; testedStates: TestedState[] }>;
+  status: "complete" | "partial" | "failed";
+  agents: Record<PillarAgent, {
+    status: "complete" | "failed";
+    error?: string;
+    findings: MultiAgentFinding[];
+    summary: string;
+    testedStates: TestedState[];
+  }>;
+  reviewer: { status: "complete" | "failed"; error?: string };
   reviewedFindings: MultiAgentFinding[];
 };
 
@@ -61,6 +70,7 @@ function normalizeFindings(value: unknown, pillar: PillarAgent): MultiAgentFindi
     const severity = String(rec.severity || "medium").toLowerCase();
     return {
       pillar,
+      bucket: String(rec.bucket || "").slice(0, 160),
       title: String(rec.title || "Untitled finding").slice(0, 240),
       severity: (["critical", "high", "medium", "low"].includes(severity) ? severity : "medium") as MultiAgentFinding["severity"],
       page: String(rec.page || "").slice(0, 160),
@@ -80,7 +90,13 @@ export async function runMultiAgentAudit(args: {
   bucketResults: unknown;
 }): Promise<MultiAgentResult> {
   const context = JSON.stringify({ intake: args.intake, evidence: args.evidence, bucketResults: args.bucketResults }).slice(0, 28000);
+  const selectedBuckets = Array.isArray(args.bucketResults)
+    ? args.bucketResults
+        .map((item) => item && typeof item === "object" ? String((item as Record<string, unknown>).bucket_name || "") : "")
+        .filter(Boolean)
+    : [];
   const outputs = await Promise.all(Object.entries(ROLE_PROMPTS).map(async ([pillar, role]) => {
+    const key = pillar as PillarAgent;
     const prompt = `You are the ${pillar} specialist in a UX audit team. ${role}
 Use the supplied full-page screenshots as the primary evidence for everything visibly rendered: layout, typography, contrast, content, visible labels, visual hierarchy, consistency, and visible loading, success, error, or empty states. Use Playwright evidence only when the question requires interaction, keyboard behavior, DOM semantics, screen-reader-related structure, navigation timing, network behavior, or runtime performance. Analyze the supplied screenshots, DOM observations, URLs, and action traces together without requiring Playwright for screenshot-verifiable answers.
 Rules:
@@ -89,21 +105,50 @@ Rules:
 - An interaction, DOM, or performance state may be scored only when Playwright reached or measured it successfully.
 - If the required evidence for a state is missing, mark it not_tested and do not reduce the score.
 - Distinguish confirmed failures from recommendations for further testing.
-- Every finding must include page, component/state, evidence references, tested actions, and confidence.
-Return JSON only: {"summary":"...","tested_states":[{"page":"...","state":"...","status":"tested|not_tested","evidence":["..."]}],"findings":[{"title":"...","severity":"critical|high|medium|low","page":"...","state":"...","evidence":["..."],"tested_actions":["..."],"confidence":0.0,"recommendation":"..."}]}
+- Every finding must include the exact matching bucket name, page, component/state, evidence references, tested actions, and confidence.
+- bucket must be one of: ${selectedBuckets.join(", ") || "none"}. If no bucket matches, do not return the finding.
+Return JSON only: {"summary":"...","tested_states":[{"page":"...","state":"...","status":"tested|not_tested","evidence":["..."]}],"findings":[{"bucket":"...","title":"...","severity":"critical|high|medium|low","page":"...","state":"...","evidence":["..."],"tested_actions":["..."],"confidence":0.0,"recommendation":"..."}]}
 Evidence and context:
 ${context}`;
-    const parsed = parseJson(await args.chat(prompt));
-    const key = pillar as PillarAgent;
-    return [key, {
-      summary: String(parsed.summary || ""),
-      findings: normalizeFindings(parsed.findings, key),
-      testedStates: normalizeTestedStates(parsed.tested_states),
-    }] as const;
+    try {
+      const parsed = parseJson(await args.chat(prompt));
+      return [key, {
+        status: "complete" as const,
+        summary: String(parsed.summary || ""),
+        findings: normalizeFindings(parsed.findings, key).filter((finding) => selectedBuckets.includes(finding.bucket)),
+        testedStates: normalizeTestedStates(parsed.tested_states),
+      }] as const;
+    } catch (error) {
+      return [key, {
+        status: "failed" as const,
+        error: error instanceof Error ? error.message : String(error),
+        summary: "",
+        findings: [],
+        testedStates: [],
+      }] as const;
+    }
   }));
   const agents = Object.fromEntries(outputs) as MultiAgentResult["agents"];
   const findings = outputs.flatMap(([, output]) => output.findings);
-  const review = parseJson(await args.chat(`You are the senior UX audit reviewer. Deduplicate overlapping findings, reject findings without evidence, and keep the strongest evidence-backed version. Preserve the original pillar, page, state, and tested actions. Return JSON only: {"findings":[{"pillar":"accessibility|impact|delight","title":"...","severity":"critical|high|medium|low","page":"...","state":"...","evidence":["..."],"tested_actions":["..."],"confidence":0.0,"recommendation":"..."}]}\nCandidate findings:\n${JSON.stringify(findings).slice(0, 18000)}`));
+  if (!findings.length) {
+    const failedCount = outputs.filter(([, output]) => output.status === "failed").length;
+    return {
+      status: failedCount === outputs.length ? "failed" : failedCount ? "partial" : "complete",
+      agents,
+      reviewer: failedCount
+        ? { status: "failed", error: "No verified specialist findings were available to review." }
+        : { status: "complete" },
+      reviewedFindings: [],
+    };
+  }
+
+  let review: Record<string, unknown> = {};
+  let reviewer: MultiAgentResult["reviewer"] = { status: "complete" };
+  try {
+    review = parseJson(await args.chat(`You are the senior UX audit reviewer. Deduplicate overlapping findings, reject findings without evidence, and keep the strongest evidence-backed version. Preserve the original bucket, pillar, page, state, and tested actions. bucket must remain one of: ${selectedBuckets.join(", ")}. Return JSON only: {"findings":[{"bucket":"...","pillar":"accessibility|impact|delight","title":"...","severity":"critical|high|medium|low","page":"...","state":"...","evidence":["..."],"tested_actions":["..."],"confidence":0.0,"recommendation":"..."}]}\nCandidate findings:\n${JSON.stringify(findings).slice(0, 18000)}`));
+  } catch (error) {
+    reviewer = { status: "failed", error: error instanceof Error ? error.message : String(error) };
+  }
   const reviewedFindings = normalizeFindings(review.findings, "impact").map((finding, index) => {
     const original = findings.find((item) => item.title.toLowerCase() === finding.title.toLowerCase());
     const reviewed = (Array.isArray(review.findings) ? review.findings[index] : null) as Record<string, unknown> | null;
@@ -111,7 +156,14 @@ ${context}`;
     const pillar = reviewedPillar === "accessibility" || reviewedPillar === "impact" || reviewedPillar === "delight"
       ? reviewedPillar
       : original?.pillar || finding.pillar;
-    return original ? { ...original, ...finding, pillar } : { ...finding, pillar };
-  });
-  return { agents, reviewedFindings: reviewedFindings.length ? reviewedFindings : findings };
+    const bucket = selectedBuckets.includes(finding.bucket) ? finding.bucket : original?.bucket || "";
+    return original ? { ...original, ...finding, pillar, bucket } : { ...finding, pillar, bucket };
+  }).filter((finding) => selectedBuckets.includes(finding.bucket));
+  const failedCount = outputs.filter(([, output]) => output.status === "failed").length;
+  return {
+    status: failedCount === 0 && reviewer.status === "complete" ? "complete" : "partial",
+    agents,
+    reviewer,
+    reviewedFindings: reviewedFindings.length ? reviewedFindings : findings,
+  };
 }
