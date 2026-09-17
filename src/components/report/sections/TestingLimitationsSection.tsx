@@ -32,15 +32,29 @@ function TestingLimitationsSection({ limitations }: { limitations: AnyRecord[] }
 
 export function buildTestingLimitationsPages(limitations: AnyRecord[]): ReportPage[] {
   if (!limitations.length) return [];
+  const chunks: AnyRecord[][] = [];
+  let current: AnyRecord[] = [];
+  let currentSize = 0;
+  for (const limitation of limitations) {
+    const itemSize = `${asString(limitation.question)} ${asString(limitation.reason)}`.length + 160;
+    if (current.length && (current.length >= 4 || currentSize + itemSize > 1800)) {
+      chunks.push(current);
+      current = [];
+      currentSize = 0;
+    }
+    current.push(limitation);
+    currentSize += itemSize;
+  }
+  if (current.length) chunks.push(current);
   const pages: ReportPage[] = [];
-  for (let index = 0; index < limitations.length; index += 6) {
-    const pageNumber = index / 6;
+  for (let index = 0; index < chunks.length; index += 1) {
+    const pageNumber = index;
     pages.push({
       key: `testing_limitations_${pageNumber + 1}`,
       title: "Testing Limitations",
       showTitle: pageNumber === 0,
       variant: "standard",
-      body: <TestingLimitationsSection limitations={limitations.slice(index, index + 6)} />,
+      body: <TestingLimitationsSection limitations={chunks[index]} />,
     });
   }
   return pages;

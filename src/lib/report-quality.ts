@@ -93,6 +93,38 @@ function uniqueRecords(records: AnyRecord[], key: (record: AnyRecord) => string)
   });
 }
 
+const semanticStopWords = new Set(["the", "a", "an", "and", "or", "to", "of", "in", "on", "for", "with", "is", "are", "be", "this", "that", "users", "user"]);
+
+function semanticTokens(value: unknown) {
+  return normalizeKey(value).split(" ").filter((word) => word.length > 2 && !semanticStopWords.has(word));
+}
+
+function semanticDuplicate(value: unknown, accepted: string[]) {
+  const tokens = new Set(semanticTokens(value));
+  if (!tokens.size) return false;
+  return accepted.some((candidate) => {
+    const other = new Set(semanticTokens(candidate));
+    if (!other.size) return false;
+    const intersection = Array.from(tokens).filter((token) => other.has(token)).length;
+    const union = new Set(Array.from(tokens).concat(Array.from(other))).size;
+    return intersection / Math.max(1, union) >= 0.72 || (tokens.size <= 5 && intersection === tokens.size && intersection === other.size);
+  });
+}
+
+function uniqueSemanticStrings(values: unknown[], accepted: string[] = []) {
+  const output: string[] = [];
+  for (const value of values) {
+    const item = asString(value);
+    if (!item || semanticDuplicate(item, [...accepted, ...output])) continue;
+    output.push(item);
+  }
+  return output;
+}
+
+function appearsTruncated(value: unknown) {
+  return /(?:\.{3}|…|[,;:]|\s[-–—])\s*$/.test(asString(value));
+}
+
 function healthForScore(score: number | null) {
   if (score === null) return { health: "Not tested", risk: "Evidence missing", priority: "P0" };
   if (score < 50) return { health: "Critical", risk: "High", priority: "P1" };
@@ -259,6 +291,7 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
   const warnings: ReportQualityIssue[] = [];
   const selected = new Set(selectedBucketList(report).map(normalizeKey));
   const buckets = asArray(report.bucket_results).map((item) => asRecord(item) ?? {});
+  const acceptedFindingTexts: string[] = [];
 
   for (const bucket of buckets) {
     const bucketName = canonicalBucket(bucket.bucket_name || bucket.section || bucket.bucket);
@@ -273,11 +306,23 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
     }
     for (const findingValue of asArray(bucket.findings)) {
       const finding = asRecord(findingValue) ?? {};
+      const text = findingText(finding);
+      if (semanticDuplicate(text, acceptedFindingTexts)) {
+        errors.push({ code: "DUPLICATE_FINDING", severity: "error", bucket: bucketName, message: `${bucketName} repeats a finding already included elsewhere in the report.` });
+      } else if (text) {
+        acceptedFindingTexts.push(text);
+      }
       if (isCoverageLimitation(`${findingText(finding)} ${findingEvidence(finding)}`)) {
         errors.push({ code: "LIMITATION_AS_FINDING", severity: "error", bucket: bucketName, message: `${bucketName} contains a testing limitation as a finding.` });
       }
       if (!findingEvidence(finding)) {
         errors.push({ code: "FINDING_WITHOUT_EVIDENCE", severity: "error", bucket: bucketName, message: `${bucketName} contains a finding without evidence.` });
+      }
+      for (const field of [findingText(finding), findingEvidence(finding), finding.recommendation]) {
+        if (appearsTruncated(field)) {
+          errors.push({ code: "TRUNCATED_FINDING_CONTENT", severity: "error", bucket: bucketName, message: `${bucketName} contains an incomplete finding sentence.` });
+          break;
+        }
       }
     }
     for (const questionValue of asArray(bucket.questions)) {
@@ -294,6 +339,9 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
           questionId: asString(question.id),
           message: `${bucketName} contains a scored question without a traceable evidence ID.`,
         });
+      }
+      if ([question.evidence, question.observation, question.recommendation].some(appearsTruncated)) {
+        errors.push({ code: "TRUNCATED_QUESTION_CONTENT", severity: "error", bucket: bucketName, questionId: asString(question.id), message: `${bucketName} contains an incomplete question answer.` });
       }
     }
     if (expectedScore !== null && (scoring.confidence ?? 0) < 50) {
@@ -336,9 +384,20 @@ export function sanitizeAuditReport(reportValue: unknown): AnyRecord {
         })
         .filter(Boolean);
   const selected = new Set(selectedNames.map(normalizeKey));
-  const buckets = asArray(report.bucket_results)
+  const rawBuckets = asArray(report.bucket_results)
     .map((bucket) => sanitizeBucket(bucket, selected))
     .filter((bucket): bucket is AnyRecord => Boolean(bucket));
+  const acceptedFindingTexts: string[] = [];
+  const buckets: AnyRecord[] = rawBuckets.map((bucket): AnyRecord => ({
+    ...bucket,
+    findings: asArray(bucket.findings).filter((findingValue) => {
+      const finding = asRecord(findingValue) ?? {};
+      const value = findingText(finding);
+      if (!value || semanticDuplicate(value, acceptedFindingTexts)) return false;
+      acceptedFindingTexts.push(value);
+      return true;
+    }),
+  }));
   const scoredBuckets = buckets.filter((bucket) => typeof bucket.score === "number");
   const overallScore = scoredBuckets.length
     ? Math.round(
@@ -364,6 +423,18 @@ export function sanitizeAuditReport(reportValue: unknown): AnyRecord {
     priority: bucket.priority,
   }));
 
+  const executiveSummary = asRecord(report.executive_summary) ?? {};
+  const acceptedExecutive: string[] = [];
+  const dedupeExecutiveList = (value: unknown) => {
+    const list = uniqueSemanticStrings(asArray(value), acceptedExecutive);
+    acceptedExecutive.push(...list);
+    return list;
+  };
+  const quickWins = uniqueRecords(
+    asArray(report.quick_wins_table).map((item) => asRecord(item) ?? {}),
+    (item) => normalizeKey(item.recommendation || item.finding || item.title),
+  ).filter((item, index, items) => !semanticDuplicate(item.recommendation || item.finding || item.title, items.slice(0, index).map((candidate) => asString(candidate.recommendation || candidate.finding || candidate.title))));
+
   const sanitized = {
     ...report,
     selected_buckets: selectedNames,
@@ -373,6 +444,14 @@ export function sanitizeAuditReport(reportValue: unknown): AnyRecord {
     findings_detailed: findings,
     all_findings: findings,
     testing_limitations: limitations,
+    quick_wins_table: quickWins,
+    executive_summary: {
+      ...executiveSummary,
+      top_problems: dedupeExecutiveList(executiveSummary.top_problems),
+      whats_working: dedupeExecutiveList(executiveSummary.whats_working),
+      first_priority: dedupeExecutiveList(executiveSummary.first_priority),
+      top_3_quick_wins: dedupeExecutiveList(executiveSummary.top_3_quick_wins),
+    },
     overall_score: overallScore,
     audit_confidence: confidence,
     questions_scoreable: buckets.reduce(

@@ -52,13 +52,27 @@ function EvidenceSection({ items }: { items: ReportViewModel["evidenceAppendix"]
 
 export function buildMethodologyEvidencePages(vm: ReportViewModel): ReportPage[] {
   const pages: ReportPage[] = [{ key: "methodology", title: "Methodology & Scope", variant: "standard", body: <MethodologySection vm={vm} /> }];
-  for (let index = 0; index < vm.evidenceAppendix.length; index += 5) {
+  const chunks: ReportViewModel["evidenceAppendix"][] = [];
+  let current: ReportViewModel["evidenceAppendix"] = [];
+  let currentSize = 0;
+  for (const item of vm.evidenceAppendix) {
+    const itemSize = (item.observation || item.evidence || item.question).length + 180;
+    if (current.length && (current.length >= 4 || currentSize + itemSize > 1900)) {
+      chunks.push(current);
+      current = [];
+      currentSize = 0;
+    }
+    current.push(item);
+    currentSize += itemSize;
+  }
+  if (current.length) chunks.push(current);
+  for (let index = 0; index < chunks.length; index += 1) {
     pages.push({
-      key: `evidence_appendix_${index / 5 + 1}`,
+      key: `evidence_appendix_${index + 1}`,
       title: "Evidence Appendix",
       showTitle: index === 0,
       variant: "standard",
-      body: <EvidenceSection items={vm.evidenceAppendix.slice(index, index + 5)} />,
+      body: <EvidenceSection items={chunks[index]} />,
     });
   }
   return pages;
