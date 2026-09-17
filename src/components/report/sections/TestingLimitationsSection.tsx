@@ -32,10 +32,24 @@ function TestingLimitationsSection({ limitations }: { limitations: AnyRecord[] }
 
 export function buildTestingLimitationsPages(limitations: AnyRecord[]): ReportPage[] {
   if (!limitations.length) return [];
+  const grouped = new Map<string, AnyRecord[]>();
+  for (const limitation of limitations) {
+    const bucket = asString(limitation.bucket) || "Audit criterion";
+    grouped.set(bucket, [...(grouped.get(bucket) || []), limitation]);
+  }
+  const summarizedLimitations = Array.from(grouped.entries()).map(([bucket, items]) => ({
+    bucket,
+    question: `${items.length} ${items.length === 1 ? "criterion requires" : "criteria require"} follow-up testing.`,
+    reason: items
+      .slice(0, 3)
+      .map((item) => asString(item.question))
+      .filter(Boolean)
+      .join(" • ") || "The required evidence was not captured.",
+  }));
   const chunks: AnyRecord[][] = [];
   let current: AnyRecord[] = [];
   let currentSize = 0;
-  for (const limitation of limitations) {
+  for (const limitation of summarizedLimitations) {
     const itemSize = `${asString(limitation.question)} ${asString(limitation.reason)}`.length + 160;
     if (current.length && (current.length >= 4 || currentSize + itemSize > 1800)) {
       chunks.push(current);

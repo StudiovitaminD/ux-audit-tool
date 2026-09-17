@@ -32,22 +32,30 @@ export function buildEvidenceAppendix(reportValue: unknown): EvidenceAppendixIte
     const bucketName = text(bucket.bucket_name || bucket.section || bucket.bucket);
     for (const questionValue of array(bucket.questions)) {
       const question = record(questionValue);
-      for (const evidenceIdValue of array(question.evidence_ids)) {
-        const evidenceId = text(evidenceIdValue);
-        if (!evidenceId) continue;
-        items.push({
-          evidenceId,
-          bucket: bucketName,
-          questionId: text(question.id),
-          question: text(question.question),
-          evidence: text(question.evidence),
-          observation: text(question.observation),
-          confidence: Number(question.confidence) || 0,
-        });
-      }
+      const state = text(question.answer_state || question.selected_option_state);
+      if (!["pass", "partial", "fail"].includes(state)) continue;
+      const evidenceId = array(question.evidence_ids).map(text).find(Boolean);
+      if (!evidenceId) continue;
+      items.push({
+        evidenceId,
+        bucket: bucketName,
+        questionId: text(question.id),
+        question: text(question.question),
+        evidence: text(question.evidence),
+        observation: text(question.observation),
+        confidence: Number(question.confidence) || 0,
+      });
     }
   }
-  return items.filter((item, index) => items.findIndex((candidate) => candidate.evidenceId === item.evidenceId) === index);
+  return items
+    .filter(
+      (item, index) =>
+        items.findIndex(
+          (candidate) => candidate.bucket === item.bucket && candidate.questionId === item.questionId,
+        ) === index,
+    )
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 24);
 }
 
 export function buildMethodology(reportValue: unknown) {

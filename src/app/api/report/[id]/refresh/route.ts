@@ -13,6 +13,7 @@ import {
   finalizeAudit,
   getSelectedBuckets,
   makeFailedBucketResult,
+  prepareEvidence,
   type BucketResult,
   type Intake,
 } from "@/lib/audit-engine";
@@ -194,12 +195,13 @@ export async function POST(
     }
 
     const intakeValue = intake as Intake;
-    const evidenceValue = (evidence as EvidenceBundle | null) ?? null;
+    let evidenceValue = (evidence as EvidenceBundle | null) ?? null;
     const modelOverride = asString(sanitizedReport.modelOverride) || undefined;
     const shouldRerunBuckets = !requestReport && !Array.isArray(raw?.updated_questions);
 
     if (shouldRerunBuckets) {
       const selectedBuckets = getSelectedBuckets(intakeValue);
+      evidenceValue = await prepareEvidence(intakeValue);
       const limit = pLimit(3);
       bucketResults = await Promise.all(
         selectedBuckets.map((bucket) => limit(async () => {
@@ -219,6 +221,19 @@ export async function POST(
           }
         })),
       );
+
+      const scoredBucketCount = bucketResults.filter(
+        (bucket) => bucket.bucket_status === "scored" && typeof bucket.score === "number",
+      ).length;
+      const minimumScoredBuckets = Math.max(1, Math.ceil(selectedBuckets.length * 0.4));
+      if (scoredBucketCount < minimumScoredBuckets) {
+        return Response.json(
+          {
+            error: `Re-analysis produced usable scores for only ${scoredBucketCount} of ${selectedBuckets.length} buckets. The existing report was preserved.`,
+          },
+          { status: 422 },
+        );
+      }
     }
 
     const editContext = Array.isArray(raw?.updated_questions)

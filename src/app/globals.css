@@ -343,6 +343,14 @@ header, footer, main, section, aside, div, input, select, textarea, button, a {
   border: 1px solid #fc9223;
 }
 
+.reportToolbar .floatingBarSecondary,
+.reportToolbar .floatingBarPrimary {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .floatingBarPrimary:hover {
   background: color-mix(in srgb, #fc9223 88%, black);
   color: #ffffff;

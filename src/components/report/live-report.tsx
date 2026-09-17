@@ -475,12 +475,12 @@ export function LiveReport({
       </div>
 
       <div
-        className="no-print fixed bottom-6 left-1/2 z-50 max-w-[calc(100%-3rem)] -translate-x-1/2 rounded-[var(--radius)] floatingBarShell p-5 shadow-lg shadow-black/10 backdrop-blur"
+        className="reportToolbar no-print fixed bottom-6 left-1/2 z-50 max-w-[calc(100%-3rem)] -translate-x-1/2 overflow-x-auto rounded-[var(--radius)] floatingBarShell p-3 shadow-lg shadow-black/10 backdrop-blur"
         style={{ width: `${REPORT_VIEWER_WIDTH}px` }}
         data-report-pagination
       >
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2" data-report-pagination-controls>
+          <div className="flex flex-nowrap items-center justify-between gap-2">
+            <div className="flex shrink-0 flex-nowrap items-center gap-1.5" data-report-pagination-controls>
               <Link
                 href={`/report/ai-answers${reportId ? `?rid=${encodeURIComponent(reportId)}` : ""}`}
                 className="floatingBarSecondary"
@@ -522,7 +522,7 @@ export function LiveReport({
                 </button>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
               <button
                 type="button"
                 className="floatingBarSecondary"
