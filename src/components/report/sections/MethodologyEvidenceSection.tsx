@@ -24,7 +24,7 @@ function MethodologySection({ vm }: { vm: ReportViewModel }) {
           <li>Scores include only criteria supported by captured evidence.</li>
           <li>Interaction and accessibility claims require deterministic browser or DOM measurements.</li>
           <li>Screenshot-only observations are limited to visibly verifiable states.</li>
-          <li>Missing evidence is reported as a testing limitation and does not reduce the score.</li>
+          <li>Pass scores 1 point, Partial scores 0.5 points, and every other answer scores 0 points.</li>
         </ul>
       </div>
     </div>

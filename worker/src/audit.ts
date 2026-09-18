@@ -4,6 +4,7 @@ import { QUESTION_BANK } from "./question-bank.js";
 import { openRouterChat } from "./openrouter.js";
 import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../shared/audit-framework";
 import { normalizeAnswerState, normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
+import { buildRecommendationGuidanceContext } from "../../shared/ux-guidance";
 
 const PILLAR_MAP: Record<string, string> = {
   "Visual Feedback": "Accessibility",
@@ -66,7 +67,15 @@ function buildBucketPrompt(intake: Intake, bucket: string, evidence: EvidenceBun
   const flows = (intake.audit_flows || []).join(", ");
   const goals = (intake.audit_goal || []).join(", ");
   const frameworkBrief = buildAuditFrameworkBrief();
-  const bucketBrief = buildBucketFrameworkBrief(bucket);
+  const recommendationGuidance = buildRecommendationGuidanceContext({
+    bucket,
+    questionText: qs.map((question) => question.question).join(" "),
+    productType: normalizeType(intake.product_type),
+    productContext: [intake.product_name, intake.differentiation, intake.known_problem]
+      .filter(Boolean)
+      .join(" "),
+  });
+  const bucketBrief = `${buildBucketFrameworkBrief(bucket)}\n\nAuthoritative scoring policy: Pass = 1, Partial = 0.5, and every other answer state = 0.\n\nAdvisory recommendation guidance (never use as evidence or to determine a score; use only to improve evidence-backed recommendations):\n${recommendationGuidance}`;
   const selectedBucketQuestions = qs
     .map((q) => {
       const opts = q.options.map((o) => `${o.label} (${o.score === null ? "excluded from score" : o.score}) - ${o.text}`).join("\n");

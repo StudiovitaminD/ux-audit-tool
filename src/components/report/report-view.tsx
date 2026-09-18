@@ -1390,8 +1390,6 @@ export function ReportView() {
     <LiveReport
       report={effectiveReport}
       reportId={reportId}
-      onReaudit={reportId ? () => void retryReportGeneration() : undefined}
-      reanalyzing={retryingReport}
       onDownloadPdf={reportId ? (reportOverride) => download("pdf", reportOverride) : undefined}
       onDownloadDocx={reportId ? () => download("docx") : undefined}
       onDownloadPptx={reportId ? (reportOverride) => download("pptx", reportOverride) : undefined}

@@ -9,6 +9,7 @@ import {
 import { getErrorMessage } from "@/lib/error-utils";
 import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../shared/audit-framework";
 import { normalizeAnswerState, normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
+import { buildRecommendationGuidanceContext } from "../../shared/ux-guidance";
 import { runMultiAgentAudit, type MultiAgentResult } from "@/lib/multi-agent-audit";
 import { sanitizeAuditReport } from "@/lib/report-quality";
 import {
@@ -421,7 +422,15 @@ function summarizeEvidenceForBucket(evidence: EvidenceBundle | null, bucket: str
 function bucketPrompt(intake: Intake, bucket: string, questions: BucketQuestion[]) {
   const intakeSummary = compactIntakeForModel(intake);
   const frameworkBrief = buildAuditFrameworkBrief();
-  const bucketBrief = buildBucketFrameworkBrief(bucket);
+  const recommendationGuidance = buildRecommendationGuidanceContext({
+    bucket,
+    questionText: questions.map((question) => question.question).join(" "),
+    productType: intake.product_type,
+    productContext: [intake.product_name, intake.differentiation, intake.known_problem]
+      .filter(Boolean)
+      .join(" "),
+  });
+  const bucketBrief = `${buildBucketFrameworkBrief(bucket)}\n\nAuthoritative scoring policy: Pass = 1, Partial = 0.5, and every other answer state = 0. This policy supersedes any conflicting denominator guidance below.\n\nAdvisory recommendation guidance (never use as evidence or to determine a score; use only to improve evidence-backed recommendations):\n${recommendationGuidance}`;
   const selectedBucketQuestions = questions
     .map((q) => {
       const opts = q.options

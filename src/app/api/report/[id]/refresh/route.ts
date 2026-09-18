@@ -1,5 +1,4 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
-import pLimit from "p-limit";
 import { getAccountSessionFromRequest } from "@/lib/account-server";
 import {
   reportBelongsToSession,
@@ -9,19 +8,11 @@ import {
 } from "@/lib/report-record";
 import { recalculateEditedReport } from "@/lib/report-editing";
 import {
-  auditOneBucket,
   finalizeAudit,
-  getSelectedBuckets,
-  makeFailedBucketResult,
-  prepareEvidence,
   type BucketResult,
   type Intake,
 } from "@/lib/audit-engine";
 import type { EvidenceBundle } from "@/lib/evidence-collector";
-import { getErrorMessage } from "@/lib/error-utils";
-
-export const runtime = "nodejs";
-export const maxDuration = 300;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -183,7 +174,7 @@ export async function POST(
     const recalculatedReport = recalculateEditedReport(sanitizedReport);
     const intake = asRecord(recalculatedReport.intake);
     const evidence = asRecord(recalculatedReport.evidence);
-    let bucketResults = Array.isArray(recalculatedReport.bucket_results)
+    const bucketResults = Array.isArray(recalculatedReport.bucket_results)
       ? normalizeStoredBucketResults(recalculatedReport.bucket_results)
       : null;
 
@@ -195,46 +186,8 @@ export async function POST(
     }
 
     const intakeValue = intake as Intake;
-    let evidenceValue = (evidence as EvidenceBundle | null) ?? null;
+    const evidenceValue = (evidence as EvidenceBundle | null) ?? null;
     const modelOverride = asString(sanitizedReport.modelOverride) || undefined;
-    const shouldRerunBuckets = !requestReport && !Array.isArray(raw?.updated_questions);
-
-    if (shouldRerunBuckets) {
-      const selectedBuckets = getSelectedBuckets(intakeValue);
-      evidenceValue = await prepareEvidence(intakeValue);
-      const limit = pLimit(3);
-      bucketResults = await Promise.all(
-        selectedBuckets.map((bucket) => limit(async () => {
-          try {
-            return await auditOneBucket({
-              intake: intakeValue,
-              bucket,
-              evidence: evidenceValue,
-              modelOverride,
-            });
-          } catch (error) {
-            return makeFailedBucketResult({
-              intake: intakeValue,
-              bucket,
-              reason: getErrorMessage(error) || "Bucket re-analysis failed",
-            });
-          }
-        })),
-      );
-
-      const scoredBucketCount = bucketResults.filter(
-        (bucket) => bucket.bucket_status === "scored" && typeof bucket.score === "number",
-      ).length;
-      const minimumScoredBuckets = Math.max(1, Math.ceil(selectedBuckets.length * 0.4));
-      if (scoredBucketCount < minimumScoredBuckets) {
-        return Response.json(
-          {
-            error: `Re-analysis produced usable scores for only ${scoredBucketCount} of ${selectedBuckets.length} buckets. The existing report was preserved.`,
-          },
-          { status: 422 },
-        );
-      }
-    }
 
     const editContext = Array.isArray(raw?.updated_questions)
       ? raw.updated_questions

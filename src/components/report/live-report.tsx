@@ -16,8 +16,6 @@ const REPORT_VIEWER_WIDTH = 789;
 export function LiveReport({
   report,
   reportId,
-  onReaudit,
-  reanalyzing,
   onDownloadPdf,
   onDownloadDocx,
   onDownloadPptx,
@@ -28,8 +26,6 @@ export function LiveReport({
 }: {
   report: unknown;
   reportId?: string | null;
-  onReaudit?: () => void;
-  reanalyzing?: boolean;
   onDownloadPdf?: (reportOverride?: unknown) => void | Promise<void>;
   onDownloadDocx?: () => void;
   onDownloadPptx?: (reportOverride?: unknown) => void | Promise<void>;
@@ -487,16 +483,6 @@ export function LiveReport({
               >
                 AI Answers
               </Link>
-              {onReaudit ? (
-                <button
-                  type="button"
-                  className="floatingBarSecondary"
-                  onClick={onReaudit}
-                  disabled={reanalyzing}
-                >
-                  {reanalyzing ? "Re-analyzing…" : "Re-analyze"}
-                </button>
-              ) : null}
               {onDownloadPdf ? (
                 <button
                   type="button"
