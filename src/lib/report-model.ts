@@ -66,6 +66,9 @@ export type ReportViewModel = {
     questionsTotal: number;
     questionsScoreable: number;
     generatedAt: string;
+    evidenceTotal: number;
+    evidenceConfirmed: number;
+    evidenceCoveragePercent: number;
   };
   evidenceAppendix: Array<{
     evidenceId: string;
@@ -75,6 +78,13 @@ export type ReportViewModel = {
     evidence: string;
     observation: string;
     confidence: number;
+    sourceUrl: string;
+    viewport: string;
+    testMethod: string;
+    status: string;
+    observedAt: string;
+    screenshotUrl: string;
+    measuredValues: Record<string, number | string | boolean>;
   }>;
   clientReview: {
     status: string;

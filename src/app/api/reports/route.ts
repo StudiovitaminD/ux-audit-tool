@@ -1,8 +1,6 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { getAccountSessionFromRequest } from "@/lib/account-server";
-import { asRecord, mergeReportWithDoc, unwrapReportPayload } from "@/lib/report-record";
-import { recalculateEditedReport } from "@/lib/report-editing";
-import { buildReportViewModel } from "@/lib/report-model";
+import { asRecord, unwrapReportPayload } from "@/lib/report-record";
 
 const BAD_REPORT_STATUSES = new Set([
   "error",
@@ -116,7 +114,7 @@ function shouldIncludeReport(data: Record<string, unknown>, merged: Record<strin
   return status === "complete" || finalized;
 }
 
-async function buildReportsList(docs: CleanupReportDoc[]) {
+function buildReportsList(docs: CleanupReportDoc[]) {
   const reports: Array<{
     id: string;
     reportId: string;
@@ -131,31 +129,17 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
     overallRisk: string;
   }> = [];
 
-  await Promise.all(
-    docs.map(async (doc) => {
+  docs.forEach((doc) => {
       const data = (doc.data() ?? {}) as Record<string, unknown>;
       const parsedReport = unwrapReportPayload(data.report);
-      const merged =
-        (await mergeReportWithDoc(data, asRecord(parsedReport) ?? parsedReport ?? data.report, doc.id)) ?? {};
+      const report = asRecord(parsedReport) ?? {};
+      const intake = asRecord(report.intake) ?? asRecord(data.intake_preview) ?? asRecord(data.intake) ?? {};
+      const merged: Record<string, unknown> = { ...data, ...report, intake };
 
       if (shouldDeleteReport(data, merged)) return;
 
       if (!shouldIncludeReport(data, merged)) return;
 
-      const intake = asRecord(merged.intake) ?? {};
-      const recalculatedReport = recalculateEditedReport(merged);
-      const listViewReport = {
-        ...merged,
-        selected_buckets: [],
-        selectedBuckets: [],
-        intake: {
-          ...intake,
-          selected_buckets: [],
-          selectedBuckets: [],
-        },
-        overall_score: null,
-      };
-      const vm = buildReportViewModel({ ...listViewReport, ...recalculatedReport });
       reports.push({
         id: doc.id,
         reportId: safeString(merged.reportId || doc.id),
@@ -165,12 +149,11 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
         productUrl: safeString(merged.product_url || intake.product_url),
         productType: safeString(merged.product_type || intake.product_type),
         primaryPlatform: safeString(merged.primary_platform || intake.primary_platform),
-        overallScore: vm.overallScore ?? safeNumber(merged.overall_score),
-        overallHealth: vm.overallHealth || safeString(merged.overall_health),
-        overallRisk: vm.overallRisk || safeString(merged.overall_risk),
+        overallScore: safeNumber(merged.overall_score),
+        overallHealth: safeString(merged.overall_health),
+        overallRisk: safeString(merged.overall_risk),
       });
-    }),
-  );
+    });
 
   reports.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   return reports;
@@ -185,35 +168,35 @@ export async function GET(req: Request) {
     const db = getAdminFirestore();
     if (accountSession.role === "admin") {
       const snap = await db.collection("ux_audits").orderBy("createdAt", "desc").limit(50).get();
-      const reports = await buildReportsList(snap.docs as unknown as CleanupReportDoc[]);
+      const reports = buildReportsList(snap.docs as unknown as CleanupReportDoc[]);
 
-      return Response.json({ reports });
+      return Response.json({ reports }, { headers: { "Cache-Control": "private, max-age=30" } });
     }
-    const queries = [
-      db.collection("ux_audits").where("created_by", "==", accountSession.id),
-      db.collection("ux_audits").where("user_email", "==", accountSession.email),
-    ];
-
-    const snaps = await Promise.all(queries.map((query) => query.limit(50).get()));
-    const docsById = new Map<string, (typeof snaps)[number]["docs"][number]>();
-    for (const snap of snaps) {
-      for (const doc of snap.docs) {
-        if (!docsById.has(doc.id)) {
-          docsById.set(doc.id, doc);
-        }
-      }
-    }
-
-    const snapDocs = Array.from(docsById.values()).sort((left, right) => {
+    const ownerSnap = await db.collection("ux_audits").where("created_by", "==", accountSession.id).limit(50).get();
+    // Older audits may predate created_by. Only pay for the legacy lookup when needed.
+    const docs = ownerSnap.empty
+      ? (await db.collection("ux_audits").where("user_email", "==", accountSession.email).limit(50).get()).docs
+      : ownerSnap.docs;
+    const snapDocs = [...docs].sort((left, right) => {
       const leftCreated = String((left.data() ?? {}).createdAt ?? "");
       const rightCreated = String((right.data() ?? {}).createdAt ?? "");
       return rightCreated.localeCompare(leftCreated);
     });
-    const reports = await buildReportsList(snapDocs as unknown as CleanupReportDoc[]);
+    const reports = buildReportsList(snapDocs as unknown as CleanupReportDoc[]);
 
-    return Response.json({ reports });
+    return Response.json({ reports }, { headers: { "Cache-Control": "private, max-age=30" } });
   } catch (error) {
+    const code = asRecord(error)?.code;
     const message = error instanceof Error ? error.message : "Failed to load reports";
+    if (code === 8 || code === "8" || code === "resource-exhausted" || /resource_exhausted|quota exceeded/i.test(message)) {
+      return Response.json(
+        {
+          code: "REPORTS_TEMPORARILY_UNAVAILABLE",
+          error: "Reports are temporarily unavailable because the data service reached its usage limit. Please retry shortly.",
+        },
+        { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
+      );
+    }
     return Response.json({ error: message }, { status: 500 });
   }
 }

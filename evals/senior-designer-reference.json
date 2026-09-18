@@ -1,0 +1,48 @@
+{
+  "version": "1.0.0",
+  "authorship": "Curated senior-designer-style reference cases for deterministic regression testing",
+  "cases": [
+    {
+      "id": "marketing-contact-cta",
+      "product_type": "marketing_website",
+      "finding": {
+        "context_label": "“Submit” Button",
+        "observation": "The contact form uses the generic label Submit instead of describing the outcome.",
+        "consequence": "Visitors cannot tell whether the action sends an enquiry or starts another step.",
+        "recommendation": "Rename the button to Send project enquiry and show a confirmation after submission.",
+        "evidence": "The captured contact page shows a button labelled Submit.",
+        "question_id": "I22"
+      },
+      "answer_state": "partial",
+      "mark": 0.5
+    },
+    {
+      "id": "ecommerce-checkout-errors",
+      "product_type": "ecommerce",
+      "finding": {
+        "context_label": "Checkout Form",
+        "observation": "Invalid fields use a red border but do not display field-level error text.",
+        "consequence": "Shoppers may not know what to correct before they can place the order.",
+        "recommendation": "Add a specific text error beside each invalid field and move focus to the first error.",
+        "evidence": "The captured validation state shows red borders with no adjacent error copy.",
+        "question_id": "A04"
+      },
+      "answer_state": "fail",
+      "mark": 0
+    },
+    {
+      "id": "saas-save-feedback",
+      "product_type": "saas",
+      "finding": {
+        "context_label": "“Save changes” Button",
+        "observation": "The settings screen remains visually unchanged after Save changes is selected.",
+        "consequence": "Users cannot confirm whether their settings were stored and may submit repeatedly.",
+        "recommendation": "Show a persistent success message and disable the button while the save request is running.",
+        "evidence": "The captured post-click state contains no success message, progress state, or changed button label.",
+        "question_id": "A01"
+      },
+      "answer_state": "fail",
+      "mark": 0
+    }
+  ]
+}

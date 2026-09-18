@@ -5,6 +5,7 @@ import {
   validateAnswerSemantics,
   type ScoredAuditQuestion,
 } from "../../shared/ux-audit-scoring";
+import { structureFinding } from "./senior-content";
 
 export type ReportQualityIssue = {
   code: string;
@@ -47,6 +48,9 @@ function normalizeKey(value: unknown) {
 
 const canonicalBuckets = Object.keys(QUESTION_BANK);
 const canonicalBucketByKey = new Map(canonicalBuckets.map((bucket) => [normalizeKey(bucket), bucket]));
+const canonicalQuestionIdsByBucket = new Map(
+  canonicalBuckets.map((bucket) => [bucket, new Set(QUESTION_BANK[bucket].map((question) => question.id))]),
+);
 
 function canonicalBucket(value: unknown) {
   const raw = asString(value);
@@ -231,7 +235,7 @@ function sanitizeBucket(bucketValue: unknown, selected: Set<string>): AnyRecord 
           (confirmedQuestion || verifiedSpecialist)
         );
       })
-      .map((finding) => ({ ...finding, bucket: bucketName })),
+      .map((finding) => structureFinding({ ...finding, bucket: bucketName })),
     (finding) =>
       `${normalizeKey(finding.question_id || finding.questionId)}:${normalizeKey(findingText(finding))}`,
   );
@@ -303,9 +307,28 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
   const selected = new Set(selectedBucketList(report).map(normalizeKey));
   const buckets = asArray(report.bucket_results).map((item) => asRecord(item) ?? {});
   const acceptedFindingTexts: string[] = [];
+  const seenBuckets = new Set<string>();
+  const nestedEvidence = asRecord(report.evidence);
+  const evidenceRecords = asArray(report.evidence_registry).length
+    ? asArray(report.evidence_registry)
+    : asArray(nestedEvidence?.evidenceRecords);
+  const evidenceById = new Map(
+    evidenceRecords
+      .map((value) => asRecord(value) ?? {})
+      .map((record) => [asString(record.evidenceId || record.evidence_id), record] as const)
+      .filter(([id]) => Boolean(id)),
+  );
 
   for (const bucket of buckets) {
     const bucketName = canonicalBucket(bucket.bucket_name || bucket.section || bucket.bucket);
+    const bucketKey = normalizeKey(bucketName);
+    if (!canonicalQuestionIdsByBucket.has(bucketName)) {
+      errors.push({ code: "UNKNOWN_BUCKET", severity: "error", bucket: bucketName, message: `${bucketName || "An unnamed bucket"} is not part of the canonical audit framework.` });
+    }
+    if (seenBuckets.has(bucketKey)) {
+      errors.push({ code: "DUPLICATE_BUCKET", severity: "error", bucket: bucketName, message: `${bucketName} appears more than once in the report.` });
+    }
+    seenBuckets.add(bucketKey);
     if (selected.size && !selected.has(normalizeKey(bucketName))) {
       errors.push({ code: "UNSELECTED_BUCKET", severity: "error", bucket: bucketName, message: `${bucketName} was not selected for this audit.` });
     }
@@ -329,6 +352,15 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
       if (!findingEvidence(finding)) {
         errors.push({ code: "FINDING_WITHOUT_EVIDENCE", severity: "error", bucket: bucketName, message: `${bucketName} contains a finding without evidence.` });
       }
+      if (!asString(finding.context_label)) {
+        errors.push({ code: "FINDING_WITHOUT_CONTEXT", severity: "error", bucket: bucketName, message: `${bucketName} contains a finding without a screen or component label.` });
+      }
+      if (!asString(finding.observation) || !asString(finding.recommendation)) {
+        errors.push({ code: "INCOMPLETE_FINDING_STRUCTURE", severity: "error", bucket: bucketName, message: `${bucketName} must separate its observation and recommendation.` });
+      }
+      if (!asString(finding.consequence)) {
+        warnings.push({ code: "FINDING_WITHOUT_CONSEQUENCE", severity: "warning", bucket: bucketName, message: `${bucketName} does not explain the user consequence for a finding.` });
+      }
       for (const field of [findingText(finding), findingEvidence(finding), finding.recommendation]) {
         if (appearsTruncated(field)) {
           errors.push({ code: "TRUNCATED_FINDING_CONTENT", severity: "error", bucket: bucketName, message: `${bucketName} contains an incomplete finding sentence.` });
@@ -336,8 +368,18 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
         }
       }
     }
+    const seenQuestionIds = new Set<string>();
+    const canonicalQuestionIds = canonicalQuestionIdsByBucket.get(bucketName) ?? new Set<string>();
     for (const questionValue of asArray(bucket.questions)) {
       const question = asRecord(questionValue) ?? {};
+      const questionId = asString(question.id);
+      if (!questionId || !canonicalQuestionIds.has(questionId)) {
+        errors.push({ code: "UNKNOWN_QUESTION", severity: "error", bucket: bucketName, questionId, message: `${bucketName} contains a question that is not in the canonical question bank.` });
+      }
+      if (questionId && seenQuestionIds.has(questionId)) {
+        errors.push({ code: "DUPLICATE_QUESTION", severity: "error", bucket: bucketName, questionId, message: `${bucketName} repeats question ${questionId}.` });
+      }
+      seenQuestionIds.add(questionId);
       const state = questionState(question);
       if (
         (state === "pass" || state === "partial" || state === "fail") &&
@@ -350,6 +392,24 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
           questionId: asString(question.id),
           message: `${bucketName} contains a scored question without a traceable evidence ID.`,
         });
+      }
+      if (evidenceById.size && (state === "pass" || state === "partial" || state === "fail")) {
+        for (const evidenceId of asArray(question.evidence_ids).map(asString).filter(Boolean)) {
+          const evidenceRecord = evidenceById.get(evidenceId);
+          if (!evidenceRecord) {
+            errors.push({ code: "UNKNOWN_EVIDENCE_ID", severity: "error", bucket: bucketName, questionId, message: `${bucketName} question ${questionId} cites evidence that is not in the registry.` });
+            continue;
+          }
+          if (
+            asString(evidenceRecord.bucketId || evidenceRecord.bucket_id) !== bucketName ||
+            asString(evidenceRecord.questionId || evidenceRecord.question_id) !== questionId
+          ) {
+            errors.push({ code: "MISMATCHED_EVIDENCE_REFERENCE", severity: "error", bucket: bucketName, questionId, message: `${bucketName} question ${questionId} cites evidence registered to another criterion.` });
+          }
+          if (asString(evidenceRecord.status) !== "confirmed") {
+            errors.push({ code: "UNCONFIRMED_EVIDENCE_REFERENCE", severity: "error", bucket: bucketName, questionId, message: `${bucketName} question ${questionId} relies on evidence that was not confirmed.` });
+          }
+        }
       }
       if ([question.evidence, question.observation, question.recommendation].some(appearsTruncated)) {
         errors.push({ code: "TRUNCATED_QUESTION_CONTENT", severity: "error", bucket: bucketName, questionId: asString(question.id), message: `${bucketName} contains an incomplete question answer.` });
@@ -387,13 +447,13 @@ export function sanitizeAuditReport(reportValue: unknown): AnyRecord {
   const report = asRecord(reportValue) ?? {};
   const requestedBuckets = selectedBucketList(report);
   const selectedNames = requestedBuckets.length
-    ? requestedBuckets
+    ? requestedBuckets.filter((bucket) => Boolean(QUESTION_BANK[bucket]?.length))
     : asArray(report.bucket_results)
         .map((bucket) => {
           const record = asRecord(bucket) ?? {};
           return canonicalBucket(record.bucket_name || record.section || record.bucket);
         })
-        .filter(Boolean);
+        .filter((bucket) => Boolean(QUESTION_BANK[bucket]?.length));
   const selected = new Set(selectedNames.map(normalizeKey));
   const rawBuckets = asArray(report.bucket_results)
     .map((bucket) => sanitizeBucket(bucket, selected))
@@ -506,10 +566,24 @@ export function exportReadinessResponse(reportValue: unknown) {
   const quality = report.report_quality as ReportQualityResult;
   const review = asRecord(report.review) ?? {};
   const reviewStatus = asString(review.status) || "pending";
+  const exportedAt = new Date().toISOString();
+  const reportWithManifest: AnyRecord = {
+    ...report,
+    export_manifest: {
+      pipeline_phase: 5,
+      exported_at: exportedAt,
+      qa_status: quality.valid ? "passed" : "exported_with_issues",
+      error_count: quality.errors.length,
+      warning_count: quality.warnings.length,
+      review_status: reviewStatus,
+      scoring_policy: "pass=1; partial=0.5; all other states=0",
+    },
+  };
   return {
-    report,
+    report: reportWithManifest,
     quality,
     reviewStatus,
+    exportWarnings: [...quality.errors, ...quality.warnings],
     exportReady: true,
   };
 }

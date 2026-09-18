@@ -367,6 +367,7 @@ export function ReportView() {
     }>
   >([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyReloadKey, setHistoryReloadKey] = useState(0);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
@@ -597,7 +598,7 @@ export function ReportView() {
     setLoadingHistory(true);
     setHistoryError(null);
 
-    fetch("/api/reports", { cache: "no-store", headers: sessionHeaders })
+    fetch("/api/reports", { cache: "default", headers: sessionHeaders })
       .then(async (res) => {
         const data = (await res.json()) as
           | { reports?: typeof reportHistory; error?: string }
@@ -617,7 +618,7 @@ export function ReportView() {
     return () => {
       cancelled = true;
     };
-  }, [rid, demo, accountReady, accountSession.email, sessionHeaders]);
+  }, [rid, demo, accountReady, accountSession.email, sessionHeaders, historyReloadKey]);
 
   useEffect(() => {
     if (!rid) return;
@@ -899,8 +900,15 @@ export function ReportView() {
             </div>
           </div>
         ) : historyError ? (
-          <div className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {historyError}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius)] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <span>{historyError}</span>
+            <button
+              type="button"
+              className="rounded-full border border-amber-400 bg-white px-4 py-2 font-medium text-amber-900 transition hover:bg-amber-100"
+              onClick={() => setHistoryReloadKey((value) => value + 1)}
+            >
+              Retry
+            </button>
           </div>
         ) : reportHistory.length === 0 ? (
           <div className="rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-8 text-center">

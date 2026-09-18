@@ -2,6 +2,7 @@ import {
   QUESTION_BANK_VERSION,
   getSelectedBucketQuestions,
 } from "@/lib/question-bank";
+import { buildAuditScope } from "@/lib/audit-scope";
 
 export type AuditSelectOption = { label: string; value: string };
 export type AuditAccessMode =
@@ -450,12 +451,30 @@ export function toWebhookPayload(payload: AuditPayload) {
 
   const auditId = `audit_${Date.now()}`;
   const selectedBucketQuestions = getSelectedBucketQuestions(payload.selectedBuckets);
+  const submittedAt = new Date().toISOString();
+  const auditScope = buildAuditScope({
+    auditId,
+    createdAt: submittedAt,
+    productName: payload.productName,
+    productUrl: payload.productUrl,
+    productType: payload.product.type,
+    primaryPlatform: primaryPlatformLabel,
+    selectedBuckets: payload.selectedBuckets,
+    pagesAndFlows: normalizedAuditFlows,
+    viewports: [primaryPlatformLabel],
+    objectives: normalizedAuditGoals,
+    accessMode: payload.accessMode,
+    loginRequired: payload.auth.requiresLogin,
+    internalRoutes,
+    guidedStepsCount: guidedCaptureSteps.length,
+  });
 
   // n8n workflow expects snake_case keys (see Parse & Validate Intake node)
   return {
     reportId: `draft_${crypto.randomUUID()}`,
     audit_id: auditId,
-    submitted_at: new Date().toISOString(),
+    submitted_at: submittedAt,
+    audit_scope: auditScope,
     product_name: payload.productName,
     product_url: payload.productUrl,
     product_type: payload.product.type,

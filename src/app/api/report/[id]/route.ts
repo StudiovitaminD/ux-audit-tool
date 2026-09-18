@@ -310,6 +310,7 @@ export async function PATCH(
     await ref.set(
       {
         report: sanitizedReport,
+        canonical_report_version: "phase-3-v1",
         editedAt: new Date().toISOString(),
         user_edited: true,
       },

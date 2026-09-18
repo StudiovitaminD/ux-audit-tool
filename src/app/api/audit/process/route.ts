@@ -18,6 +18,7 @@ import { getAuditModelForTier, PAID_AUDIT_MODEL } from "@/lib/access-control";
 import { getAccountSessionFromRequest } from "@/lib/account-server";
 import { reportBelongsToSession } from "@/lib/report-record";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { FieldValue } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -174,6 +175,9 @@ function compactEvidenceForStorage(evidence: EvidenceBundle | null) {
           label: pageRec.label,
           url: pageRec.url,
           title: pageRec.title,
+          capturedAt: pageRec.capturedAt,
+          viewport: pageRec.viewport,
+          deterministic: pageRec.deterministic,
           textSnippet: truncateStorageString(pageRec.textSnippet, 400),
           h1: Array.isArray(pageRec.h1) ? pageRec.h1.slice(0, 4).map((item) => truncateStorageString(item, 80)) : [],
           topNavLinks: Array.isArray(pageRec.topNavLinks)
@@ -205,7 +209,15 @@ function compactEvidenceForStorage(evidence: EvidenceBundle | null) {
     : [];
 
   const screenshots = Array.isArray(rec.screenshots)
-    ? rec.screenshots.slice(0, 0)
+    ? rec.screenshots.slice(0, 20).map((item) => {
+        const shot = asRecord(item) ?? {};
+        const url = typeof shot.url === "string" && !shot.url.startsWith("data:") ? shot.url : "";
+        return {
+          ...shot,
+          url,
+          visibleTextSummary: truncateStorageString(shot.visibleTextSummary, 500),
+        };
+      }).filter((shot) => shot.url)
     : [];
   const warnings = Array.isArray(rec.warnings)
     ? rec.warnings.slice(0, 20).map((item) => truncateStorageString(item, 240))
@@ -213,10 +225,32 @@ function compactEvidenceForStorage(evidence: EvidenceBundle | null) {
   const coverage = asRecord(rec.coverage) ?? {};
   const evidenceSummary = asRecord(coverage.evidenceSummary) ?? {};
   const debug = asRecord(rec.debug) ?? {};
+  const evidencePlan = asRecord(rec.evidencePlan) ?? null;
+  const evidenceRecords = Array.isArray(rec.evidenceRecords)
+    ? rec.evidenceRecords.slice(0, 400).map((item) => {
+        const record = asRecord(item) ?? {};
+        return {
+          evidenceId: record.evidenceId,
+          bucketId: record.bucketId,
+          questionId: record.questionId,
+          kind: record.kind,
+          pageUrl: truncateStorageString(record.pageUrl, 220),
+          viewport: record.viewport,
+          testMethod: record.testMethod,
+          observedAt: record.observedAt,
+          status: record.status,
+          observation: truncateStorageString(record.observation, 400),
+          screenshotUrl: record.screenshotUrl,
+          measuredValues: record.measuredValues,
+        };
+      })
+    : [];
 
   return {
     pages,
     screenshots,
+    evidencePlan,
+    evidenceRecords,
     warnings,
     coverage: {
       ...coverage,
@@ -258,6 +292,43 @@ function compactEvidenceForStorage(evidence: EvidenceBundle | null) {
         : [],
     },
   };
+}
+
+async function persistEvidenceScreenshots(auditId: string, evidence: EvidenceBundle | null) {
+  if (!evidence?.screenshots?.length) return evidence;
+  const dataShots = evidence.screenshots.filter((shot) => shot.url.startsWith("data:image/"));
+  if (!dataShots.length) return evidence;
+  try {
+    const { getStorage } = await import("firebase-admin/storage");
+    const bucket = getStorage().bucket();
+    const replacements = new Map<string, string>();
+    await Promise.all(
+      dataShots.slice(0, 20).map(async (shot, index) => {
+        const originalUrl = shot.url;
+        const match = originalUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+        if (!match) return;
+        const extension = match[1].includes("jpeg") ? "jpg" : "png";
+        const path = `audit-evidence/${auditId}/${String(index + 1).padStart(2, "0")}-${Date.now()}.${extension}`;
+        const file = bucket.file(path);
+        await file.save(Buffer.from(match[2], "base64"), {
+          contentType: match[1],
+          public: false,
+          metadata: { cacheControl: "private, max-age=31536000" },
+        });
+        const [url] = await file.getSignedUrl({ action: "read", expires: "2035-01-01T00:00:00.000Z" });
+        replacements.set(originalUrl, url);
+        shot.url = url;
+      }),
+    );
+    for (const record of evidence.evidenceRecords || []) {
+      if (record.screenshotUrl && replacements.has(record.screenshotUrl)) {
+        record.screenshotUrl = replacements.get(record.screenshotUrl);
+      }
+    }
+  } catch (error) {
+    evidence.warnings.push(`Screenshot persistence was unavailable: ${getErrorMessage(error)}`);
+  }
+  return evidence;
 }
 
 function compactBucketResultForStorage(bucket: BucketResult) {
@@ -632,6 +703,7 @@ export async function POST(req: Request) {
         { merge: true },
       );
       evidence = await prepareEvidence(intakeObj);
+      evidence = await persistEvidenceScreenshots(ref.id, evidence as EvidenceBundle | null);
       const latestAfterPrepare = await ref.get();
       if (isCancelledDoc(latestAfterPrepare.data() ?? {})) {
         return Response.json({ status: "cancelled" });
@@ -846,17 +918,18 @@ export async function POST(req: Request) {
               currentBucketStartedAt: null,
             }),
             report,
-            bucketResults: safeResults.map(compactBucketResultForStorage),
-            evidence: compactEvidenceForStorage(evidenceBundle),
-            overall_score: report.overall_score ?? null,
-            overall_health: report.overall_health ?? null,
-            overall_risk: report.overall_risk ?? null,
-            audit_mode: report.audit_mode ?? null,
-            coverage_status: report.coverage_status ?? null,
-            ux_score_eligible: report.ux_score_eligible ?? null,
-            questions_scoreable: report.questions_scoreable ?? null,
-            questions_total: report.questions_total ?? null,
-            scorecard: Array.isArray(report.scorecard) ? report.scorecard : [],
+            canonical_report_version: "phase-3-v1",
+            bucketResults: FieldValue.delete(),
+            evidence: FieldValue.delete(),
+            overall_score: FieldValue.delete(),
+            overall_health: FieldValue.delete(),
+            overall_risk: FieldValue.delete(),
+            audit_mode: FieldValue.delete(),
+            coverage_status: FieldValue.delete(),
+            ux_score_eligible: FieldValue.delete(),
+            questions_scoreable: FieldValue.delete(),
+            questions_total: FieldValue.delete(),
+            scorecard: FieldValue.delete(),
             captureDebug: {
               phase: "report_complete",
               ...payloadDebug,

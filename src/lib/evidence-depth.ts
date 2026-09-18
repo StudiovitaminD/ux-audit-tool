@@ -82,7 +82,10 @@ function pageObservation(page: EvidencePage, kind: EvidenceKind) {
     return { status: "confirmed" as const, text: measured.zoom.horizontalOverflow ? `Horizontal overflow was measured at ${measured.zoom.scale * 100}% layout zoom.` : `No horizontal overflow was measured at ${measured.zoom.scale * 100}% layout zoom.` };
   }
   if (kind === "accessibility_tree" && measured?.semantics?.tested) {
-    return { status: "confirmed" as const, text: `${measured.semantics.landmarks} landmarks; ${measured.semantics.unlabeledControls} unlabeled controls; ${measured.semantics.imagesMissingAlt} images missing alt text.` };
+    const axeText = measured.axe?.tested
+      ? ` Axe found ${measured.axe.violations} rule violations (${measured.axe.critical} critical, ${measured.axe.serious} serious).`
+      : "";
+    return { status: "confirmed" as const, text: `${measured.semantics.landmarks} landmarks; ${measured.semantics.unlabeledControls} unlabeled controls; ${measured.semantics.imagesMissingAlt} images missing alt text.${axeText}` };
   }
   if (kind === "form_state" && measured?.forms?.tested) {
     return { status: "confirmed" as const, text: `${measured.forms.formCount} forms; ${measured.forms.requiredFields} required fields; ${measured.forms.unlabeledFields} unlabeled fields; ${measured.forms.statusRegions} status regions.` };
@@ -95,20 +98,83 @@ function pageObservation(page: EvidencePage, kind: EvidenceKind) {
   return { status: "blocked" as const, text: `${kind.replaceAll("_", " ")} was not deterministically tested.` };
 }
 
+function measuredValuesFor(
+  page: EvidencePage | null,
+  kind: EvidenceKind,
+): Record<string, number | string | boolean> | undefined {
+  const deterministic = page?.deterministic;
+  if (!deterministic) return undefined;
+  if (kind === "performance" && deterministic.performance?.tested) {
+    return {
+      domContentLoadedMs: deterministic.performance.domContentLoadedMs,
+      loadMs: deterministic.performance.loadMs,
+      requestCount: deterministic.performance.requestCount,
+    };
+  }
+  if (kind === "contrast" && deterministic.contrast?.tested) {
+    return {
+      samplesTested: deterministic.contrast.samplesTested,
+      failures: deterministic.contrast.failures,
+    };
+  }
+  if (kind === "keyboard" && deterministic.keyboard?.tested) {
+    return {
+      focusableCount: deterministic.keyboard.focusableCount,
+      visibleFocusCount: deterministic.keyboard.visibleFocusCount,
+    };
+  }
+  if (kind === "responsive" && deterministic.responsive?.tested) {
+    return { horizontalOverflow: deterministic.responsive.horizontalOverflow };
+  }
+  if (kind === "zoom" && deterministic.zoom?.tested) {
+    return {
+      scale: deterministic.zoom.scale,
+      horizontalOverflow: deterministic.zoom.horizontalOverflow,
+    };
+  }
+  if (kind === "accessibility_tree" && deterministic.semantics?.tested) {
+    return {
+      landmarks: deterministic.semantics.landmarks,
+      unlabeledControls: deterministic.semantics.unlabeledControls,
+      imagesMissingAlt: deterministic.semantics.imagesMissingAlt,
+      axeViolations: deterministic.axe?.violations ?? 0,
+      axeCritical: deterministic.axe?.critical ?? 0,
+      axeSerious: deterministic.axe?.serious ?? 0,
+    };
+  }
+  if (kind === "form_state" && deterministic.forms?.tested) {
+    return {
+      formCount: deterministic.forms.formCount,
+      requiredFields: deterministic.forms.requiredFields,
+      unlabeledFields: deterministic.forms.unlabeledFields,
+      statusRegions: deterministic.forms.statusRegions,
+    };
+  }
+  if (kind === "reduced_motion" && deterministic.reducedMotion?.tested) {
+    return {
+      animationsDetected: deterministic.reducedMotion.animationsDetected,
+      mediaQueryMatched: deterministic.reducedMotion.mediaQueryMatched,
+    };
+  }
+  return undefined;
+}
+
 export function attachEvidenceDepth(bundle: EvidenceBundle, plan: EvidencePlan): EvidenceBundle {
   const pages = bundle.pages || [];
   const screenshots = (bundle.screenshots || []).filter((shot) => shot.isValidAuditEvidence !== false);
   const records: EvidenceRecord[] = [];
   for (const requirement of plan.requirements) {
     for (const kind of requirement.kinds) {
-      const sources = pages.length ? pages : [null];
+      // Two representative pages preserve cross-page proof without overflowing the report document.
+      const sources = pages.length ? pages.slice(0, 2) : [null];
       sources.forEach((page, pageIndex) => {
         const screenshot = screenshots[pageIndex] || screenshots[0];
         const result = page
           ? pageObservation(page, kind)
           : kind === "screenshot" && screenshot
-            ? { status: "inconclusive" as const, text: `Visual capture "${screenshot.label || "uploaded screenshot"}" is available for inspection.` }
+            ? { status: "confirmed" as const, text: `Visual capture "${screenshot.label || "uploaded screenshot"}" is available for inspection.` }
             : { status: "blocked" as const, text: "No page evidence was captured." };
+        const screenshotConfirmed = kind === "screenshot" && Boolean(screenshot?.url) && screenshot?.isValidAuditEvidence !== false;
         records.push({
           evidenceId: `ev-${requirement.questionId.toLowerCase()}-${kind.replaceAll("_", "-")}-p${pageIndex + 1}`,
           bucketId: requirement.bucketId,
@@ -116,13 +182,14 @@ export function attachEvidenceDepth(bundle: EvidenceBundle, plan: EvidencePlan):
           kind,
           pageUrl: page?.url || "",
           viewport: page?.viewport || screenshot?.viewport,
-          testMethod: result.status === "confirmed" ? "deterministic_browser_measurement" : kind === "screenshot" ? "visual_capture" : "not_executed",
+          testMethod: kind === "screenshot" ? "visual_capture" : result.status === "confirmed" ? "deterministic_browser_measurement" : "not_executed",
           observedAt: page?.capturedAt || screenshot?.capturedAt || plan.generatedAt,
-          status: result.status,
+          status: screenshotConfirmed ? "confirmed" : result.status,
           observation: kind === "screenshot" && screenshot
             ? `${result.text} Screen: ${screenshot.screenName || screenshot.title || screenshot.label}; heading: ${screenshot.heading || "not captured"}; visible content: ${screenshot.visibleTextSummary || "not summarized"}.`
             : result.text,
           screenshotUrl: kind === "screenshot" ? screenshot?.url : undefined,
+          measuredValues: measuredValuesFor(page, kind),
         });
       });
     }
@@ -139,6 +206,8 @@ export function evidenceConfidence(records: EvidenceRecord[]) {
   const confirmed = records.filter((record) => record.status === "confirmed");
   if (!confirmed.length) return 0;
   const measured = confirmed.filter((record) => record.testMethod === "deterministic_browser_measurement").length;
+  const visual = confirmed.filter((record) => record.testMethod === "visual_capture").length;
   const coverage = confirmed.length / records.length;
-  return Math.min(1, Number((coverage * (measured ? 0.95 : 0.65)).toFixed(2)));
+  const reliability = measured ? 0.95 : visual ? 0.75 : 0.65;
+  return Math.min(1, Number((coverage * reliability).toFixed(2)));
 }

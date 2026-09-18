@@ -12,6 +12,7 @@ import { normalizeAnswerState, normalizeQuestionAnswer, scoreQuestions } from ".
 import { buildRecommendationGuidanceContext } from "../../shared/ux-guidance";
 import { runMultiAgentAudit, type MultiAgentResult } from "@/lib/multi-agent-audit";
 import { sanitizeAuditReport } from "@/lib/report-quality";
+import { industryWritingRules } from "@/lib/senior-content";
 import {
   attachEvidenceDepth,
   buildEvidencePlan,
@@ -336,6 +337,23 @@ function chunkArray<T>(items: T[], size: number) {
     chunks.push(items.slice(index, index + chunkSize));
   }
   return chunks;
+}
+
+function parseJsonObject(raw: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        const parsed = JSON.parse(raw.slice(start, end + 1));
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+      } catch {}
+    }
+    return {};
+  }
 }
 
 function compactIntakeForModel(intake: Intake) {
@@ -808,7 +826,7 @@ async function completeMissingQuestions(args: {
   if (!missingQuestions.length) return args.existingQuestions;
 
   const parsedById = new Map<string, Record<string, unknown>>();
-  const missingQuestionChunks = chunkArray(missingQuestions, 2);
+  const missingQuestionChunks = chunkArray(missingQuestions, missingQuestions.length);
 
   for (const questionChunk of missingQuestionChunks) {
     const missingPrompt = `You are completing missing UX audit answers for one bucket.
@@ -892,6 +910,63 @@ ${criterionEvidencePacket(args.evidence, args.bucket, questionChunk)}
       confidence: 0,
     };
   });
+}
+
+async function reviewAndRepairBucketQuestions(args: {
+  intake: Intake;
+  bucket: string;
+  questions: Array<Record<string, unknown>>;
+  expectedQuestions: BucketQuestion[];
+  evidence: EvidenceBundle | null;
+  modelOverride?: string;
+}) {
+  const strongerModel = process.env.OPENROUTER_VISUAL_REVIEW_MODEL?.trim() || "openai/gpt-4.1";
+  const validQuestionIds = new Set(args.expectedQuestions.map((question) => question.id));
+  try {
+    const reviewPrompt = `You are the senior reviewer for one complete UX audit bucket.
+
+Bucket: ${args.bucket}
+
+Review every answer together for consistency. Flag only question IDs that must be regenerated because the answer is unsupported, contradictory, incomplete, uses the wrong evidence, confuses a limitation with a defect, or has confidence below 0.55 for an ambiguous visual judgment. Do not rewrite answers and do not change scores yourself.
+
+Return JSON only: {"failed_question_ids":["Q01"],"reasons":[{"id":"Q01","reason":"..."}]}
+
+Canonical questions:
+${JSON.stringify(args.expectedQuestions.map(({ id, question }) => ({ id, question })))}
+
+Candidate answers:
+${JSON.stringify(args.questions)}
+
+Evidence registry:
+${JSON.stringify((args.evidence?.evidenceRecords || []).filter((record) => record.bucketId === args.bucket)).slice(0, 18000)}`;
+    const reviewed = parseJsonObject(
+      await openRouterChat(reviewPrompt, {
+        modelOverride: strongerModel,
+        maxTokens: 1800,
+        imageUrls: (args.evidence?.screenshots || [])
+          .filter((item) => item.isValidAuditEvidence !== false)
+          .map((item) => item.url)
+          .filter(Boolean)
+          .slice(0, 4),
+      }),
+    );
+    const failedIds = new Set(
+      (Array.isArray(reviewed.failed_question_ids) ? reviewed.failed_question_ids : [])
+        .map(String)
+        .filter((id) => validQuestionIds.has(id)),
+    );
+    if (!failedIds.size) return args.questions;
+    return completeMissingQuestions({
+      intake: args.intake,
+      bucket: args.bucket,
+      expectedQuestions: args.expectedQuestions,
+      existingQuestions: args.questions.filter((question) => !failedIds.has(String(question.id || ""))),
+      evidence: args.evidence,
+      modelOverride: strongerModel,
+    });
+  } catch {
+    return args.questions;
+  }
 }
 
 function safeJsonParse(raw: string): unknown | null {
@@ -1576,12 +1651,14 @@ async function writeNarrative(args: {
   const compactIntake = compactIntakeForModel(args.intake);
   const compactEvidence = narrativeEvidenceSummary(args.evidence);
   const competitorSeeds = parseCompetitorsFromIntakeText(args.intake.competitors);
+  const industryRules = industryWritingRules(args.intake.product_type);
 
   const prompt = `You are a principal UX strategist writing a client-ready audit report.\n\nUse ONLY:\n1) intake context\n2) evidence capture text (headings/nav/text snippets)\n3) scored bucket findings/improvements\n4) competitor seeds\n${args.editContext ? "5) edited question changes from the report editor\\n" : ""}\nHard rules:\n- Do not invent screens or features not supported by evidence.\n- Do not write filler or score-only narrative like "Bucket scored 43/100" unless it directly supports a decision.\n- Executive summary must be specific, action-led, and useful for a client stakeholder.\n- Section narratives must explain what is happening and what to do next in bullet-ready sentences.\n- Competitor analysis must return real per-competitor positioning, CTA, strengths, gaps, and steal_this ideas based on compare_focus and available context. If truly unknown, return empty strings/arrays instead of generic placeholders.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON matching this schema:\n{\n  \"executive_summary\": {\n    \"one_line_verdict\": \"...\",\n    \"strongest_area\": \"...\",\n    \"main_issue\": \"...\",\n    \"top_problems\": [\"...\"],\n    \"whats_working\": [\"...\"],\n    \"first_priority\": [\"...\"],\n    \"top_3_quick_wins\": [\"...\"],\n    \"first_priority_recommendation\": \"...\"\n  },\n  \"overall_assessment\": \"...\",\n  \"top_risks\": [\"...\"],\n  \"quick_wins\": [{\"title\":\"...\",\"why\":\"...\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"recommendations\": [{\"title\":\"...\",\"details\":\"...\",\"priority\":\"P1|P2|P3|P4\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"strategic_insights\": [\"...\"],\n  \"per_bucket_notes\": [{\"bucket\":\"...\",\"summary\":\"...\",\"biggest_risk\":\"...\",\"best_opportunity\":\"...\"}],\n  \"section_narrative\": {\n    \"delight_narrative\": [\"...\"],\n    \"impact_narrative\": [\"...\"],\n    \"accessibility_narrative\": [\"...\"]\n  },\n  \"competitor_analysis\": {\n    \"competitors\": [{\"name\":\"...\",\"url\":\"...\",\"compare_focus\":\"...\",\"positioning\":\"...\",\"primary_cta\":\"...\",\"strengths\":[\"...\"],\"gaps\":[\"...\"],\"steal_this\":[\"...\"]}]\n  }\n}\n\nIntake:\n${JSON.stringify(compactIntake, null, 2)}\n\nCompetitor seeds:\n${JSON.stringify(competitorSeeds, null, 2)}\n\n${args.editContext ? `Edited question changes:\n${args.editContext}\n` : ""}Evidence:\n${compactEvidence}\n\nScored buckets:\n${JSON.stringify(compactBuckets, null, 2)}\n\nOverall score: ${args.overall_score}\n`;
 
   const contentWriterRules = `\n\nContent Writer Agent rules:\n- Preserve every score, answer state, pillar, and evidence record exactly.\n- Top Problems may contain only verified product defects supported by evidence. Each item must state the observed issue, user consequence, and practical action.\n- Begin every top_problems and whats_working item with the specific screen or component followed by a colon. When a visible button or CTA has a name, use that exact name in the label, for example "“Submit” Button: The label does not explain what happens next." Otherwise use a label such as "Contact Form:" or "Navigation:".\n- Never present missing evidence, untested states, unavailable screens, or inability to determine something as a product problem.\n- What's Working may contain only clearly positive, evidence-backed behavior. Exclude mixed or negative statements.\n- Keep coverage limitations separate from product findings.\n- Remove duplicates, contradictions, generic filler, and unsupported claims.\n- Performance/Impact covers loading, DOM readiness, runtime responsiveness, asset efficiency, and mobile performance only; never mix in business metrics.\n- Write for a reader with no UX, design, accessibility, or engineering knowledge.\n- Prefer familiar everyday words. Replace or briefly explain technical terms such as DOM readiness, cognitive load, affordance, hierarchy, latency, and interaction state.\n- Use short, direct sentences and one idea per sentence. Do not use vague consultant language.`;
   const bucketContentSchema = `\n\nFor every item in per_bucket_notes, also return top_problems and whats_working arrays. top_problems must contain only verified defects. whats_working must contain only verified positive behavior. Return empty arrays when no valid content exists.`;
-  const plainLanguagePrompt = `${prompt}${contentWriterRules}${bucketContentSchema}\n\nWriting requirement: Use clear layman's language that an everyday user can understand on the first read. Clearly state what is wrong, how it affects the user, and what should be done next.`;
+  const phaseFourRules = `\n\nSenior content contract:\n- You are a prose-only agent. Never return or modify scores, marks, answer states, priorities, evidence IDs, or question IDs.\n- Keep context_label, observation, consequence, and recommendation as separate fields for every problem.\n- Industry-specific rules:\n${industryRules.map((rule) => `  - ${rule}`).join("\n")}`;
+  const plainLanguagePrompt = `${prompt}${contentWriterRules}${bucketContentSchema}${phaseFourRules}\n\nWriting requirement: Use clear layman's language that an everyday user can understand on the first read. Clearly state what is wrong, how it affects the user, and what should be done next.`;
 
   const schemaHint =
     '{ "executive_summary": {"one_line_verdict":"...","strongest_area":"...","main_issue":"...","top_problems":["..."],"whats_working":["..."],"first_priority":["..."],"top_3_quick_wins":["..."],"first_priority_recommendation":"..."}, "overall_assessment": "...", "top_risks": ["..."], "quick_wins": [{"title":"...","why":"...","effort":"S|M|L","impact":"Low|Med|High"}], "recommendations": [{"title":"...","details":"...","priority":"P1|P2|P3|P4","effort":"S|M|L","impact":"Low|Med|High"}], "strategic_insights": ["..."], "per_bucket_notes": [{"bucket":"...","summary":"...","biggest_risk":"...","best_opportunity":"..."}], "section_narrative": {"delight_narrative":["..."],"impact_narrative":["..."],"accessibility_narrative":["..."]}, "competitor_analysis": {"competitors":[{"name":"...","url":"...","compare_focus":"...","positioning":"...","primary_cta":"...","strengths":["..."],"gaps":["..."],"steal_this":["..."]}] } }';
@@ -2569,10 +2646,7 @@ export async function prepareEvidence(intake: Intake) {
     screenshotDataUrl: null,
     pages: normalizedPages,
     screenshots: Array.isArray(evidence.screenshots)
-      ? evidence.screenshots.map((shot) => ({
-          label: shot.label,
-          url: "",
-        }))
+      ? evidence.screenshots.map((shot) => ({ ...shot }))
       : [],
     auth: evidence.auth
       ? {
@@ -2641,7 +2715,8 @@ export async function auditOneBucket(args: {
   const parsedQuestionsById = new Map<string, Record<string, unknown>>();
   let parsedPillar = PILLAR_MAP[bucket] || "Impact";
   let parsedScoreRationale: Record<string, unknown> | null = null;
-  const questionChunks = chunkArray(qs, 2);
+  // A complete bucket must be reasoned about as one system, not as isolated pairs.
+  const questionChunks = qs.length ? [qs] : [];
 
   for (const questionChunk of questionChunks) {
     const criterionEvidence = criterionEvidencePacket(evidence, bucket, questionChunk);
@@ -2663,6 +2738,7 @@ export async function auditOneBucket(args: {
       raw = await openRouterChat(prompt, {
         modelOverride: args.modelOverride,
         imageUrls: visualEvidenceUrls,
+        maxTokens: 5000,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -2778,6 +2854,18 @@ export async function auditOneBucket(args: {
       };
     }
   }
+
+  parsed = {
+    ...parsed,
+    questions: await reviewAndRepairBucketQuestions({
+      intake,
+      bucket,
+      questions: parsed.questions,
+      expectedQuestions: qs,
+      evidence,
+      modelOverride: args.modelOverride,
+    }),
+  };
 
   const parsedQuestionInputs = Array.isArray(parsed.questions) ? parsed.questions : [];
   const questions: Array<BucketResult["questions"][number] & {
@@ -3072,14 +3160,20 @@ export async function finalizeAudit(args: {
   const sectionNarrativeFallback = deriveSectionNarrativeFromBuckets(onlyResults);
   const competitors = parseCompetitorsFromIntakeText(args.intake.competitors);
   const selectedBuckets = getSelectedBuckets(args.intake);
-  const auditConfidence = onlyResults.length
+  const evaluatedQuestions = onlyResults.flatMap((bucket) => bucket.questions).filter(
+    (question) => question.answer_status === "answered" && typeof question.mark === "number",
+  );
+  const auditConfidence = evaluatedQuestions.length
     ? Math.round(
-        onlyResults.reduce(
-          (sum, bucket) => sum + (scoreQuestions(bucket.questions).confidence ?? 0),
-          0,
-        ) / onlyResults.length,
+        (evaluatedQuestions.reduce((sum, question) => sum + Number(question.confidence || 0), 0) /
+          evaluatedQuestions.length) * 100,
       )
     : null;
+  const evidenceRegistry = args.evidence?.evidenceRecords || [];
+  const confirmedEvidenceCount = evidenceRegistry.filter((record) => record.status === "confirmed").length;
+  const evidenceCoveragePercent = evidenceRegistry.length
+    ? Math.round((confirmedEvidenceCount / evidenceRegistry.length) * 100)
+    : 0;
 
   const byPriority = (p: string) =>
     onlyResults.filter((b) => b.priority === p).map((b) => b.bucket_name);
@@ -3123,6 +3217,15 @@ export async function finalizeAudit(args: {
     selected_buckets: selectedBuckets,
     selectedBuckets,
     audit_confidence: auditConfidence,
+    evidence_plan: args.evidence?.evidencePlan || null,
+    evidence_registry: evidenceRegistry,
+    evidence_coverage: {
+      total: evidenceRegistry.length,
+      confirmed: confirmedEvidenceCount,
+      inconclusive: evidenceRegistry.filter((record) => record.status === "inconclusive").length,
+      blocked: evidenceRegistry.filter((record) => record.status === "blocked").length,
+      percent: evidenceCoveragePercent,
+    },
     audit_mode: hasCoverageShortfall
       ? "Limited Coverage Report"
       : hasScoringFailure

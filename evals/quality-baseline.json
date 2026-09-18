@@ -1,0 +1,8 @@
+{
+  "structured_finding_rate": 1,
+  "context_label_rate": 1,
+  "evidence_backed_rate": 1,
+  "complete_sentence_rate": 1,
+  "score_policy_accuracy": 1,
+  "duplicate_rate": 0
+}

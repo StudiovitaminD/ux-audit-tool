@@ -22,11 +22,28 @@ export type EvidenceAppendixItem = {
   evidence: string;
   observation: string;
   confidence: number;
+  sourceUrl: string;
+  viewport: string;
+  testMethod: string;
+  status: string;
+  observedAt: string;
+  screenshotUrl: string;
+  measuredValues: Record<string, number | string | boolean>;
 };
 
 export function buildEvidenceAppendix(reportValue: unknown): EvidenceAppendixItem[] {
   const report = record(reportValue);
   const items: EvidenceAppendixItem[] = [];
+  const nestedEvidence = record(report.evidence);
+  const registryRecords = array(report.evidence_registry).length
+    ? array(report.evidence_registry)
+    : array(nestedEvidence.evidenceRecords);
+  const registry = new Map(
+    registryRecords
+      .map(record)
+      .map((item) => [text(item.evidenceId || item.evidence_id), item] as const)
+      .filter(([id]) => Boolean(id)),
+  );
   for (const bucketValue of array(report.bucket_results)) {
     const bucket = record(bucketValue);
     const bucketName = text(bucket.bucket_name || bucket.section || bucket.bucket);
@@ -34,34 +51,42 @@ export function buildEvidenceAppendix(reportValue: unknown): EvidenceAppendixIte
       const question = record(questionValue);
       const state = text(question.answer_state || question.selected_option_state);
       if (!["pass", "partial", "fail"].includes(state)) continue;
-      const evidenceId = array(question.evidence_ids).map(text).find(Boolean);
-      if (!evidenceId) continue;
-      items.push({
-        evidenceId,
-        bucket: bucketName,
-        questionId: text(question.id),
-        question: text(question.question),
-        evidence: text(question.evidence),
-        observation: text(question.observation),
-        confidence: Number(question.confidence) || 0,
-      });
+      const evidenceIds = array(question.evidence_ids).map(text).filter(Boolean);
+      for (const evidenceId of evidenceIds) {
+        const source = registry.get(evidenceId) || {};
+        items.push({
+          evidenceId,
+          bucket: bucketName,
+          questionId: text(question.id),
+          question: text(question.question),
+          evidence: text(question.evidence),
+          observation: text(source.observation) || text(question.observation),
+          confidence: Number(question.confidence) || 0,
+          sourceUrl: text(source.pageUrl || source.page_url),
+          viewport: text(source.viewport),
+          testMethod: text(source.testMethod || source.test_method) || "captured_evidence",
+          status: text(source.status) || "confirmed",
+          observedAt: text(source.observedAt || source.observed_at),
+          screenshotUrl: text(source.screenshotUrl || source.screenshot_url),
+          measuredValues: record(source.measuredValues || source.measured_values) as Record<string, number | string | boolean>,
+        });
+      }
     }
   }
   return items
     .filter(
       (item, index) =>
-        items.findIndex(
-          (candidate) => candidate.bucket === item.bucket && candidate.questionId === item.questionId,
-        ) === index,
+        items.findIndex((candidate) => candidate.evidenceId === item.evidenceId) === index,
     )
     .sort((a, b) => b.confidence - a.confidence)
-    .slice(0, 24);
+    .slice(0, 60);
 }
 
 export function buildMethodology(reportValue: unknown) {
   const report = record(reportValue);
   const intake = record(report.intake);
   const coverage = record(report.capture_coverage || report.captureCoverage);
+  const evidenceCoverage = record(report.evidence_coverage);
   return {
     framework: "Selected UX audit criteria are evaluated from captured browser, DOM, interaction, screenshot, and timing evidence. Criteria without sufficient evidence are marked Not Tested, score 0 under the selected scoring policy, and are listed separately as testing limitations rather than product defects.",
     selectedBuckets: array(report.selected_buckets || intake.selected_buckets).map(text).filter(Boolean),
@@ -72,6 +97,9 @@ export function buildMethodology(reportValue: unknown) {
     questionsTotal: Number(report.questions_total) || 0,
     questionsScoreable: Number(report.questions_scoreable) || 0,
     generatedAt: text(report.generated_at) || new Date().toISOString(),
+    evidenceTotal: Number(evidenceCoverage.total) || 0,
+    evidenceConfirmed: Number(evidenceCoverage.confirmed) || 0,
+    evidenceCoveragePercent: Number(evidenceCoverage.percent) || 0,
   };
 }
 

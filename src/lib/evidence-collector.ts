@@ -1,4 +1,5 @@
 import { type BrowserContext, type Page } from "playwright-core";
+import axe from "axe-core";
 import {
   createBrowserProvider,
   getBrowserProviderDiagnostics,
@@ -40,6 +41,7 @@ export type EvidencePage = {
     reducedMotion?: { tested: boolean; mediaQueryMatched: boolean; animationsDetected: number };
     performance?: { tested: boolean; domContentLoadedMs: number; loadMs: number; requestCount: number; transferSize: number };
     forms?: { tested: boolean; formCount: number; requiredFields: number; unlabeledFields: number; statusRegions: number };
+    axe?: { tested: boolean; violations: number; critical: number; serious: number; passes: number };
   };
 };
 
@@ -1031,6 +1033,25 @@ async function settlePage(page: Page) {
 }
 
 async function extractPageEvidence(page: Page): Promise<EvidencePage> {
+  const axeResult = await (async () => {
+    try {
+      await page.addScriptTag({ content: axe.source });
+      return await page.evaluate(async () => {
+        const runner = (window as unknown as { axe?: { run: (context?: unknown, options?: unknown) => Promise<{ violations: Array<{ impact?: string | null }>; passes: unknown[] }> } }).axe;
+        if (!runner) return { tested: false, violations: 0, critical: 0, serious: 0, passes: 0 };
+        const result = await runner.run(document, { resultTypes: ["violations", "passes"] });
+        return {
+          tested: true,
+          violations: result.violations.length,
+          critical: result.violations.filter((item) => item.impact === "critical").length,
+          serious: result.violations.filter((item) => item.impact === "serious").length,
+          passes: result.passes.length,
+        };
+      });
+    } catch {
+      return { tested: false, violations: 0, critical: 0, serious: 0, passes: 0 };
+    }
+  })();
   const data = await page.evaluate(() => {
     const take = (sel: string, max: number) =>
       Array.from(document.querySelectorAll(sel))
@@ -1233,7 +1254,7 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
     tableHeaders: (data.tableHeaders || []).map(safeText).filter(Boolean),
     emptyStateHints: (data.emptyStateHints || []).map(safeText).filter(Boolean),
     textSnippet: truncate(String(data.mainText || "")),
-    deterministic: { ...data.deterministic, keyboard, zoom },
+    deterministic: { ...data.deterministic, keyboard, zoom, axe: axeResult },
   };
 }
 
@@ -1258,6 +1279,77 @@ function addEvidencePage(pages: EvidencePage[], entry: EvidencePage) {
 async function captureScreenshotDataUrl(page: Page) {
   const buf = await page.screenshot({ fullPage: true });
   return `data:image/png;base64,${buf.toString("base64")}`;
+}
+
+async function captureSupplementaryStates(
+  page: Page,
+  label: string,
+  screenshots: EvidenceScreenshot[],
+  warnings: string[],
+) {
+  const originalViewport = page.viewportSize() || { width: 1400, height: 900 };
+  const pushCapture = async (stateLabel: string, screenType: string) => {
+    const image = await captureScreenshotDataUrl(page);
+    screenshots.push({
+      evidenceId: `shot-${Date.now()}-${screenshots.length}`,
+      capturedAt: new Date().toISOString(),
+      label: `${label} · ${stateLabel}`,
+      url: image,
+      source: "auto_explore",
+      screenName: label,
+      screenType,
+      viewport: `${page.viewportSize()?.width || originalViewport.width}x${page.viewportSize()?.height || originalViewport.height}`,
+      relatedStep: stateLabel,
+      isValidAuditEvidence: true,
+    });
+  };
+
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(250);
+    await pushCapture("Mobile", "mobile");
+  } catch (error) {
+    warnings.push(`Mobile recapture failed for ${label}: ${getErrorMessage(error)}`);
+  } finally {
+    await page.setViewportSize(originalViewport).catch(() => {});
+  }
+
+  const safeControl = page.locator("[aria-expanded], [role='tab'], summary").filter({ visible: true }).first();
+  if (await safeControl.count().catch(() => 0)) {
+    try {
+      await safeControl.hover();
+      await pushCapture("Hover", "hover_state");
+      await safeControl.focus();
+      await pushCapture("Keyboard focus", "focus_state");
+      await safeControl.click({ timeout: 3000 });
+      await page.waitForTimeout(250);
+      await pushCapture("Expanded or active", "active_state");
+      await page.keyboard.press("Escape").catch(() => {});
+    } catch (error) {
+      warnings.push(`Interaction-state recapture was incomplete for ${label}: ${getErrorMessage(error)}`);
+    }
+  }
+
+  const disabledControl = page.locator("button:disabled, input:disabled, [aria-disabled='true']").filter({ visible: true }).first();
+  if (await disabledControl.count().catch(() => 0)) {
+    await pushCapture("Disabled control", "disabled_state").catch((error) => {
+      warnings.push(`Disabled-state recapture failed for ${label}: ${getErrorMessage(error)}`);
+    });
+  }
+
+  const emptyRequiredForm = page.locator("form:has(input[required]:invalid, textarea[required]:invalid, select[required]:invalid)").first();
+  if (await emptyRequiredForm.count().catch(() => 0)) {
+    try {
+      const submit = emptyRequiredForm.locator("button[type='submit'], input[type='submit']").first();
+      if (await submit.count()) {
+        await submit.click({ timeout: 3000 });
+        await page.waitForTimeout(200);
+        await pushCapture("Validation error", "error_state");
+      }
+    } catch (error) {
+      warnings.push(`Validation-state recapture failed for ${label}: ${getErrorMessage(error)}`);
+    }
+  }
 }
 
 async function captureCurrentPage(
@@ -1295,6 +1387,7 @@ async function captureCurrentPage(
     });
     if (validation.isValid) {
       addEvidencePage(pages, entry);
+      await captureSupplementaryStates(page, entry.label, screenshots, warnings);
     } else {
       warnings.push(`Rejected screenshot ${entry.label}: ${validation.reason}`);
     }

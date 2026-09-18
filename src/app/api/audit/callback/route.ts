@@ -549,6 +549,7 @@ export async function POST(req: Request) {
         rid: reportId,
         report_id: reportId,
         report,
+        canonical_report_version: "phase-3-v1",
       },
     );
 

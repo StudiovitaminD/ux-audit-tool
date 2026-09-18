@@ -1,0 +1,9 @@
+{
+  "minimum_case_count": 3,
+  "structured_finding_rate": 1,
+  "context_label_rate": 1,
+  "evidence_backed_rate": 1,
+  "complete_sentence_rate": 1,
+  "score_policy_accuracy": 1,
+  "maximum_duplicate_rate": 0
+}

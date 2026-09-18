@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeAuditReport } from "./report-quality";
+import { sanitizeAuditReport, validateReportQuality } from "./report-quality";
 
 function reportWithFinding(observation: string, evidence: string, recommendation: string) {
   return {
@@ -83,6 +83,8 @@ describe("sanitizeAuditReport findings", () => {
     );
 
     expect(report.all_findings).toHaveLength(1);
+    expect((report.all_findings as Array<Record<string, unknown>>)[0].context_label).toBe("Contact Form");
+    expect((report.all_findings as Array<Record<string, unknown>>)[0]).toHaveProperty("consequence");
   });
 
   it("keeps only one signal when findings describe the same problem", () => {
@@ -113,5 +115,41 @@ describe("sanitizeAuditReport findings", () => {
     const sanitized = sanitizeAuditReport(report);
 
     expect(sanitized.all_findings).toHaveLength(1);
+  });
+});
+
+describe("Phase 1 report contracts", () => {
+  it("rejects duplicate buckets and unknown questions", () => {
+    const bucket = {
+      bucket_name: "Visual Feedback",
+      questions: [{ id: "MADE_UP", answer_state: "fail", mark: 0, evidence: "Captured evidence.", evidence_ids: ["ev-1"] }],
+      findings: [],
+    };
+    const quality = validateReportQuality({
+      selected_buckets: ["Visual Feedback"],
+      bucket_results: [bucket, bucket],
+    });
+
+    expect(quality.errors.some((issue) => issue.code === "DUPLICATE_BUCKET")).toBe(true);
+    expect(quality.errors.some((issue) => issue.code === "UNKNOWN_QUESTION")).toBe(true);
+  });
+
+  it("rejects an evidence ID registered to another question", () => {
+    const report: Record<string, unknown> = reportWithFinding(
+      "The contact form uses a generic Submit label, which makes the outcome unclear.",
+      "The captured contact screen shows a button labelled Submit.",
+      "Rename the button to Send project enquiry so visitors know what happens next.",
+    );
+    report.evidence_registry = [
+      {
+        evidenceId: "icons-D41-p1",
+        bucketId: "Icons & Imagery",
+        questionId: "D42",
+        status: "confirmed",
+      },
+    ];
+
+    const quality = validateReportQuality(report);
+    expect(quality.errors.some((issue) => issue.code === "MISMATCHED_EVIDENCE_REFERENCE")).toBe(true);
   });
 });
