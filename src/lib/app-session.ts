@@ -100,19 +100,6 @@ export async function fetchAppSession(options?: { expectedStorageValue?: string 
     }
     return createDefaultSession(data.session);
   }
-  if (typeof window !== "undefined") {
-    const storedRaw = window.localStorage.getItem(SESSION_STORAGE_KEY);
-    if (storedRaw) {
-      try {
-        const stored = JSON.parse(storedRaw) as Partial<AppSession>;
-        if (stored.email && stored.email !== "guest@local.test") {
-          return createDefaultSession(stored);
-        }
-      } catch {
-        // Ignore malformed cache and fall through to guest fallback.
-      }
-    }
-  }
   const fallback = createDefaultSession();
   if (
     typeof window !== "undefined" &&

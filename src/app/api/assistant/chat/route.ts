@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { getAccountSessionFromRequest } from "@/lib/account-server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
-const DEFAULT_OPENROUTER_MODEL = "openrouter/owl-alpha";
+const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4.1-mini";
 
 const BodySchema = z.object({
   messages: z
@@ -112,14 +114,15 @@ async function sleep(ms: number) {
 
 export async function POST(req: Request) {
   try {
+    const session = await getAccountSessionFromRequest(req);
+    if (!session) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+    const rate = checkRateLimit(`assistant:${session.id}`, 30, 60 * 60_000);
+    if (!rate.allowed) return rateLimitResponse(rate.retryAfterSeconds);
     const body = BodySchema.parse(await req.json());
     const last = body.messages[body.messages.length - 1];
     const lastText = (last?.content || "").trim();
 
-    const resolvedModel =
-      process.env.OPENROUTER_ASSISTANT_MODEL ||
-      process.env.OPENROUTER_MODEL ||
-      DEFAULT_OPENROUTER_MODEL;
+    const resolvedModel = DEFAULT_OPENROUTER_MODEL;
 
     const isModelQuestion =
       last?.role === "user" &&

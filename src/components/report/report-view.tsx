@@ -523,7 +523,7 @@ export function ReportView() {
     } finally {
       processInFlightRef.current = false;
     }
-  }, [rid, status]);
+  }, [rid, sessionHeaders, status]);
 
   async function retryReportGeneration() {
     if (!reportId || retryingReport) return;
@@ -533,16 +533,17 @@ export function ReportView() {
     setLastError(null);
 
     try {
-      const res = await fetch(`/api/report/${encodeURIComponent(reportId)}/refresh`, {
+      const res = await fetch("/api/audit/process", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...sessionHeaders,
         },
+        body: JSON.stringify({ reportId }),
       });
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(data?.error || `Failed to retry report generation (${res.status})`);
-      window.location.assign(`/report?rid=${encodeURIComponent(reportId)}`);
+      router.refresh();
     } catch (error) {
       setJobError(error instanceof Error ? error.message : "Failed to retry report generation");
     } finally {
@@ -601,7 +602,7 @@ export function ReportView() {
     return () => {
       cancelled = true;
     };
-  }, [rid, demo, accountReady, accountSession.email]);
+  }, [rid, demo, accountReady, accountSession.email, sessionHeaders]);
 
   useEffect(() => {
     if (!rid) return;
@@ -758,7 +759,7 @@ export function ReportView() {
       cancelled = true;
       if (timer) window.clearInterval(timer);
     };
-  }, [rid, status, processKickCount, lastProcessKickAt, lastProcessKickReason, kickProcess]);
+  }, [rid, status, processKickCount, lastProcessKickAt, lastProcessKickReason, kickProcess, sessionHeaders]);
 
   // Keep nudging the backend while the report is still processing.
   // This heartbeat is intentionally stage-aware so `queued_next_bucket`

@@ -269,14 +269,14 @@ export const UX_AUDIT_ANSWER_STATES = [
     {
         state: "not_tested",
         label: "Not Tested",
-        score: null,
-        countsTowardBucketScore: false,
+        score: 0,
+        countsTowardBucketScore: true,
         countsTowardConfidence: true,
     },
     {
         state: "n_a",
         label: "N/A",
-        score: null,
+        score: 0,
         countsTowardBucketScore: true,
         countsTowardConfidence: false,
     },

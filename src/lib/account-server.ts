@@ -47,7 +47,7 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-const DEFAULT_ADMIN_EMAILS = new Set(["innovation@vitamin-d.in"]);
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function emailHash(email: string) {
   return createHash("sha256").update(normalizeEmail(email)).digest("hex").slice(0, 24);
@@ -58,8 +58,7 @@ function adminEmailSet() {
     String(process.env.ADMIN_EMAILS || "")
       .split(",")
       .map((item) => item.trim().toLowerCase())
-      .filter(Boolean)
-      .concat(Array.from(DEFAULT_ADMIN_EMAILS)),
+      .filter(Boolean),
   );
 }
 
@@ -143,6 +142,9 @@ export async function signUpAccount(params: {
   await db.runTransaction(async (tx) => {
     const userSnap = await tx.get(userRef);
     const existing = (userSnap.data() ?? {}) as Record<string, unknown>;
+    if (roleAndPlan.role === "admin") {
+      throw new Error("Administrator accounts must be provisioned by an existing administrator.");
+    }
     if (userSnap.exists && typeof existing.passwordHash === "string" && existing.passwordHash.trim()) {
       throw new Error("Account already exists. Please sign in.");
     }
@@ -207,27 +209,7 @@ export async function signInAccount(params: { email: string; password: string })
   const now = new Date().toISOString();
 
   if (!userSnap.exists) {
-    const roleAndPlan = resolveRoleAndPlan(email);
-    if (roleAndPlan.role !== "admin") {
-      throw new Error("Account not found. Please sign up first.");
-    }
-
-    const passwordHash = hashPassword(params.password);
-    await userRef.set(
-      {
-        email,
-        name: email.split("@")[0] || "User",
-        role: roleAndPlan.role,
-        plan: roleAndPlan.plan,
-        reportsUsed: 0,
-        reportLimit: FREE_REPORT_LIMIT,
-        passwordHash,
-        createdAt: now,
-        updatedAt: now,
-        lastLoginAt: now,
-      },
-      { merge: true },
-    );
+    throw new Error("Account not found. Please sign up first.");
   } else {
     const rec = (userSnap.data() ?? {}) as Record<string, unknown>;
     const passwordHash = typeof rec.passwordHash === "string" ? rec.passwordHash : "";
@@ -265,22 +247,26 @@ export function getCookie(req: Request, name: string) {
 
 export async function getAccountSessionFromRequest(req: Request): Promise<AccountSession | null> {
   const sid = getCookie(req, ACCOUNT_SESSION_COOKIE);
-  if (sid) {
-    const db = getAdminFirestore();
-    const sessionSnap = await db.collection(SESSION_COLLECTION).doc(sid).get();
-    if (sessionSnap.exists) {
-      const sessionData = (sessionSnap.data() ?? {}) as Record<string, unknown>;
-      const userId = typeof sessionData.userId === "string" ? sessionData.userId : "";
-      if (userId) {
-        const userSnap = await db.collection(USER_COLLECTION).doc(userId).get();
-        if (userSnap.exists) {
-          return sessionFromUserRecord(userId, (userSnap.data() ?? {}) as Record<string, unknown>);
-        }
-      }
-    }
-  }
+  return sid ? getAccountSessionById(sid) : null;
+}
 
-  return null;
+export async function getAccountSessionById(sid: string): Promise<AccountSession | null> {
+  const db = getAdminFirestore();
+  const sessionRef = db.collection(SESSION_COLLECTION).doc(sid);
+  const sessionSnap = await sessionRef.get();
+  if (!sessionSnap.exists) return null;
+  const sessionData = (sessionSnap.data() ?? {}) as Record<string, unknown>;
+  const createdAt = typeof sessionData.createdAt === "string" ? Date.parse(sessionData.createdAt) : NaN;
+  if (!Number.isFinite(createdAt) || Date.now() - createdAt > SESSION_MAX_AGE_MS) {
+    await sessionRef.delete().catch(() => undefined);
+    return null;
+  }
+  const userId = typeof sessionData.userId === "string" ? sessionData.userId : "";
+  if (!userId) return null;
+  const userSnap = await db.collection(USER_COLLECTION).doc(userId).get();
+  return userSnap.exists
+    ? sessionFromUserRecord(userId, (userSnap.data() ?? {}) as Record<string, unknown>)
+    : null;
 }
 
 export async function clearAccountSession(sessionId: string) {

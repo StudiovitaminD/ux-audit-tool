@@ -64,11 +64,13 @@ export async function POST(req: Request) {
           return { id, ok: false, error: message };
         }
 
-        if (assetErrors.length) {
-          return { id, ok: false, error: `Deleted report but failed to clean up ${assetErrors.length} Cloudinary asset(s): ${assetErrors.join("; ")}` };
-        }
-
-        return { id, ok: true };
+        return {
+          id,
+          ok: true,
+          warning: assetErrors.length
+            ? `Report deleted; ${assetErrors.length} Cloudinary asset(s) require cleanup.`
+            : undefined,
+        };
       }),
     );
 
@@ -80,6 +82,7 @@ export async function POST(req: Request) {
       deletedIds,
       failedIds: failedItems.map((item) => item.id),
       errors: failedItems.map((item) => item.error || "Unknown error"),
+      warnings: results.flatMap((item) => "warning" in item && item.warning ? [item.warning] : []),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to delete reports.";

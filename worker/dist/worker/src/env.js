@@ -17,5 +17,5 @@ export function getEnv() {
         const msg = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
         throw new Error(`Worker env invalid: ${msg}`);
     }
-    return parsed.data;
+    return { ...parsed.data, OPENROUTER_MODEL: DEFAULT_OPENROUTER_MODEL };
 }

@@ -21,7 +21,7 @@ export function validateAnswerSemantics(question) {
     const explicitlyUntested = question.answer_status === "insufficient_evidence" ||
         question.answer_status === "scoring_unavailable";
     if (explicitlyUntested && (answer === "pass" || answer === "partial" || answer === "fail")) {
-        return { ...question, answer_state: "not_tested", selected_option_state: "not_tested", mark: null };
+        return { ...question, answer_state: "not_tested", selected_option_state: "not_tested", mark: 0 };
     }
     return question;
 }

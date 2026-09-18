@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { getAccountSessionFromRequest } from "@/lib/account-server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -43,6 +45,10 @@ function cloudinarySignature(params: Record<string, string>, apiSecret: string) 
 
 export async function POST(req: Request) {
   try {
+    const session = await getAccountSessionFromRequest(req);
+    if (!session) return Response.json({ error: "Please sign in first." }, { status: 401 });
+    const rate = checkRateLimit(`upload:${session.id}`, 30, 60 * 60_000);
+    if (!rate.allowed) return rateLimitResponse(rate.retryAfterSeconds);
     const cloudName = requiredEnv("CLOUDINARY_CLOUD_NAME");
     const apiKey = requiredEnv("CLOUDINARY_API_KEY");
     const apiSecret = requiredEnv("CLOUDINARY_API_SECRET");
@@ -51,6 +57,14 @@ export async function POST(req: Request) {
     const file = form.get("file");
     if (!(file instanceof File)) {
       return Response.json({ error: "Missing file upload." }, { status: 400 });
+    }
+
+    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm"]);
+    if (!allowedTypes.has(file.type)) {
+      return Response.json({ error: "Unsupported file type." }, { status: 415 });
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      return Response.json({ error: "File exceeds the 25 MB upload limit." }, { status: 413 });
     }
 
     const isVideo = file.type.startsWith("video/");
@@ -95,7 +109,7 @@ export async function POST(req: Request) {
       originalFilename: String(data.original_filename || file.name),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Upload failed.";
-    return Response.json({ error: message }, { status: 500 });
+    console.error("Screenshot upload failed:", error);
+    return Response.json({ error: "Upload failed." }, { status: 500 });
   }
 }

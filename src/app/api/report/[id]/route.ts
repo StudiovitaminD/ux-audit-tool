@@ -156,7 +156,10 @@ async function maybeAutoContinueQueuedReport(req: Request, id: string) {
   const origin = new URL(req.url).origin;
   void fetch(`${origin}/api/audit/process`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      cookie: req.headers.get("cookie") || "",
+    },
     body: JSON.stringify({ reportId: id }),
   }).catch(() => undefined);
 }
@@ -199,9 +202,9 @@ function stripInlineAssets(value: unknown, key = ""): unknown {
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const id = params.id;
+  const { id } = await params;
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   const accountSession = await getAccountSessionFromRequest(req);
@@ -275,9 +278,9 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const id = params.id;
+  const { id } = await params;
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   try {
@@ -286,6 +289,9 @@ export async function PATCH(
       return Response.json({ error: "Please sign in first." }, { status: 401 });
     }
     const raw = (await req.json()) as { report?: unknown } | null;
+    if (Buffer.byteLength(JSON.stringify(raw ?? {}), "utf8") > 2 * 1024 * 1024) {
+      return Response.json({ error: "Report payload exceeds the 2 MB limit." }, { status: 413 });
+    }
     const report = raw?.report;
     if (!report) {
       return Response.json({ error: "Missing report payload" }, { status: 400 });
@@ -312,16 +318,16 @@ export async function PATCH(
 
     return Response.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to save report";
-    return Response.json({ error: message }, { status: 500 });
+    console.error("Failed to save report:", error);
+    return Response.json({ error: "Failed to save report." }, { status: 500 });
   }
 }
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const id = params.id;
+  const { id } = await params;
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   try {

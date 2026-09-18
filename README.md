@@ -42,8 +42,7 @@ It collects public-page evidence, uploaded screenshots, browser-extension JSON c
 
 Current tier-based model setup:
 
-- **Free users** → `nvidia/nemotron-3-super-120b-a12b:free`
-- **Paid users** → `openai/gpt-4.1-mini`
+- **All audit tiers** → `openai/gpt-4.1-mini`
 
 ## Local setup
 

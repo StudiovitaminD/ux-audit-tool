@@ -1269,9 +1269,6 @@ export function AuditForm() {
 
     // UPDATED (Q1)
     if (!payload.productName.trim()) errors.productName = "Product name is required.";
-    // ADDED (Q1)
-    if (!payload.productOneLiner.trim())
-      errors.productOneLiner = "Add a one-sentence description.";
     if (!payload.knownProblem.trim())
       errors.knownProblem = "About the product is required.";
     if (!payload.productUrl.trim())
@@ -1394,7 +1391,6 @@ export function AuditForm() {
     if (
       productTypeValues.has(payload.product.type) &&
       payload.productName.trim() &&
-      payload.productOneLiner.trim() &&
       primaryPlatformValues.has(payload.primaryPlatform) &&
       payload.auditGoals.length > 0 &&
       payload.knownProblem.trim()
@@ -1453,7 +1449,7 @@ export function AuditForm() {
     // UPDATED: step 7 is audit flow
     if (primaryType === "saas" && payload.auditFlowText.trim()) done.add(7);
     return done;
-  }, [payload]);
+  }, [payload, primaryType]);
 
   // ADDED
   const creatingMessages = useMemo(

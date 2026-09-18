@@ -4,8 +4,8 @@ export type ReportAccessLevel = "free_preview" | "full";
 export type AuditProductType = "saas" | "ecommerce" | "marketing_website";
 export type ModelTier = "free_limited" | "paid_full" | "admin_full";
 
-export const FREE_AUDIT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
 export const PAID_AUDIT_MODEL = "openai/gpt-4.1-mini";
+export const FREE_AUDIT_MODEL = PAID_AUDIT_MODEL;
 
 export const FREE_REPORT_LIMIT = 3;
 

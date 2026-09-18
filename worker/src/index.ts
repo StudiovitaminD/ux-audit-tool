@@ -1,13 +1,13 @@
 import http from "node:http";
 import { getEnv } from "./env.js";
 import { getFirestore, getStorage } from "./firebase.js";
-import { IntakeSchema, type Intake } from "./types.js";
+import { IntakeSchema, type BucketResult, type Intake } from "./types.js";
 import { collectEvidence } from "./evidence.js";
 import { auditOneBucket, aggregateScores, writeNarrative } from "./audit.js";
 import { runSpecialistReview } from "./multi-agent.js";
 import { QUESTION_BANK, normalizeBucketName } from "./question-bank.js";
 
-const FREE_AUDIT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+const FREE_AUDIT_MODEL = "openai/gpt-4.1-mini";
 
 function json(res: http.ServerResponse, status: number, body: unknown) {
   const data = Buffer.from(JSON.stringify(body));
@@ -172,7 +172,21 @@ async function runJob(env: ReturnType<typeof getEnv>, reportId: string) {
     model: narrativeModel,
   });
   const reviewedBucketResults = bucketResults.map((bucket) => {
-    const findings = specialistReview.reviewedFindings.filter((finding) => finding.bucket === bucket.bucket_name);
+    const existingFindingKeys = new Set(
+      (bucket.findings || []).map((finding: Record<string, unknown>) =>
+        String(finding.observation || finding.question || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim(),
+      ),
+    );
+    const findings = specialistReview.reviewedFindings.filter((finding) => {
+      if (finding.bucket !== bucket.bucket_name) return false;
+      const key = finding.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (!key || existingFindingKeys.has(key)) return false;
+      existingFindingKeys.add(key);
+      return true;
+    });
     if (!findings.length) return bucket;
     return {
       ...bucket,
@@ -194,13 +208,44 @@ async function runJob(env: ReturnType<typeof getEnv>, reportId: string) {
   });
   const scored = aggregateScores({ meta, bucketResults: reviewedBucketResults });
   const narrative = await writeNarrative(env, scored, narrativeModel);
+  const uniqueText = (values: unknown[], limit: number) => {
+    const seen = new Set<string>();
+    return values
+      .map((value) => String(value || "").trim())
+      .filter((value) => {
+        const key = value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, limit);
+  };
+  const validatedProblems = uniqueText(
+    (scored.all_findings || []).map((finding: any) => finding.observation || finding.question),
+    5,
+  );
+  const validatedStrengths = uniqueText(
+    reviewedBucketResults.flatMap((bucket) =>
+      (bucket.questions || [])
+        .filter((question: BucketResult["questions"][number]) => question.answer_state === "pass")
+        .map((question: BucketResult["questions"][number]) => question.observation || question.evidence)
+        .filter((text: string) => !/\b(?:not|cannot|unable|lack|missing|unclear|fail|problem|risk|weak|poor|however|but)\b/i.test(String(text || ""))),
+    ),
+    4,
+  );
+  const writerExecutive = (narrative as any).executive_summary || {};
 
   const merged = {
     ...scored,
-    executive_summary: (narrative as any).executive_summary || {},
+    executive_summary: {
+      ...writerExecutive,
+      top_problems: validatedProblems,
+      top_3_problems: validatedProblems.slice(0, 3),
+      whats_working: validatedStrengths,
+    },
     section_narrative: (narrative as any).section_narrative || {},
-    findings_detailed: (narrative as any).findings_detailed || [],
-    quick_wins_table: (narrative as any).quick_wins_table || [],
+    findings_detailed: scored.all_findings || [],
+    quick_wins_table: scored.all_improvements || [],
     roadmap: (narrative as any).roadmap || scored.roadmap || {},
     closing_note: (narrative as any).closing_note || "",
     multi_agent_review: specialistReview,
@@ -237,6 +282,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  // eslint-disable-next-line no-console
   console.log(`Worker listening on :${port}`);
 });

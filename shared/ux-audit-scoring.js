@@ -22,7 +22,7 @@ export function validateAnswerSemantics(question) {
     const insufficient = /unable to evaluate|insufficient evidence|not tested|not captured|could not be scored|cannot be evaluated/.test(text);
     const negative = /\bhowever\b|\bbut\b|\bmissing\b|\black(?:s|ing)?\b|\bgeneric\b|\binconsistent\b|\blimit(?:s|ed|ing)?\b|\bunclear\b|\bweak\b|\bproblem(?:s)?\b|\bdoes not\b|\bnot consistently\b|\bno evidence\b/.test(text);
     if (insufficient && (answer === "pass" || answer === "partial" || answer === "fail")) {
-        return { ...question, answer_state: "not_tested", selected_option_state: "not_tested", mark: null };
+        return { ...question, answer_state: "not_tested", selected_option_state: "not_tested", mark: 0 };
     }
     if (negative && answer === "pass") {
         return { ...question, answer_state: "partial", selected_option_state: "partial", mark: 0.5 };

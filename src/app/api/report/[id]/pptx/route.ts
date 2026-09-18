@@ -6,7 +6,7 @@ import {
   calculateBusinessImpactMetrics,
   type AnyRecord,
 } from "@/lib/report-model";
-import { loadStoredReport } from "@/lib/report-record";
+import { loadAuthorizedReport } from "@/lib/report-record";
 import { exportReadinessResponse } from "@/lib/report-quality";
 import { QUESTION_BANK } from "@/lib/question-bank";
 
@@ -64,6 +64,8 @@ function formatGeneratedDate(value: unknown) {
 }
 
 async function resolveExportReport(req: Request, id: string) {
+  const authorization = await loadAuthorizedReport(req, id);
+  if (!authorization.loaded) return null;
   if (req.method === "POST") {
     const raw = (await req.json().catch(() => null)) as { report?: unknown } | null;
     const postedReport = asRecord(raw?.report);
@@ -72,8 +74,7 @@ async function resolveExportReport(req: Request, id: string) {
     }
   }
 
-  const loaded = await loadStoredReport(id);
-  if (!loaded) return null;
+  const loaded = authorization.loaded;
   return asRecord(loaded.report);
 }
 
@@ -416,7 +417,7 @@ async function buildPptxResponse(req: Request, id: string) {
     const readiness = exportReadinessResponse(rawReport);
     if (!readiness.exportReady) {
       return Response.json(
-        { error: readiness.quality.valid ? "Report must be approved before export" : "Report failed quality validation", quality: readiness.quality, reviewStatus: readiness.reviewStatus },
+        { error: "Report is not ready for export", quality: readiness.quality, reviewStatus: readiness.reviewStatus },
         { status: 422 },
       );
     }
@@ -801,14 +802,18 @@ async function buildPptxResponse(req: Request, id: string) {
   }
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const id = params.id;
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
-  return buildPptxResponse(_req, id);
+  const authorization = await loadAuthorizedReport(req, id);
+  if (!authorization.loaded) return Response.json({ error: authorization.error }, { status: authorization.status });
+  return buildPptxResponse(req, id);
 }
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const id = params.id;
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
+  const authorization = await loadAuthorizedReport(req, id);
+  if (!authorization.loaded) return Response.json({ error: authorization.error }, { status: authorization.status });
   return buildPptxResponse(req, id);
 }

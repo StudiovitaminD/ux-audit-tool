@@ -1,6 +1,7 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { loadStoredIntake } from "@/lib/intake-storage.server";
 import { sanitizeAuditReport } from "@/lib/report-quality";
+import { getAccountSessionFromRequest } from "@/lib/account-server";
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -33,6 +34,17 @@ export function reportBelongsToSession(
   return emailFields.some(
     (value) => typeof value === "string" && value.trim().toLowerCase() === normalizedSessionEmail,
   );
+}
+
+export async function loadAuthorizedReport(req: Request, id: string) {
+  const session = await getAccountSessionFromRequest(req);
+  if (!session) return { error: "Please sign in first.", status: 401 as const, loaded: null };
+  const loaded = await loadStoredReport(id);
+  if (!loaded) return { error: "Not found", status: 404 as const, loaded: null };
+  if (!reportBelongsToSession(loaded.data, session)) {
+    return { error: "You do not have access to this report.", status: 403 as const, loaded: null };
+  }
+  return { error: null, status: 200 as const, loaded };
 }
 
 export function tryParseJsonString(value: unknown): unknown {

@@ -15,6 +15,9 @@ import type { EvidenceBundle } from "@/lib/evidence-collector";
 import { getErrorMessage } from "@/lib/error-utils";
 import { unwrapReportPayload } from "@/lib/report-record";
 import { getAuditModelForTier, PAID_AUDIT_MODEL } from "@/lib/access-control";
+import { getAccountSessionFromRequest } from "@/lib/account-server";
+import { reportBelongsToSession } from "@/lib/report-record";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -494,6 +497,10 @@ function buildCapturePipelineFailureMessage(
 }
 
 export async function POST(req: Request) {
+  const accountSession = await getAccountSessionFromRequest(req);
+  if (!accountSession) return Response.json({ error: "Please sign in first." }, { status: 401 });
+  const rate = checkRateLimit(`process:${accountSession.id}`, 12, 60 * 60_000);
+  if (!rate.allowed) return rateLimitResponse(rate.retryAfterSeconds);
   const parsedBody = (await req.json().catch(() => ({}))) as unknown;
   const body = asRecord(parsedBody) ?? {};
   const reportId = typeof body.reportId === "string" ? body.reportId : "";
@@ -558,11 +565,27 @@ export async function POST(req: Request) {
     if (!snap.exists) return Response.json({ error: "Not found" }, { status: 404 });
 
     const doc = snap.data() ?? {};
+    if (!reportBelongsToSession(doc, accountSession)) {
+      return Response.json({ error: "You do not have access to this report." }, { status: 403 });
+    }
     const status = typeof doc.status === "string" ? doc.status : "queued";
     if (status === "complete") return Response.json({ status: "complete" });
     if (status === "error")
       return Response.json({ status: "error", error: String(doc.error || "Failed") });
     if (isCancelledDoc(doc)) return Response.json({ status: "cancelled" });
+
+    const leaseAcquired = await db.runTransaction(async (transaction) => {
+      const latest = await transaction.get(ref);
+      if (!latest.exists) return false;
+      const latestData = latest.data() ?? {};
+      const leaseUntil = Number(latestData.processingLeaseUntil || 0);
+      if (leaseUntil > Date.now()) return false;
+      transaction.set(ref, { processingLeaseUntil: Date.now() + 6 * 60_000 }, { merge: true });
+      return true;
+    });
+    if (!leaseAcquired) {
+      return Response.json({ status: "processing", error: "Audit processing is already active." }, { status: 409 });
+    }
 
     const intakeRaw = (await loadStoredIntake(doc)) ?? readStoredIntake(doc);
     intake = IntakeSchema.parse(intakeRaw);

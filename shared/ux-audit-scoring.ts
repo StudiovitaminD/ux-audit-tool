@@ -54,7 +54,7 @@ export function validateAnswerSemantics(question: ScoredAuditQuestion) {
     question.answer_status === "insufficient_evidence" ||
     question.answer_status === "scoring_unavailable";
   if (explicitlyUntested && (answer === "pass" || answer === "partial" || answer === "fail")) {
-    return { ...question, answer_state: "not_tested" as const, selected_option_state: "not_tested" as const, mark: null };
+    return { ...question, answer_state: "not_tested" as const, selected_option_state: "not_tested" as const, mark: 0 };
   }
   return question;
 }

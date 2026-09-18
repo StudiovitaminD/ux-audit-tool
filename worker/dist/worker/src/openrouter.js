@@ -1,6 +1,6 @@
 const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4.1-mini";
 export async function openRouterChat(env, args) {
-    const model = args.model || env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL;
+    const model = args.model || DEFAULT_OPENROUTER_MODEL;
     const requestedMaxTokens = Number(process.env.OPENROUTER_MAX_TOKENS || 3000);
     const maxTokens = Number.isFinite(requestedMaxTokens)
         ? Math.max(300, Math.min(3500, requestedMaxTokens))
@@ -9,6 +9,10 @@ export async function openRouterChat(env, args) {
     const retryAttempts = Number.isFinite(retryAttemptsRaw)
         ? Math.max(1, Math.min(5, retryAttemptsRaw))
         : 3;
+    const imageUrls = (args.imageUrls || [])
+        .filter((url) => /^(?:https?:\/\/|data:image\/)/i.test(url))
+        .slice(0, 4);
+    let activeImageUrls = imageUrls;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const parseRetryAfterSeconds = (message) => {
         const directMatch = message.match(/retry_after_seconds"?\s*:\s*(\d+)/i);
@@ -39,7 +43,18 @@ export async function openRouterChat(env, args) {
                         role: "system",
                         content: "You are an expert UX auditor. Follow instructions strictly and output only valid JSON.",
                     },
-                    { role: "user", content: args.prompt },
+                    {
+                        role: "user",
+                        content: activeImageUrls.length
+                            ? [
+                                { type: "text", text: args.prompt },
+                                ...activeImageUrls.map((url) => ({
+                                    type: "image_url",
+                                    image_url: { url, detail: "high" },
+                                })),
+                            ]
+                            : args.prompt,
+                    },
                 ],
             }),
         });
@@ -53,6 +68,12 @@ export async function openRouterChat(env, args) {
         const text = await res.text().catch(() => "");
         lastError = new Error(`OpenRouter error (${res.status}): ${text}`);
         const message = lastError.message.toLowerCase();
+        if (activeImageUrls.length &&
+            res.status === 400 &&
+            /image|vision|multimodal|content/i.test(message)) {
+            activeImageUrls = [];
+            continue;
+        }
         const retryAfterSeconds = parseRetryAfterSeconds(lastError.message);
         const retryable = res.status === 429 ||
             res.status === 500 ||

@@ -19,7 +19,7 @@ import {
   questionEvidence,
 } from "@/lib/evidence-depth";
 
-const DEFAULT_OPENROUTER_MODEL = "openrouter/owl-alpha";
+const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4.1-mini";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -232,11 +232,11 @@ function bucketSpecificGuidance(bucket: string) {
     ],
     "Screen Reader Support": [
       "Prefer evidence from semantic HTML, ARIA labels, form labels, alt text, and announcement clarity.",
-      "If dedicated screen-reader evidence is missing, still give a best-effort score from the visible structure instead of blocking the bucket.",
+      "Do not infer screen-reader behavior from visual appearance; use not_tested when semantic or assistive-technology evidence is missing.",
     ],
     "Navigation & Findability": [
       "Prefer evidence from navigation labels, tabs, repeated section names, page titles, and wayfinding cues.",
-      "When clear navigation labels are visible, do not default to mark 3.",
+      "When clear navigation labels are visible, decide between pass, partial, and fail from their clarity and consistency rather than defaulting to partial.",
     ],
     "Consistency & UI Patterns": [
       "Prefer evidence from repeated buttons, repeated labels, repeated tabs, and terminology consistency across pages.",
@@ -249,8 +249,8 @@ function bucketSpecificGuidance(bucket: string) {
     "Brand Expression": ["Use visual personality, tone of voice, and distinct identity cues from capture."],
     "Icons & Imagery": ["Prefer evidence from icon clarity, illustration quality, and image support."],
     "Performance": [
-      "Use structural evidence for runtime and efficiency judgments and reserve mark 3 for metrics that are not directly measurable from capture.",
-      "If dedicated mobile timing evidence is missing, still give a best-effort score from the captured UI instead of blocking the bucket.",
+      "Use measured timing and runtime evidence for performance judgments; structural observations may explain a measured result but cannot replace it.",
+      "If timing evidence for the required viewport is missing, use not_tested instead of estimating performance from a screenshot.",
     ],
   };
   return (map[bucket] || []).join(" ");
@@ -280,36 +280,6 @@ function extractOpenRouterTextContent(value: unknown): string | null {
     .filter(Boolean);
 
   return parts.length ? parts.join("\n").trim() : null;
-}
-
-function isGeminiModel(model: string) {
-  return /^gemini-/i.test(model.trim());
-}
-
-function extractGeminiTextContent(data: unknown): string {
-  const rec = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
-  const candidates = Array.isArray(rec?.candidates) ? rec?.candidates : [];
-  for (const candidate of candidates) {
-    if (!candidate || typeof candidate !== "object") continue;
-    const content =
-      (candidate as Record<string, unknown>).content &&
-      typeof (candidate as Record<string, unknown>).content === "object"
-        ? ((candidate as Record<string, unknown>).content as Record<string, unknown>)
-        : null;
-    const parts = Array.isArray(content?.parts) ? content?.parts : [];
-    const text = parts
-      .map((part) => {
-        if (!part || typeof part !== "object") return "";
-        const value = (part as Record<string, unknown>).text;
-        return typeof value === "string" ? value : "";
-      })
-      .filter(Boolean)
-      .join("\n")
-      .trim();
-    if (text) return text;
-  }
-
-  return JSON.stringify(data);
 }
 
 function takeTop(values: string[] | undefined, max = 4) {
@@ -430,18 +400,99 @@ function bucketPrompt(intake: Intake, bucket: string, questions: BucketQuestion[
       .filter(Boolean)
       .join(" "),
   });
-  const bucketBrief = `${buildBucketFrameworkBrief(bucket)}\n\nAuthoritative scoring policy: Pass = 1, Partial = 0.5, and every other answer state = 0. This policy supersedes any conflicting denominator guidance below.\n\nAdvisory recommendation guidance (never use as evidence or to determine a score; use only to improve evidence-backed recommendations):\n${recommendationGuidance}`;
+  const bucketBrief = `${buildBucketFrameworkBrief(bucket)}\n\nAuthoritative scoring policy: Pass = 1, Partial = 0.5, and Fail, Not Tested, N/A, or any other state = 0.\n\nAdvisory recommendation guidance (never use as evidence or determine a score; use it only to make an evidence-backed recommendation more specific):\n${recommendationGuidance}`;
   const selectedBucketQuestions = questions
     .map((q) => {
       const opts = q.options
-        .map((o) => `${o.label} (${o.score === null ? "excluded from score" : o.score}) - ${trimText(o.text, 90)}`)
+        .map((o) => `${o.label} (${o.score ?? 0}) - ${trimText(o.text, 90)}`)
         .join("\n");
       const sectionLine = q.section ? `Section: ${q.section}\n` : "";
       return `ID: ${q.id}\n${sectionLine}Question: ${q.question}\nHow to evaluate: ${q.navigate}\nOptions:\n${opts}`;
     })
     .join("\n\n---\n\n");
 
-  return `You are a principal UX auditor producing a client-ready evaluation.\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nCompact product context:\n${JSON.stringify(intakeSummary, null, 2)}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nBucket-specific guidance:\n${bucketSpecificGuidance(bucket)}\n\nScoring rubric:\n- PASS = clearly satisfied and scores 1.\n- PARTIAL = partially satisfied and scores 0.5.\n- FAIL = not satisfied and scores 0.\n- NOT_TESTED = insufficient evidence. Exclude from the bucket denominator.\n- N/A = does not apply. Exclude from the bucket denominator.\n\nHard rules:\n- Use only captured evidence.\n- Cite visible details from the capture for every answer.\n- Do not invent screens, features, or problems.\n- If the evidence is missing for a question, do not guess and do not force a low score.\n- For insufficient evidence, return mark as null and explain what was missing.\n- \"what_is_working\" must describe genuine strengths, stable patterns, or helpful UX behavior; do not restate problems or recommendations there.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON in this shape:\n{\n  \"bucket\": \"${bucket}\",\n  \"pillar\": \"${PILLAR_MAP[bucket] || "Impact"}\",\n  \"score_rationale\": {\n    \"summary\": \"1-2 sentences\",\n    \"what_is_working\": [\"...\"],\n    \"what_is_risky\": [\"...\"],\n    \"why_now\": \"...\"\n  },\n  \"questions\": [\n    {\n      \"id\": \"N01\",\n      \"question\": \"...\",\n      \"answer_state\": \"pass|partial|fail|not_tested|n_a\",\n      \"mark\": 1,\n      \"evidence\": \"...\",\n      \"observation\": \"...\",\n      \"recommendation\": \"...\",\n      \"effort\": \"S|M|L\",\n      \"impact\": \"Low|Med|High\",\n      \"confidence\": 0.0\n    }\n  ]\n}\n\nQuestions:\n${selectedBucketQuestions}\n`;
+  return `You are a principal UX auditor producing a client-ready evaluation that reads like it was written by a senior designer.
+
+Audit framework:
+${frameworkBrief}
+
+Bucket reference:
+${bucketBrief}
+
+Bucket: ${bucket}
+Pillar: ${PILLAR_MAP[bucket] || "Impact"}
+
+Compact product context:
+${JSON.stringify(intakeSummary, null, 2)}
+
+Context instructions:
+${productTypeInstructions(intake.product_type)}
+
+Bucket-specific guidance:
+${bucketSpecificGuidance(bucket)}
+
+Authoritative scoring contract:
+- pass: the criterion is clearly satisfied by direct evidence; mark must be 1.
+- partial: the criterion is only partly satisfied, inconsistent, or has a material caveat; mark must be 0.5.
+- fail: direct evidence shows the criterion is not satisfied; mark must be 0.
+- not_tested: the evidence needed to judge the criterion was not captured; mark must be 0.
+- n_a: the criterion genuinely does not apply to this product or flow; mark must be 0.
+- Never return null, a 1-5 score, a percentage, or any mark other than 1, 0.5, or 0.
+
+Evidence rules:
+- Treat each criterion evidence packet as the only authority for that question.
+- For pass, partial, or fail, cite at least one exact evidence ID from that question's packet in evidence_ids.
+- Evidence IDs are references, not facts. In evidence, name the screen or page and describe the specific visible or measured detail that supports the state.
+- Do not use product context, framework guidance, general UX knowledge, or the supplementary bucket context as proof.
+- Do not infer hidden states, interactions, errors, performance, accessibility behavior, or responsive behavior from a static screenshot.
+- Use not_tested when the required state or interaction is absent. State exactly what evidence is missing.
+- Use n_a only when the criterion cannot reasonably apply, not when evidence is missing.
+- Never invent screens, features, defects, user behavior, measurements, or evidence IDs.
+
+Editorial rules:
+- Write one precise finding per question. Observation must identify the interface behavior and its likely user consequence in no more than two complete sentences.
+- For partial or fail, recommendation must name the affected component, the exact change, and the expected user outcome in no more than two complete sentences.
+- For pass, not_tested, or n_a, recommendation must be an empty string.
+- what_is_working may contain only evidence-backed pass strengths. Never place risks, caveats, or recommendations there.
+- what_is_risky may contain only distinct partial or fail findings. Do not include not_tested limitations as product defects.
+- Do not repeat the same point across questions or rephrase the question as the observation.
+- Do not use generic claims such as "improve the user experience", "enhance usability", "intuitive", "seamless", or "user-friendly".
+- Do not truncate text or use ellipses.
+- Return every requested question exactly once, preserve its ID and question text, and do not add questions.
+- Return only valid JSON with no markdown or commentary.
+
+Return exactly this JSON shape:
+{
+  "bucket": "${bucket}",
+  "pillar": "${PILLAR_MAP[bucket] || "Impact"}",
+  "score_rationale": {
+    "summary": "One or two evidence-backed sentences that explain the bucket outcome without introducing new claims.",
+    "what_is_working": ["Distinct evidence-backed strength."],
+    "what_is_risky": ["Distinct evidence-backed risk and user consequence."],
+    "why_now": "Why the verified risks matter to the stated product goal; empty when there are no verified risks."
+  },
+  "questions": [
+    {
+      "id": "N01",
+      "question": "Exact supplied question text.",
+      "answer_state": "pass|partial|fail|not_tested|n_a",
+      "mark": 1,
+      "evidence_ids": ["exact-evidence-id"],
+      "page_url": "Captured page URL or empty string.",
+      "screen_name": "Captured screen name or empty string.",
+      "evidence": "Specific visible or measured evidence, or the exact evidence that is missing.",
+      "observation": "Concrete interface behavior and user consequence.",
+      "recommendation": "Exact component change and expected outcome, or empty string.",
+      "effort": "S|M|L",
+      "impact": "Low|Med|High",
+      "confidence": 0.0
+    }
+  ]
+}
+
+Questions:
+${selectedBucketQuestions}
+`;
 }
 
 function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
@@ -476,12 +527,34 @@ function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
   return `${pageSummary}\n\nEvidence registry (cite only these IDs):\n${registry || "No verified evidence records."}`;
 }
 
+function criterionEvidencePacket(
+  evidence: EvidenceBundle | null,
+  bucket: string,
+  questions: BucketQuestion[],
+) {
+  return questions
+    .map((question) => {
+      const records = questionEvidence(evidence, bucket, question.id);
+      const usable = records.filter((record) => record.status !== "blocked");
+      const lines = usable.map((record) => {
+        const location = record.pageUrl ? ` | page=${trimText(record.pageUrl, 120)}` : "";
+        const viewport = record.viewport ? ` | viewport=${record.viewport}` : "";
+        return `${record.evidenceId} | ${record.kind} | ${record.status}${location}${viewport} | ${trimText(record.observation, 360)}`;
+      });
+      return [
+        `Criterion ${question.id}: ${question.question}`,
+        lines.length ? lines.join("\n") : "NO_USABLE_EVIDENCE",
+      ].join("\n");
+    })
+    .join("\n\n---\n\n");
+}
+
 export async function openRouterChat(
   prompt: string,
-  opts?: { modelOverride?: string; maxTokens?: number },
+  opts?: { modelOverride?: string; maxTokens?: number; imageUrls?: string[] },
 ) {
   const model = normalizeModelName(
-    opts?.modelOverride || process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL,
+    opts?.modelOverride || DEFAULT_OPENROUTER_MODEL,
   );
   const requestedMaxTokens = Number(opts?.maxTokens ?? process.env.OPENROUTER_MAX_TOKENS ?? 2200);
   const initialMaxTokens = capModelMaxTokens(
@@ -491,12 +564,7 @@ export async function openRouterChat(
       : 2200,
   );
   const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-  const useGeminiDirect = isGeminiModel(model);
-  if (useGeminiDirect && !geminiApiKey) {
-    throw new Error("Missing GEMINI_API_KEY env var");
-  }
-  if (!useGeminiDirect && !openRouterApiKey) {
+  if (!openRouterApiKey) {
     throw new Error("Missing OPENROUTER_API_KEY env var");
   }
   const timeoutMsRaw = Number(process.env.OPENROUTER_TIMEOUT_MS || 75000);
@@ -508,6 +576,10 @@ export async function openRouterChat(
     ? Math.max(1, Math.min(5, retryAttemptsRaw))
     : 3;
   const supportsStructuredOutput = modelSupportsStructuredOutput(model);
+  const imageUrls = (opts?.imageUrls || [])
+    .filter((url) => /^(?:https?:\/\/|data:image\/)/i.test(url))
+    .slice(0, 4);
+  let activeImageUrls = imageUrls;
 
   let lastError: Error | null = null;
 
@@ -534,35 +606,7 @@ export async function openRouterChat(
     const timeout = setTimeout(() => controller.abort("openrouter-timeout"), timeoutMs);
 
     try {
-        const res = useGeminiDirect
-          ? await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-goog-api-key": String(geminiApiKey),
-                },
-                body: JSON.stringify({
-                  systemInstruction: {
-                    parts: [{ text: "You are a meticulous UX auditor." }],
-                  },
-                  generationConfig: {
-                    temperature: 0.2,
-                    maxOutputTokens: maxTokens,
-                    responseMimeType: "application/json",
-                  },
-                  contents: [
-                    {
-                      role: "user",
-                      parts: [{ text: prompt }],
-                    },
-                  ],
-                }),
-                signal: controller.signal,
-              },
-            )
-          : await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${openRouterApiKey}`,
@@ -575,7 +619,18 @@ export async function openRouterChat(
             max_tokens: maxTokens,
             messages: [
               { role: "system", content: "You are a meticulous UX auditor." },
-              { role: "user", content: prompt },
+              {
+                role: "user",
+                content: activeImageUrls.length
+                  ? [
+                      { type: "text", text: prompt },
+                      ...activeImageUrls.map((url) => ({
+                        type: "image_url",
+                        image_url: { url, detail: "high" },
+                      })),
+                    ]
+                  : prompt,
+              },
             ],
             ...(supportsStructuredOutput ? { response_format: { type: "json_object" } } : {}),
             ...buildOpenRouterReasoningConfig(model),
@@ -586,7 +641,7 @@ export async function openRouterChat(
       if (!res.ok) {
         const text = await res.text();
         throw new Error(
-          `${useGeminiDirect ? "Gemini" : "OpenRouter"} error (${res.status}) [model=${model}]: ${text}`,
+          `OpenRouter error (${res.status}) [model=${model}]: ${text}`,
         );
       }
 
@@ -598,13 +653,11 @@ export async function openRouterChat(
         data = JSON.parse(rawBody) as unknown;
       } catch {
         throw new Error(
-          `${useGeminiDirect ? "Gemini" : "OpenRouter"} returned non-JSON response [model=${model}]: ${rawBody.slice(0, 300)}`,
+          `OpenRouter returned non-JSON response [model=${model}]: ${rawBody.slice(0, 300)}`,
         );
       }
 
-      const content = useGeminiDirect
-        ? extractGeminiTextContent(data)
-        : (() => {
+      const content = (() => {
             const rec = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
             const choices = rec?.choices;
             const firstChoice =
@@ -635,6 +688,14 @@ export async function openRouterChat(
       );
 
       const affordableTokens = parseAffordableTokens(message);
+      if (
+        activeImageUrls.length &&
+        message.includes("400") &&
+        /image|vision|multimodal|content/i.test(message)
+      ) {
+        activeImageUrls = [];
+        continue;
+      }
       if (
         message.includes("402") &&
         affordableTokens &&
@@ -705,13 +766,56 @@ async function completeMissingQuestions(args: {
   const missingQuestionChunks = chunkArray(missingQuestions, 2);
 
   for (const questionChunk of missingQuestionChunks) {
-    const missingPrompt = `You are completing missing UX audit answers for one bucket.\n\nBucket: ${args.bucket}\nProduct type: ${productTypeLabel(args.intake.product_type)}\nContext instructions: ${productTypeInstructions(args.intake.product_type)}\nBucket guidance: ${bucketSpecificGuidance(args.bucket)}\n\nRules:\n- Answer every missing question below.\n- Use only the provided evidence.\n- Return ONLY valid JSON.\n- If a question truly cannot be scored, set mark to null and answer_status to "insufficient_evidence".\n- Do not omit any question.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n\nReturn ONLY this JSON shape:\n{\n  "bucket":"${args.bucket}",\n  "questions":[\n    {\n      "id":"N01",\n      "question":"...",\n      "answer_state": "pass|partial|fail|not_tested|n_a",
-      "mark": 1,\n      "answer_status":"answered",\n      "evidence":"...",\n      "observation":"...",\n      "recommendation":"...",\n      "effort":"S|M|L",\n      "impact":"Low|Med|High",\n      "confidence":0.0\n    }\n  ]\n}\n\nMissing questions:\n${questionChunk
+    const missingPrompt = `You are completing missing UX audit answers for one bucket.
+
+Bucket: ${args.bucket}
+Product type: ${productTypeLabel(args.intake.product_type)}
+Context instructions: ${productTypeInstructions(args.intake.product_type)}
+Bucket guidance: ${bucketSpecificGuidance(args.bucket)}
+
+Rules:
+- Answer every missing question exactly once and preserve its ID and text.
+- Treat its criterion evidence packet as the only authority.
+- Use pass with mark 1, partial with mark 0.5, and fail, not_tested, or n_a with mark 0.
+- A pass, partial, or fail answer must cite at least one exact packet ID in evidence_ids.
+- Use not_tested with mark 0 when the required evidence is missing; never guess or return null.
+- Use n_a only when the criterion genuinely cannot apply.
+- For pass, not_tested, or n_a, recommendation must be empty.
+- Do not invent or repeat findings, use generic language, truncate text, or use ellipses.
+- Return only valid JSON.
+
+Return exactly this JSON shape:
+{
+  "bucket":"${args.bucket}",
+  "questions":[
+    {
+      "id":"N01",
+      "question":"Exact supplied question text.",
+      "answer_state":"pass|partial|fail|not_tested|n_a",
+      "mark":1,
+      "answer_status":"answered|insufficient_evidence",
+      "evidence_ids":["exact-evidence-id"],
+      "evidence":"Specific evidence or exact missing evidence.",
+      "observation":"Concrete behavior and user consequence.",
+      "recommendation":"Exact component change and expected outcome, or empty string.",
+      "effort":"S|M|L",
+      "impact":"Low|Med|High",
+      "confidence":0.0
+    }
+  ]
+}
+
+Missing questions:
+${questionChunk
       .map((question) => {
         const options = question.options.map((option) => `${option.mark}: ${trimText(option.text, 90)}`).join("\n");
         return `ID: ${question.id}\nQuestion: ${question.question}\nOptions:\n${options}`;
       })
-      .join("\n\n---\n\n")}\n\nEvidence summary:\n${summarizeEvidenceForBucket(args.evidence, args.bucket)}\n`;
+      .join("\n\n---\n\n")}
+
+Criterion evidence packets:
+${criterionEvidencePacket(args.evidence, args.bucket, questionChunk)}
+`;
 
     try {
       const raw = await openRouterChat(missingPrompt, { modelOverride: args.modelOverride });
@@ -1667,12 +1771,22 @@ function hasRichEvidence(evidence: EvidenceBundle | null) {
 function parseModelMark(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const text = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (["pass", "partial", "fail", "not_tested", "n_a", "na", "n/a"].includes(text)) return null;
+  const answerState = normalizeAnswerState(text);
+  if (answerState === "pass") return 1;
+  if (answerState === "partial") return 0.5;
+  if (answerState === "fail" || answerState === "not_tested" || answerState === "n_a") return 0;
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return null;
-  if (numeric >= 4) return 1;
-  if (numeric >= 3) return 0.5;
-  return 0;
+  if (numeric === 1 || numeric === 0.5 || numeric === 0) return numeric;
+  return null;
+}
+
+function parseModelQuestionMark(question: Record<string, unknown>): number | null {
+  const answerState = normalizeAnswerState(question.answer_state ?? question.answerState);
+  if (answerState === "pass") return 1;
+  if (answerState === "partial") return 0.5;
+  if (answerState === "fail" || answerState === "not_tested" || answerState === "n_a") return 0;
+  return parseModelMark(question.mark);
 }
 
 export type BucketResult = {
@@ -2485,10 +2599,26 @@ export async function auditOneBucket(args: {
   const questionChunks = chunkArray(qs, 2);
 
   for (const questionChunk of questionChunks) {
-    const prompt = `${bucketPrompt(intake, bucket, questionChunk)}\n\nDo not truncate any evidence, observation, or recommendation. Never end a field with \"...\"; write complete sentences using the available evidence.\n\nBucket-focused evidence summary:\n${bucketEvidenceSummary}\n`;
+    const criterionEvidence = criterionEvidencePacket(evidence, bucket, questionChunk);
+    const questionIds = new Set(questionChunk.map((question) => question.id));
+    const criterionImageUrls = (evidence?.evidenceRecords || [])
+      .filter((record) => record.bucketId === bucket && questionIds.has(record.questionId))
+      .map((record) => record.screenshotUrl || "")
+      .filter(Boolean);
+    const visualEvidenceUrls = Array.from(new Set([
+      ...criterionImageUrls,
+      ...(evidence?.screenshots || [])
+        .filter((screenshot) => screenshot.isValidAuditEvidence !== false)
+        .map((screenshot) => screenshot.url),
+      evidence?.screenshotDataUrl || "",
+    ].filter(Boolean))).slice(0, 4);
+    const prompt = `${bucketPrompt(intake, bucket, questionChunk)}\n\nEditorial contract:\n- Treat the criterion evidence packet as the only authority for scoring and factual claims.\n- A scored answer must cite at least one exact evidence ID from its criterion packet in evidence_ids.\n- If the packet says NO_USABLE_EVIDENCE, return not_tested with mark 0 and no recommendation.\n- Observation must state one concrete interface behavior and its user consequence in no more than two complete sentences.\n- Recommendation must name the affected component, the exact change, and the expected result in no more than two complete sentences.\n- Do not use generic phrases such as improve the user experience, enhance usability, consider improving, intuitive, seamless, or user-friendly.\n- Do not repeat the question, evidence sentence, or recommendation in different words.\n- Do not truncate any field or end it with ellipses.\n\nCriterion evidence packets:\n${criterionEvidence}\n\nSupplementary bucket context (context only, never cite it as evidence):\n${trimText(bucketEvidenceSummary, 1400)}\n`;
     let raw: string;
     try {
-      raw = await openRouterChat(prompt, { modelOverride: args.modelOverride });
+      raw = await openRouterChat(prompt, {
+        modelOverride: args.modelOverride,
+        imageUrls: visualEvidenceUrls,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (
@@ -2498,7 +2628,7 @@ export async function auditOneBucket(args: {
       ) {
         raw = await openRouterChat(
           `${bucketPrompt(intake, bucket, questionChunk)}\n\nCompressed evidence:\n${trimText(bucketEvidenceSummary, 1800)}\n`,
-          { modelOverride: args.modelOverride },
+          { modelOverride: args.modelOverride, imageUrls: visualEvidenceUrls },
         );
       } else {
         continue;
@@ -2610,6 +2740,7 @@ export async function auditOneBucket(args: {
     effort?: string;
     impact?: string;
     confidence?: number;
+    evidence_ids?: string[];
   }> = parsedQuestionInputs
     .map((q) => asRecord(q))
     .filter((q): q is Record<string, unknown> => Boolean(q))
@@ -2620,12 +2751,12 @@ export async function auditOneBucket(args: {
         q.answer_status === "insufficient_evidence" ||
         q.answer_status === "scoring_unavailable"
           ? null
-          : parseModelMark(q.mark),
+          : parseModelQuestionMark(q),
       selected_option:
         q.answer_status === "insufficient_evidence" ||
         q.answer_status === "scoring_unavailable"
           ? null
-          : parseModelMark(q.selected_option ?? q.mark),
+          : parseModelQuestionMark(q),
       evidence: String(q.evidence ?? ""),
       observation: String(q.observation ?? ""),
       answer_status:
@@ -2641,60 +2772,11 @@ export async function auditOneBucket(args: {
       effort: String(q.effort ?? ""),
       impact: String(q.impact ?? ""),
       confidence: Number(q.confidence) || 0,
+      evidence_ids: Array.isArray(q.evidence_ids)
+        ? q.evidence_ids.map((item) => String(item)).filter(Boolean)
+        : ([] as string[]),
     }));
 
-  if (
-    questions.length > 0 &&
-    questions.every((question) => question.mark === 0.5) &&
-    hasRichEvidence(evidence)
-  ) {
-    const retryPrompt = `${prompt}\nImportant correction: your previous pass returned mark 3 for every question.\nRe-evaluate using the full 1-5 scale.\nIf visible evidence is clearly positive, use 4 or 5.\nIf visible evidence is clearly negative, use 1 or 2.\nUse 3 only where evidence is genuinely mixed or missing.\nReturn the same JSON schema only.`;
-    const retryRaw = await openRouterChat(retryPrompt, { modelOverride: args.modelOverride });
-    try {
-      const retryParsed = parseBucketJson(retryRaw);
-      const retryQuestionInputs = Array.isArray(retryParsed.questions) ? retryParsed.questions : [];
-      const retryQuestions = retryQuestionInputs
-        .map((q) => asRecord(q))
-        .filter((q): q is Record<string, unknown> => Boolean(q))
-        .map((q) => ({
-          id: String(q.id ?? "Q"),
-          question: String(q.question ?? ""),
-          mark:
-            q.answer_status === "insufficient_evidence" ||
-            q.answer_status === "scoring_unavailable"
-              ? null
-              : parseModelMark(q.mark),
-          selected_option:
-            q.answer_status === "insufficient_evidence" ||
-            q.answer_status === "scoring_unavailable"
-              ? null
-              : parseModelMark(q.selected_option ?? q.mark),
-          evidence: String(q.evidence ?? ""),
-          observation: String(q.observation ?? ""),
-          answer_status:
-            q.answer_status === "insufficient_evidence"
-              ? ("insufficient_evidence" as const)
-              : q.answer_status === "scoring_unavailable"
-                ? ("scoring_unavailable" as const)
-                : ("answered" as const),
-          missing_evidence: Array.isArray(q.missing_evidence)
-            ? q.missing_evidence.map((item) => String(item))
-            : ([] as string[]),
-          recommendation: String(q.recommendation ?? ""),
-          effort: String(q.effort ?? ""),
-          impact: String(q.impact ?? ""),
-          confidence: Number(q.confidence) || 0,
-        })) as Array<BucketResult["questions"][number] & {
-          recommendation?: string;
-          effort?: string;
-          impact?: string;
-          confidence?: number;
-        }>;
-      if (retryQuestions.some((question) => question.mark !== 0.5)) {
-        questions.splice(0, questions.length, ...retryQuestions);
-      }
-    } catch {}
-  }
   for (const question of questions) {
     const caveatText = `${question.evidence} ${question.observation}`.toLowerCase();
     const hasMaterialCaveat = /\bhowever\b|\bbut\b|\bmissing\b|\black(?:s|ing)?\b|\bgeneric\b|\binconsistent\b|\blimit(?:s|ed|ing)?\b|\bunclear\b|\bweak\b|\bproblem(?:s)?\b|\bcould be improved\b|\bnot consistently\b/.test(caveatText);
@@ -2704,9 +2786,15 @@ export async function auditOneBucket(args: {
     }
     const missingEvidence = missingEvidenceForQuestion(bucket, question.id, evidence, intake.product_type);
     const records = questionEvidence(evidence, bucket, question.id);
-    question.evidence_ids = records
-      .filter((record) => record.status !== "blocked")
-      .map((record) => record.evidenceId);
+    const validEvidenceIds = new Set(
+      records.filter((record) => record.status !== "blocked").map((record) => record.evidenceId),
+    );
+    const citedEvidenceIds = (question.evidence_ids || []).filter((id) => validEvidenceIds.has(id));
+    question.evidence_ids = citedEvidenceIds.length
+      ? citedEvidenceIds
+      : records
+          .filter((record) => record.status !== "blocked")
+          .map((record) => record.evidenceId);
     question.confidence = evidenceConfidence(records);
     if (missingEvidence.length > 0) {
       question.mark = null;
@@ -3243,7 +3331,7 @@ export async function finalizeAudit(args: {
       : existingCompetitorAnalysis?.competitors,
   );
 
-  return {
+  const assembledReport = {
     ...report,
     narrative,
     competitor_analysis:
@@ -3268,27 +3356,11 @@ export async function finalizeAudit(args: {
         : {
             ...derivedExecutiveSummary,
             ...executiveSummaryFromNarrative,
-            top_problems: uniqueSemanticList(
-              [
-                ...((executiveSummaryFromNarrative?.top_problems as string[]) || []),
-                ...derivedExecutiveSummary.top_problems,
-              ].filter((item) => !isAuditCoverageLimitation(item)),
-              5,
-            ),
-            top_3_problems: uniqueSemanticList(
-              [
-                ...((executiveSummaryFromNarrative?.top_3_problems as string[]) || []),
-                ...derivedExecutiveSummary.top_3_problems,
-              ],
-              3,
-            ),
-            whats_working: uniqueSemanticList(
-              [
-                ...((executiveSummaryFromNarrative?.whats_working as string[]) || []),
-                ...derivedExecutiveSummary.whats_working,
-              ].filter((item) => !isNegativeStrength(item) && !isAuditCoverageLimitation(item)),
-              4,
-            ),
+            // Classification is deterministic: the writer may polish prose, but it
+            // cannot route content between strengths and problems.
+            top_problems: derivedExecutiveSummary.top_problems,
+            top_3_problems: derivedExecutiveSummary.top_3_problems,
+            whats_working: derivedExecutiveSummary.whats_working,
             first_priority: uniqueSemanticList(
               [
                 ...((executiveSummaryFromNarrative?.first_priority as string[]) || []),
@@ -3311,7 +3383,10 @@ export async function finalizeAudit(args: {
         : "") || report.closing_note,
   };
 
-  const contentReviewedReport = { ...report, bucket_results: contentReviewedResults };
+  const contentReviewedReport = {
+    ...assembledReport,
+    bucket_results: contentReviewedResults,
+  };
   return sanitizeAuditReport(multiAgentReview
     ? { ...contentReviewedReport, multi_agent_review: multiAgentReview }
     : contentReviewedReport);

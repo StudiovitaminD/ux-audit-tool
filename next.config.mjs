@@ -2,9 +2,8 @@
 const nextConfig = {
   // Keep Playwright runtime-only (prevents bundling its assets in Next build).
   output: "standalone",
-  experimental: {
-    serverComponentsExternalPackages: ["playwright-core", "@sparticuz/chromium"],
-  },
+  serverExternalPackages: ["playwright-core", "@sparticuz/chromium"],
+  turbopack: { root: process.cwd() },
 };
 
 export default nextConfig;

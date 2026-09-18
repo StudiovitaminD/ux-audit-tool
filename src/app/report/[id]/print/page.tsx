@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { PrintReport } from "@/components/report/print-report";
 import { captureCompetitorSnapshot } from "@/lib/competitor-snapshot";
 import { loadReportExportOverride } from "@/lib/report-export-overrides";
-import { loadStoredReport } from "@/lib/report-record";
 import { buildReportViewModel, type AnyRecord } from "@/lib/report-model";
 
 async function hydrateCompetitorsForPrint(report: unknown): Promise<AnyRecord[]> {
@@ -37,11 +36,12 @@ export default async function ReportPrintPage({
   params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams?: Record<string, string | string[] | undefined>;
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const overrideReport = (() => {
-    const raw = searchParams?.token;
+    const raw = resolvedSearchParams?.token;
     const encoded = Array.isArray(raw) ? raw[0]?.trim() : raw?.trim();
     if (!encoded) return null;
     return encoded;
@@ -55,9 +55,6 @@ export default async function ReportPrintPage({
     }
   }
 
-  const loaded = await loadStoredReport(params.id);
-  if (!loaded) notFound();
-
-  const hydratedCompetitors = await hydrateCompetitorsForPrint(loaded.report);
-  return <PrintReport report={loaded.report} hydratedCompetitors={hydratedCompetitors} />;
+  await params;
+  notFound();
 }

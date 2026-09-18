@@ -97,28 +97,33 @@ function pageObservation(page: EvidencePage, kind: EvidenceKind) {
 
 export function attachEvidenceDepth(bundle: EvidenceBundle, plan: EvidencePlan): EvidenceBundle {
   const pages = bundle.pages || [];
-  const screenshot = bundle.screenshots?.find((shot) => shot.isValidAuditEvidence !== false);
+  const screenshots = (bundle.screenshots || []).filter((shot) => shot.isValidAuditEvidence !== false);
   const records: EvidenceRecord[] = [];
   for (const requirement of plan.requirements) {
     for (const kind of requirement.kinds) {
-      const page = pages[0];
-      const result = page
-        ? pageObservation(page, kind)
-        : kind === "screenshot" && screenshot
-          ? { status: "inconclusive" as const, text: "Uploaded screenshot evidence is available for visual inspection only." }
-          : { status: "blocked" as const, text: "No page evidence was captured." };
-      records.push({
-        evidenceId: `ev-${requirement.questionId.toLowerCase()}-${kind.replaceAll("_", "-")}`,
-        bucketId: requirement.bucketId,
-        questionId: requirement.questionId,
-        kind,
-        pageUrl: page?.url || "",
-        viewport: page?.viewport,
-        testMethod: result.status === "confirmed" ? "deterministic_browser_measurement" : kind === "screenshot" ? "visual_capture" : "not_executed",
-        observedAt: page?.capturedAt || plan.generatedAt,
-        status: result.status,
-        observation: result.text,
-        screenshotUrl: kind === "screenshot" ? screenshot?.url : undefined,
+      const sources = pages.length ? pages : [null];
+      sources.forEach((page, pageIndex) => {
+        const screenshot = screenshots[pageIndex] || screenshots[0];
+        const result = page
+          ? pageObservation(page, kind)
+          : kind === "screenshot" && screenshot
+            ? { status: "inconclusive" as const, text: `Visual capture "${screenshot.label || "uploaded screenshot"}" is available for inspection.` }
+            : { status: "blocked" as const, text: "No page evidence was captured." };
+        records.push({
+          evidenceId: `ev-${requirement.questionId.toLowerCase()}-${kind.replaceAll("_", "-")}-p${pageIndex + 1}`,
+          bucketId: requirement.bucketId,
+          questionId: requirement.questionId,
+          kind,
+          pageUrl: page?.url || "",
+          viewport: page?.viewport || screenshot?.viewport,
+          testMethod: result.status === "confirmed" ? "deterministic_browser_measurement" : kind === "screenshot" ? "visual_capture" : "not_executed",
+          observedAt: page?.capturedAt || screenshot?.capturedAt || plan.generatedAt,
+          status: result.status,
+          observation: kind === "screenshot" && screenshot
+            ? `${result.text} Screen: ${screenshot.screenName || screenshot.title || screenshot.label}; heading: ${screenshot.heading || "not captured"}; visible content: ${screenshot.visibleTextSummary || "not summarized"}.`
+            : result.text,
+          screenshotUrl: kind === "screenshot" ? screenshot?.url : undefined,
+        });
       });
     }
   }

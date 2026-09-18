@@ -138,10 +138,7 @@ async function buildReportsList(docs: CleanupReportDoc[]) {
       const merged =
         (await mergeReportWithDoc(data, asRecord(parsedReport) ?? parsedReport ?? data.report, doc.id)) ?? {};
 
-      if (shouldDeleteReport(data, merged)) {
-        await doc.ref.delete().catch(() => undefined);
-        return;
-      }
+      if (shouldDeleteReport(data, merged)) return;
 
       if (!shouldIncludeReport(data, merged)) return;
 

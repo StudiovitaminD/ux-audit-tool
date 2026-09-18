@@ -153,6 +153,9 @@ export async function POST(req: Request) {
       );
     }
     const raw = await req.json();
+    if (Buffer.byteLength(JSON.stringify(raw ?? {}), "utf8") > 10 * 1024 * 1024) {
+      return Response.json({ error: "Audit payload exceeds the 10 MB limit." }, { status: 413 });
+    }
     const cleaned = removeUndefinedDeep(
       stripNonPersistentIntakeFields(stripInlineAssets(IntakeSchema.parse(raw))),
     );

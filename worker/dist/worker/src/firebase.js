@@ -1,10 +1,12 @@
-import admin from "firebase-admin";
+import { cert, getApp, getApps, initializeApp } from "firebase-admin/app";
+import { getFirestore as firestoreForApp } from "firebase-admin/firestore";
+import { getStorage as storageForApp } from "firebase-admin/storage";
 export function getAdminApp(env) {
-    if (admin.apps.length)
-        return admin.app();
+    if (getApps().length)
+        return getApp();
     const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
-    return admin.initializeApp({
-        credential: admin.credential.cert({
+    return initializeApp({
+        credential: cert({
             projectId: env.FIREBASE_PROJECT_ID,
             clientEmail: env.FIREBASE_CLIENT_EMAIL,
             privateKey,
@@ -13,8 +15,8 @@ export function getAdminApp(env) {
     });
 }
 export function getFirestore(env) {
-    return getAdminApp(env).firestore();
+    return firestoreForApp(getAdminApp(env));
 }
 export function getStorage(env) {
-    return getAdminApp(env).storage();
+    return storageForApp(getAdminApp(env));
 }

@@ -17,5 +17,6 @@
     "src/**/*.ts",
     "../shared/**/*.ts",
     "../shared/knowledge/ui-ux-pro-max/*-data.js"
-  ]
+  ],
+  "exclude": ["../shared/**/*.test.ts"]
 }

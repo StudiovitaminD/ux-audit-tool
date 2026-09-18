@@ -125,6 +125,12 @@ function appearsTruncated(value: unknown) {
   return /(?:\.{3}|…|[,;:]|\s[-–—])\s*$/.test(asString(value));
 }
 
+function isNegativeOrMixed(value: unknown) {
+  return /\b(?:cannot|can't|unable|lack(?:s|ing)?|missing|without|no visible|not |unclear|confus(?:e|ing)|fail(?:s|ed|ure)?|problem|risk|weak|poor|insufficient|inconsistent|difficult|friction|however|but)\b/i.test(
+    asString(value),
+  );
+}
+
 function healthForScore(score: number | null) {
   if (score === null) return { health: "Not tested", risk: "Evidence missing", priority: "P0" };
   if (score < 50) return { health: "Critical", risk: "High", priority: "P1" };
@@ -410,6 +416,27 @@ export function sanitizeAuditReport(reportValue: unknown): AnyRecord {
     : null;
   const findings = buckets.flatMap((bucket) => asArray(bucket.findings));
   const limitations = buckets.flatMap((bucket) => asArray(bucket.testing_limitations));
+  const deterministicProblems = uniqueSemanticStrings(
+    findings
+      .slice()
+      .sort((left, right) => Number((asRecord(left) ?? {}).mark ?? 1) - Number((asRecord(right) ?? {}).mark ?? 1))
+      .map((finding) => findingText(asRecord(finding) ?? {})),
+  ).slice(0, 5);
+  const deterministicStrengths = uniqueSemanticStrings(
+    buckets.flatMap((bucket) =>
+      asArray(bucket.questions)
+        .map((question) => asRecord(question) ?? {})
+        .filter((question) => questionState(question) === "pass")
+        .map((question) => asString(question.observation) || asString(question.evidence))
+        .filter((text) => text && !isNegativeOrMixed(text)),
+    ),
+  ).slice(0, 4);
+  const deterministicPriorities = uniqueSemanticStrings(
+    findings.map((finding) => {
+      const record = asRecord(finding) ?? {};
+      return asString(record.recommendation) || findingText(record);
+    }),
+  ).slice(0, 4);
   const scorecard = buckets.map((bucket) => ({
     section: bucket.bucket_name,
     bucket_name: bucket.bucket_name,
@@ -444,9 +471,10 @@ export function sanitizeAuditReport(reportValue: unknown): AnyRecord {
     quick_wins_table: quickWins,
     executive_summary: {
       ...executiveSummary,
-      top_problems: dedupeExecutiveList(executiveSummary.top_problems),
-      whats_working: dedupeExecutiveList(executiveSummary.whats_working),
-      first_priority: dedupeExecutiveList(executiveSummary.first_priority),
+      top_problems: deterministicProblems,
+      top_3_problems: deterministicProblems.slice(0, 3),
+      whats_working: deterministicStrengths,
+      first_priority: deterministicPriorities,
       top_3_quick_wins: dedupeExecutiveList(executiveSummary.top_3_quick_wins),
     },
     overall_score: overallScore,

@@ -125,8 +125,8 @@ export default function PricingPage() {
   }, []);
 
   const previewCustomCount = Number.isFinite(reportCount)
-    ? Math.max(0, Math.floor(reportCount))
-    : 0;
+    ? Math.max(MIN_CUSTOM_REPORTS, Math.floor(reportCount))
+    : MIN_CUSTOM_REPORTS;
   const isCustomCountValid = previewCustomCount >= MIN_CUSTOM_REPORTS;
   const customTotal = useMemo(
     () => previewCustomCount * REPORT_PRICE,
@@ -195,12 +195,12 @@ export default function PricingPage() {
                     <div className="grid grid-cols-[1fr_auto] overflow-hidden rounded-2xl border border-white/10 bg-[#111111]">
                       <input
                         type="number"
-                        min={0}
+                        min={MIN_CUSTOM_REPORTS}
                         step={1}
                         value={previewCustomCount}
                         onChange={(event) => {
                           const next = Number(event.target.value);
-                          setReportCount(Number.isFinite(next) ? next : 0);
+                          setReportCount(Number.isFinite(next) ? Math.max(MIN_CUSTOM_REPORTS, next) : MIN_CUSTOM_REPORTS);
                         }}
                         className="w-full bg-transparent px-4 py-3 text-lg font-semibold text-white outline-none transition placeholder:text-white/35 focus:ring-0"
                       />
@@ -208,7 +208,7 @@ export default function PricingPage() {
                         <button
                           type="button"
                           aria-label="Increase reports"
-                          onClick={() => setReportCount((current) => Math.max(0, Math.floor(current) + 1))}
+                          onClick={() => setReportCount((current) => Math.max(MIN_CUSTOM_REPORTS, Math.floor(current) + 1))}
                           className="grid h-1/2 min-h-8 w-11 place-items-center text-white/70 transition hover:bg-white/10 hover:text-white"
                         >
                           +
@@ -216,7 +216,7 @@ export default function PricingPage() {
                         <button
                           type="button"
                           aria-label="Decrease reports"
-                          onClick={() => setReportCount((current) => Math.max(0, Math.floor(current) - 1))}
+                          onClick={() => setReportCount((current) => Math.max(MIN_CUSTOM_REPORTS, Math.floor(current) - 1))}
                           className="grid h-1/2 min-h-8 w-11 place-items-center border-t border-white/10 text-white/70 transition hover:bg-white/10 hover:text-white"
                         >
                           −

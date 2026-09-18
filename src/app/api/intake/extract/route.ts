@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { getAccountSessionFromRequest } from "@/lib/account-server";
+import { assertPublicHttpUrlResolved } from "@/lib/url-security";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const BodySchema = z.object({
@@ -209,12 +212,18 @@ function extractOpenRouterContent(raw: string): string {
 
 export async function POST(req: Request) {
   try {
+    const session = await getAccountSessionFromRequest(req);
+    if (!session) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+    const rate = checkRateLimit(`intake:${session.id}`, 20, 60 * 60_000);
+    if (!rate.allowed) return rateLimitResponse(rate.retryAfterSeconds);
     const parsedBody = BodySchema.parse(await req.json());
     let sourceText = parsedBody.transcript?.trim() || "";
     if (!sourceText && parsedBody.websiteUrl) {
-      const page = await fetch(parsedBody.websiteUrl, {
+      const safeUrl = await assertPublicHttpUrlResolved(parsedBody.websiteUrl);
+      const page = await fetch(safeUrl, {
         headers: { "User-Agent": "UX Audit Tool intake reader" },
         signal: AbortSignal.timeout(15_000),
+        redirect: "error",
       });
       if (!page.ok) throw new Error(`Could not read website (${page.status})`);
       const html = await page.text();
@@ -234,10 +243,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const model =
-      process.env.OPENROUTER_INTAKE_MODEL ||
-      process.env.OPENROUTER_MODEL ||
-      "openrouter/owl-alpha";
+    const model = "openai/gpt-4.1-mini";
     const normalizedModel = model.trim().toLowerCase();
     const supportsStructuredOutput =
       normalizedModel !== "openrouter/owl-alpha" &&
@@ -248,7 +254,7 @@ export async function POST(req: Request) {
     const system = [
       "You are an expert UX researcher helping to fill a UX audit intake form from a transcript or product website.",
       "Return ONLY valid JSON. No markdown, no prose.",
-      "Infer every required intake field from the source when it is not stated explicitly. Do not leave required product, business, persona, or competitor fields blank.",
+      "Use only facts supported by the supplied source. Never invent business plans, demographics, competitors, credentials, or product capabilities.",
       "Never return undefined; omit keys instead.",
       "Prefer short strings. For arrays, include only items you are confident about.",
     ].join("\n");
@@ -300,9 +306,9 @@ Important:
 - Always select relevant selectedBuckets values using only these exact names: Visual Feedback, Color & Contrast, Typography & Readability, Keyboard Navigation, Screen Reader Support, Navigation & Findability, Consistency & UI Patterns, Content (Impact), Performance, Visual Consistency, Motion & Microinteractions, Content (Delight), Brand Expression, Icons & Imagery. Never return an empty selectedBuckets array.
 - The knownProblem field is displayed as "About the product". Write 1 to 3 plain, neutral sentences describing what the product offers, who it serves, and its main value. Do not write a UX problem, criticism, recommendation, vague challenge, or phrase beginning with "Complexity in".
 - productOneLiner must be one concise factual sentence describing the product, not an audit finding.
-- Always fill all Business Details fields: differentiation with the product's clear USPs, primaryBusinessObjective with the main measurable business objective, and businessFutureGoals with sensible next-stage goals. Replace meaningless existing values such as one-word fragments. Keep inferred goals concise and do not present them as confirmed plans.
-- Always suggest 2 to 3 relevant direct competitors for businessCompetitors, even when the source does not name them. Infer them from the product name, category, audience, and offering. Use each competitor's real public homepage URL, not a guessed internal page. Add a short compareFocus explaining what the user should compare, such as navigation, content, trust, features, or visual design.
-- Always fill the primary user persona fields: primaryUser, userAge, userGender, userLanguage, userGeography, primaryUserGoal, and primaryUserIntent. Infer a reasonable primary audience from the website content when it is not explicitly stated. Use only women, men, or both for userGender. Use only desktop, mobile, or both for primaryUserIntent.
+- Fill Business Details only when the source supports them. Do not turn likely goals into confirmed company plans.
+- Include competitors only when the source explicitly names them or their identity and public homepage can be verified from supplied material. Never guess a URL.
+- Fill persona fields only when supported by the source. Do not invent age, gender, language, geography, or intent. Use only women, men, or both for a supported userGender and desktop, mobile, or both for a supported primaryUserIntent.
 - Do not invent login credentials or private information. For optional fields not covered above, omit values you cannot support.`;
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {

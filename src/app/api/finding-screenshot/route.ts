@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAccountSessionFromRequest } from "@/lib/account-server";
-import { assertPublicHttpUrl } from "@/lib/url-security";
+import { assertPublicHttpUrlResolved } from "@/lib/url-security";
 import {
   captureFindingSnapshot,
   makeFallbackFindingSnapshot,
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   try {
     if (!(await getAccountSessionFromRequest(req))) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
     const body = BodySchema.parse(await req.json());
-    assertPublicHttpUrl(body.product_url);
+    await assertPublicHttpUrlResolved(body.product_url);
     const result = await Promise.race([
       captureFindingSnapshot(body),
       timeoutAfter(45_000),

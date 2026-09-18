@@ -5,7 +5,7 @@ import {
   deleteReportExportOverride,
   storeReportExportOverride,
 } from "@/lib/report-export-overrides";
-import { loadStoredReport } from "@/lib/report-record";
+import { loadAuthorizedReport } from "@/lib/report-record";
 import { exportReadinessResponse } from "@/lib/report-quality";
 
 export const runtime = "nodejs";
@@ -41,22 +41,25 @@ async function readReportOverride(req: Request) {
   }
 }
 
-async function generatePdf(req: Request, { params }: { params: { id: string } }) {
+async function generatePdf(req: Request, { params }: { params: Promise<{ id: string }> }) {
   let browser: Awaited<ReturnType<typeof pwChromium.launch>> | null = null;
   let overrideToken: string | null = null;
 
   try {
-    const id = params.id;
+    const { id } = await params;
     if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
+    const authorization = await loadAuthorizedReport(req, id);
+    if (!authorization.loaded) {
+      return Response.json({ error: authorization.error }, { status: authorization.status });
+    }
     const reportOverride = await readReportOverride(req);
-    const loaded = reportOverride ? null : await loadStoredReport(id);
-    if (!reportOverride && !loaded) return Response.json({ error: "Not found" }, { status: 404 });
+    const loaded = authorization.loaded;
 
     const readiness = exportReadinessResponse(reportOverride ?? loaded?.report);
     if (!readiness.exportReady) {
       return Response.json(
-        { error: readiness.quality.valid ? "Report must be approved before export" : "Report failed quality validation", quality: readiness.quality, reviewStatus: readiness.reviewStatus },
+        { error: "Report is not ready for export", quality: readiness.quality, reviewStatus: readiness.reviewStatus },
         { status: 422 },
       );
     }
@@ -77,10 +80,8 @@ async function generatePdf(req: Request, { params }: { params: { id: string } })
     await prepareBrowserPage(livePage);
 
     const printUrl = new URL(`/report/${encodeURIComponent(id)}/print`, new URL(req.url).origin);
-    if (reportOverride) {
-      overrideToken = await storeReportExportOverride(reportRecord);
-      printUrl.searchParams.set("token", overrideToken);
-    }
+    overrideToken = await storeReportExportOverride(reportRecord);
+    printUrl.searchParams.set("token", overrideToken);
 
     await livePage.goto(printUrl.toString(), { waitUntil: "load", timeout: 120_000 });
     await livePage.waitForSelector('[data-report-print-ready="true"]', { timeout: 120_000 });
@@ -123,10 +124,10 @@ async function generatePdf(req: Request, { params }: { params: { id: string } })
   }
 }
 
-export async function GET(req: Request, ctx: { params: { id: string } }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   return generatePdf(req, ctx);
 }
 
-export async function POST(req: Request, ctx: { params: { id: string } }) {
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   return generatePdf(req, ctx);
 }

@@ -78,13 +78,13 @@ function buildBucketPrompt(intake: Intake, bucket: string, evidence: EvidenceBun
   const bucketBrief = `${buildBucketFrameworkBrief(bucket)}\n\nAuthoritative scoring policy: Pass = 1, Partial = 0.5, and every other answer state = 0.\n\nAdvisory recommendation guidance (never use as evidence or to determine a score; use only to improve evidence-backed recommendations):\n${recommendationGuidance}`;
   const selectedBucketQuestions = qs
     .map((q) => {
-      const opts = q.options.map((o) => `${o.label} (${o.score === null ? "excluded from score" : o.score}) - ${o.text}`).join("\n");
+      const opts = q.options.map((o) => `${o.label} (${o.score ?? 0}) - ${o.text}`).join("\n");
       const sectionLine = q.section ? `Section: ${q.section}\n` : "";
       return `ID: ${q.id}\n${sectionLine}Question: ${q.question}\nHow to evaluate: ${q.navigate}\nOptions:\n${opts}`;
     })
     .join("\n\n---\n\n");
 
-  return `You are a senior UX auditor. Evaluate ONLY using the evidence provided below (do not claim you browsed the site).\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nProduct:\n- Name: ${intake.product_name}\n- URL: ${intake.product_url}\n- Type: ${String(intake.product_type)}\n- Platform: ${intake.primary_platform}\n- Goals: ${goals}\n- Key flows: ${flows}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nHard rules:\n- Use answer_state = \"pass\", \"partial\" or \"fail\" when the evidence is sufficient to judge the criterion.\n- Use answer_state = \"not_tested\" when evidence is missing and you cannot verify the criterion.\n- Use answer_state = \"n_a\" when the criterion does not apply to this product.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n- Output ONLY valid JSON.\n\nReturn JSON:\n{ \"bucket\": \"${bucket}\", \"questions\": [ {\"id\":\"N01\",\"question\":\"...\",\"answer_state\":\"pass|partial|fail|not_tested|n_a\",\"mark\":1,\"evidence\":\"...\",\"observation\":\"...\",\"recommendation\":\"...\"} ] }\n\nQuestions:\n${selectedBucketQuestions}\n\n${evidenceBlock(evidence)}\n`;
+  return `You are a senior UX auditor. Evaluate ONLY using the evidence provided below (do not claim you browsed the site).\n\nAudit framework:\n${frameworkBrief}\n\nBucket reference:\n${bucketBrief}\n\nProduct:\n- Name: ${intake.product_name}\n- URL: ${intake.product_url}\n- Type: ${String(intake.product_type)}\n- Platform: ${intake.primary_platform}\n- Goals: ${goals}\n- Key flows: ${flows}\n\nBucket: ${bucket}\nPillar: ${PILLAR_MAP[bucket] || "Impact"}\n\nContext instructions:\n${productTypeInstructions(intake.product_type)}\n\nHard rules:\n- Use answer_state = \"pass\", \"partial\" or \"fail\" only when the supplied evidence directly supports the decision.\n- Use answer_state = \"not_tested\" when evidence is missing and you cannot verify the criterion.\n- Use answer_state = \"n_a\" when the criterion does not apply to this product.\n- Observation must state one concrete behavior and its user consequence in no more than two sentences.\n- Recommendation must identify the component, exact change, and expected result in no more than two sentences.\n- Do not use generic phrases such as improve the user experience, enhance usability, consider improving, intuitive, seamless, or user-friendly.\n- Do not repeat the question, evidence, or recommendation in different words.\n- Do not abbreviate any field with ellipses; use complete sentences.\n- Output ONLY valid JSON.\n\nReturn JSON:\n{ \"bucket\": \"${bucket}\", \"questions\": [ {\"id\":\"N01\",\"question\":\"...\",\"answer_state\":\"pass|partial|fail|not_tested|n_a\",\"mark\":1,\"evidence\":\"...\",\"observation\":\"...\",\"recommendation\":\"...\"} ] }\n\nQuestions:\n${selectedBucketQuestions}\n\n${evidenceBlock(evidence)}\n`;
 }
 
 function safeJsonParse(raw: string): any | null {
@@ -154,7 +154,13 @@ function makeFallbackBucket(intake: Intake, bucket: string, reason: string): Buc
 export async function auditOneBucket(env: WorkerEnv, args: { intake: Intake; bucket: string; evidence: EvidenceBundle | null }) {
   const qs = QUESTION_BANK[args.bucket] || [];
   const prompt = buildBucketPrompt(args.intake, args.bucket, args.evidence);
-  const raw = await openRouterChat(env, { prompt });
+  const imageUrls = Array.from(new Set(
+    (args.evidence?.pages || []).flatMap((page) => [
+      page.screenshots?.desktop || "",
+      page.screenshots?.mobile || "",
+    ]).filter(Boolean),
+  )).slice(0, 4);
+  const raw = await openRouterChat(env, { prompt, imageUrls });
   const parsed = safeJsonParse(raw);
   if (!validateBucket(parsed, qs.length)) {
     return makeFallbackBucket(args.intake, args.bucket, "Invalid JSON or incomplete questions");
@@ -165,7 +171,7 @@ export async function auditOneBucket(env: WorkerEnv, args: { intake: Intake; buc
     const normalized = normalizeQuestionAnswer({
       id: String(q.id || "Q"),
       question: String(q.question || ""),
-      answer_status: "answered",
+      answer_status: answerState === "not_tested" || answerState === "n_a" ? "insufficient_evidence" : "answered",
       answer_state: answerState,
       mark: q.mark === null || q.mark === undefined || q.mark === "" ? null : Number(q.mark),
       selected_option:
@@ -183,7 +189,7 @@ export async function auditOneBucket(env: WorkerEnv, args: { intake: Intake; buc
     return {
       ...normalized,
       answer_state: answerState ?? normalized.answer_state,
-      answer_status: "answered",
+      answer_status: answerState === "not_tested" || answerState === "n_a" ? "insufficient_evidence" : "answered",
     };
   });
 
@@ -205,7 +211,7 @@ export async function auditOneBucket(env: WorkerEnv, args: { intake: Intake; buc
       severity: q.answer_state === "fail" ? "Critical" : "High",
     }));
   const improvements = questions
-    .filter((q: any) => q.answer_state === "not_tested" || q.answer_state === "n_a")
+    .filter((q: any) => q.answer_state === "partial")
     .map((q: any) => ({
       bucket: args.bucket,
       question_id: q.id,

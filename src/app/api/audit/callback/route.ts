@@ -481,11 +481,12 @@ async function normalizeReport(payload: unknown, existingDoc?: Record<string, un
 export async function POST(req: Request) {
   try {
     const secret = process.env.N8N_WEBHOOK_SECRET;
-    if (secret) {
-      const header = req.headers.get("x-audit-secret") || "";
-      if (header !== secret) {
-        return Response.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    if (!secret) {
+      return Response.json({ error: "Webhook authentication is not configured." }, { status: 503 });
+    }
+    const header = req.headers.get("x-audit-secret") || "";
+    if (header !== secret) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const raw = (await req.json().catch(() => ({}))) as unknown;

@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const cookieHeader = cookies()
+  const cookieHeader = (await cookies())
     .getAll()
     .map(({ name, value }) => `${name}=${value}`)
     .join("; ");

@@ -9,9 +9,9 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const id = params.id;
+  const { id } = await params;
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   const accountSession = await getAccountSessionFromRequest(req);
