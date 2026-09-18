@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   SESSION_CHANGE_EVENT,
   SESSION_STORAGE_KEY,
-  createDefaultSession,
   fetchAppSession,
   readAppSession,
   type AppSession,
@@ -336,6 +335,7 @@ export function ReportView() {
   const demo = searchParams.get("demo");
   const [accountSession, setAccountSession] = useState<AppSession>(() => readAppSession());
   const [accountReady, setAccountReady] = useState(false);
+  const [sessionCheckFailed, setSessionCheckFailed] = useState(false);
   const [remoteReport, setRemoteReport] = useState<{ reportId: string; report: unknown } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [jobError, setJobError] = useState<string | null>(null);
@@ -411,14 +411,15 @@ export function ReportView() {
     setAccountSession(readAppSession());
     void fetchAppSession({ expectedStorageValue: storageSnapshot })
       .then((next) => {
+        setSessionCheckFailed(false);
         if (window.localStorage.getItem(SESSION_STORAGE_KEY) === storageSnapshot) {
           setAccountSession(next);
         }
       })
       .catch(() => {
-        // Never trust a stale local identity when the server cannot validate the
-        // session. This also prevents a second Firestore request for report history.
-        setAccountSession(createDefaultSession());
+        // A temporary auth-service failure is not proof that the user signed out.
+        // Keep the local identity for display, but block protected data requests.
+        setSessionCheckFailed(true);
       })
       .finally(() => {
         setAccountReady(true);
@@ -426,6 +427,7 @@ export function ReportView() {
 
     const syncSession = () => {
       setAccountSession(readAppSession());
+      setSessionCheckFailed(false);
       setAccountReady(true);
     };
 
@@ -462,11 +464,11 @@ export function ReportView() {
   }, []);
 
   useEffect(() => {
-    if (!accountReady || demo === "1") return;
+    if (!accountReady || sessionCheckFailed || demo === "1") return;
     if (accountSession.email === "guest@local.test") {
       router.replace("/sign-in?returnTo=/report");
     }
-  }, [accountReady, accountSession.email, demo, router]);
+  }, [accountReady, accountSession.email, demo, router, sessionCheckFailed]);
 
   useEffect(() => {
     if (!rid) return;
@@ -598,7 +600,7 @@ export function ReportView() {
   }
 
   useEffect(() => {
-    if (rid || demo || !accountReady || accountSession.email === "guest@local.test") return;
+    if (rid || demo || !accountReady || sessionCheckFailed || accountSession.email === "guest@local.test") return;
     let cancelled = false;
     setLoadingHistory(true);
     setHistoryError(null);
@@ -623,7 +625,7 @@ export function ReportView() {
     return () => {
       cancelled = true;
     };
-  }, [rid, demo, accountReady, accountSession.email, sessionHeaders, historyReloadKey]);
+  }, [rid, demo, accountReady, accountSession.email, sessionHeaders, historyReloadKey, sessionCheckFailed]);
 
   useEffect(() => {
     if (!rid) return;
@@ -838,6 +840,20 @@ export function ReportView() {
         <div className="flex items-center gap-3 text-sm text-[color:var(--ink-muted)]">
           <LoadingSpinner />
           Checking sign in…
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionCheckFailed && !demo) {
+    return (
+      <div className="m-0 flex min-h-screen w-full items-center justify-center bg-[color:var(--background)] p-6">
+        <div className="w-full max-w-xl rounded-[var(--radius)] border border-amber-200 bg-amber-50 p-6 text-center text-amber-950">
+          <div className="text-lg font-semibold">Sign-in service is temporarily unavailable</div>
+          <p className="mt-2 text-sm">Your session was not changed. Please retry after the data-service limit resets.</p>
+          <button type="button" className="btnSecondary mt-5" onClick={() => window.location.reload()}>
+            Retry
+          </button>
         </div>
       </div>
     );
