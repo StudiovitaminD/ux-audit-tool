@@ -896,14 +896,7 @@ export function buildNarrativeSummaryPages({
   const blocks = buildSummaryBlocks(entries);
   const chunks = paginateSummaryBlocks(blocks);
   if (!chunks.length) {
-    return [
-      {
-        key: `narrative_summary_${pillar.toLowerCase()}`,
-        title: `Summary - ${pillar}`,
-        body: <NarrativeSummarySection vm={vm} pillar={pillar} bucketData={bucketData} />,
-        variant: "standard",
-      },
-    ];
+    return [];
   }
 
   return chunks.map((chunk, index) => ({

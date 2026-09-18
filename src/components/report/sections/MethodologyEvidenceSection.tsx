@@ -21,7 +21,8 @@ function MethodologySection({ vm }: { vm: ReportViewModel }) {
       <div className="rounded-2xl border border-[color:var(--card-border)] bg-[color:var(--card)] p-5">
         <div className="font-semibold">Evidence policy</div>
         <ul className="mt-3 list-disc space-y-2 pl-5 leading-6 text-[color:var(--muted)]">
-          <li>Scores include only criteria supported by captured evidence.</li>
+          <li>Pass, Partial, and Fail decisions require captured evidence.</li>
+          <li>Not Tested and N/A criteria score 0 under the selected scoring policy and are not presented as confirmed defects.</li>
           <li>Interaction and accessibility claims require deterministic browser or DOM measurements.</li>
           <li>Screenshot-only observations are limited to visibly verifiable states.</li>
           <li>Pass scores 1 point, Partial scores 0.5 points, and every other answer scores 0 points.</li>

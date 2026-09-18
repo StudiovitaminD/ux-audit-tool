@@ -63,7 +63,7 @@ export function buildMethodology(reportValue: unknown) {
   const intake = record(report.intake);
   const coverage = record(report.capture_coverage || report.captureCoverage);
   return {
-    framework: "Selected UX audit criteria are evaluated from captured browser, DOM, interaction, screenshot, and timing evidence. Unsupported criteria are excluded from scoring.",
+    framework: "Selected UX audit criteria are evaluated from captured browser, DOM, interaction, screenshot, and timing evidence. Criteria without sufficient evidence are marked Not Tested, score 0 under the selected scoring policy, and are listed separately as testing limitations rather than product defects.",
     selectedBuckets: array(report.selected_buckets || intake.selected_buckets).map(text).filter(Boolean),
     productUrl: text(report.product_url || intake.product_url),
     captureStatus: text(report.coverage_status || coverage.status) || "Unknown",

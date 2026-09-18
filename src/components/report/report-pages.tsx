@@ -35,11 +35,26 @@ export function buildReportPages({
   onResetAnswers,
 }: BuildReportPagesOptions): ReportPage[] {
   const isLocked = (key: string) => lockedSections.includes(key);
+  const isUnsupportedFinding = (finding: AnyRecord) => {
+    const text = [
+      finding.what_we_found,
+      finding.observation,
+      finding.evidence,
+      finding.recommendation,
+    ]
+      .map((value) => asString(value))
+      .filter(Boolean)
+      .join(" ");
+    return /\b(not tested|not captured|insufficient evidence|no (?:available |captured |visible |direct |visual |technical )?(?:data|evidence|screenshots?)|absence of (?:captured |visual |technical )?evidence|audit lacks (?:visual |technical )?evidence|without (?:visible |direct |visual |technical )?evidence|unable to (?:assess|evaluate|verify|determine)|cannot (?:assess|evaluate|verify|determine)|impossible to (?:assess|evaluate|verify|determine)|unknown (?:if|whether))\b/i.test(text);
+  };
   const findings = vm.findingsDetailed.filter((finding) => {
     const severity = asString(finding.severity).toLowerCase();
-    return severity === "critical" || severity === "high";
+    return (severity === "critical" || severity === "high") && !isUnsupportedFinding(finding);
   });
-  const displayedFindings = findings.length ? findings : vm.findingsDetailed.slice(0, 8);
+  const displayedFindings = (findings.length
+    ? findings
+    : vm.findingsDetailed.filter((finding) => !isUnsupportedFinding(finding)))
+    .slice(0, 8);
   const bucketAnswerSections = vm.bucketResults.filter(
     (bucket) => Boolean(bucket) && Array.isArray(bucket.questions) && bucket.questions.length,
   );

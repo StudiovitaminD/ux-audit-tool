@@ -1976,6 +1976,7 @@ function normalizeScorecardRow(row: AnyRecord) {
       bucketStatus === "scoring_unavailable" ? "Scoring unavailable" : "Evidence missing",
     bucket_status:
       bucketStatus === "scoring_unavailable" ? "scoring_unavailable" : "not_tested",
+    priority: "P0",
   } as AnyRecord;
 }
 

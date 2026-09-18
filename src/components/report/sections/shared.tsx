@@ -11,11 +11,20 @@ export function normalizeList(value: unknown, limit = 8) {
       .replace(/\s{2,}/g, " ")
       .trim();
 
-  if (Array.isArray(value)) return value.map(cleanItem).filter(Boolean).slice(0, limit);
-  return String(value ?? "")
-    .split(/\n|\r|\u2022|\u2023|\u25E6|\u2027/)
-    .map((item) => cleanItem(item))
-    .filter(Boolean)
+  const items = Array.isArray(value)
+    ? value.map(cleanItem).filter(Boolean)
+    : String(value ?? "")
+        .split(/\n|\r|\u2022|\u2023|\u25E6|\u2027/)
+        .map((item) => cleanItem(item))
+        .filter(Boolean);
+  const seen = new Set<string>();
+  return items
+    .filter((item) => {
+      const key = item.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .slice(0, limit);
 }
 

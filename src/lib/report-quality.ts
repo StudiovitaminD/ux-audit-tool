@@ -1,4 +1,4 @@
-import { QUESTION_BANK } from "@/lib/question-bank";
+import { QUESTION_BANK } from "./question-bank";
 import {
   normalizeQuestionAnswer,
   scoreQuestions,
@@ -73,7 +73,7 @@ function questionState(question: AnyRecord) {
 }
 
 function isCoverageLimitation(value: unknown) {
-  return /\b(not tested|not observed|not captured|insufficient evidence|without (?:visible |direct )?evidence|unable to (?:assess|evaluate|verify|determine)|cannot (?:assess|evaluate|verify|determine)|could not (?:assess|evaluate|verify|determine)|no evidence|evidence (?:is|was) missing|scoring unavailable)\b/i.test(
+  return /\b(not tested|not observed|not captured|insufficient evidence|insufficient visual evidence|without (?:visible |direct |visual |technical )?evidence|without screenshots?|without visual design examples|no (?:available |captured |visible |direct |visual |technical )?(?:data|evidence|screenshots?|descriptions?|examples?|information)|absence of (?:captured |visual |technical )?(?:data|evidence|screenshots?|content|samples?)|audit lacks (?:visual |technical )?evidence|unable to (?:assess|evaluate|verify|determine|confirm)|cannot (?:assess|evaluate|verify|determine|confirm)|could not (?:assess|evaluate|verify|determine|confirm)|impossible to (?:assess|evaluate|verify|determine|confirm)|unknown (?:if|whether)|it is unknown|evidence (?:is|was) missing|evidence prevents assessment|scoring unavailable)\b/i.test(
     asString(value),
   );
 }
@@ -122,7 +122,11 @@ function uniqueSemanticStrings(values: unknown[], accepted: string[] = []) {
 }
 
 function appearsTruncated(value: unknown) {
-  return /(?:\.{3}|…|[,;:]|\s[-–—])\s*$/.test(asString(value));
+  const text = asString(value);
+  if (!text) return false;
+  if (/(?:\.{3}|…|[,;:]|\s[-–—])\s*$/.test(text)) return true;
+  const trailingWord = text.match(/([a-z]+)$/i)?.[1] || "";
+  return !/[.!?)\]"']$/.test(text) && trailingWord.length > 0 && trailingWord.length <= 4;
 }
 
 function isNegativeOrMixed(value: unknown) {
@@ -133,7 +137,7 @@ function isNegativeOrMixed(value: unknown) {
 
 function healthForScore(score: number | null) {
   if (score === null) return { health: "Not tested", risk: "Evidence missing", priority: "P0" };
-  if (score < 50) return { health: "Critical", risk: "High", priority: "P1" };
+  if (score <= 50) return { health: "Critical", risk: "High", priority: "P1" };
   if (score < 80) return { health: "Average", risk: "Medium", priority: "P2" };
   return { health: "Good", risk: "Low", priority: "P3" };
 }
@@ -220,6 +224,8 @@ function sanitizeBucket(bucketValue: unknown, selected: Set<string>): AnyRecord 
           Boolean(findingText(finding)) &&
           Boolean(evidence) &&
           !isCoverageLimitation(`${findingText(finding)} ${evidence}`) &&
+          !appearsTruncated(findingText(finding)) &&
+          !appearsTruncated(finding.recommendation) &&
           (confirmedQuestion || verifiedSpecialist)
         );
       })

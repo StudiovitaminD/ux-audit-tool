@@ -1,0 +1,480 @@
+--- PAGE 1 ---
+UX Audit Report Of Studio
+Vitamin-D
+By Studio Vitamin D
+https://vitamin-d.in Sep 18, 2026
+
+--- PAGE 2 ---
+Overall
+This report is based on an expert review using a structured UX Audit Framework. It provides an indicative assessment of the user experience with an estimated
+70% accuracy level and is intended to guide design decisions.
+Overall Score
+14/100 | Critical | Audit Confidence 45%
+Composite score across key UX audit buckets
+Accessibility Impact Delight
+0 26 11
+/100 /100 /100
+Business Impact Index
+Drop-off Rate Task Completion Rate Customer Satisfaction
+Lower is better Higher is better Higher is better
+87 15 14
+% % %
+Score Card
+BUCKET SCORE HEALTH PRIORITY
+Visual Feedback Not Tested — P1
+Color & Contrast Not Tested — P1
+Typography & Readability Not Tested — P1
+Navigation & Findability Not Tested — P1
+Consistency & UI Patterns 50 Critical P2
+Content (Impact) 55 Average P2
+Performance Not Tested — P1
+Visual Consistency 45 Critical P1
+Motion & Microinteractions Not Tested — P1
+Brand Expression Not Tested — P1
+Icons & Imagery Not Tested — P1
+ytilibisseccA
+tcapmI
+thgileD
+Page 2 UX Audit Report
+
+--- PAGE 3 ---
+Summary - Accessibility
+Page 3 UX Audit Report
+
+--- PAGE 4 ---
+Summary - Impact
+Consistency & UI Patterns
+Top Problems:
+Repeated components such as buttons and navigation Repeated components such as buttons and navigation
+elements appear visually similar, but lack of interaction elements appear visually similar, but lack of interaction
+evidence prevents confirmation that they behave evidence prevents confirmation that they behave
+consistently, risking u consistently, risking u
+Button styles and hierarchy are inconsistent across pages, Button styles and hierarchy are inconsistent across pages,
+which may confuse users about which actions are primary which may confuse users about which actions are primary
+or secondary, reducing clarity in task completion. or secondary, reducing clarity in task completion.
+What's Working
+Core action buttons like Submit and navigation controls The interface maintains a coherent visual and structural
+use conventional labels and behaviors, enabling users to system across diverse pages, reinforcing brand identity
+predict outcomes and navigate confidently. and supporting user orientation throughout the site.
+Page 4 UX Audit Report
+
+--- PAGE 5 ---
+Summary - Impact
+Content (Impact)
+Top Problems:
+The primary action is visually prominent on the homepage, The primary action is visually prominent on the homepage,
+aiding quick identification, but the generic 'Submit' label on aiding quick identification, but the generic 'Submit' label on
+the contact page may cause uncertainty about the action's the contact page may cause uncertainty about the action's
+r r
+The primary action is visually prominent on the homepage,
+aiding quick identification, but the generic 'Submit' label on
+the contact page may cause uncertainty about the action's
+r
+What's Working
+The homepage clearly communicates the company’s Terminology is consistently applied across key pages,
+strategic design focus, enabling users to quickly ensuring users encounter uniform language that supports
+understand the site’s purpose upon arrival. clear understanding of services and expertise.
+Buttons use clear labels that match the expected outcome, The site avoids unnecessary technical or unfamiliar
+preventing user confusion about the next step. language, which helps first-time visitors quickly grasp the
+value proposition and service offerings.
+Page 5 UX Audit Report
+
+--- PAGE 6 ---
+Summary - Delight
+Visual Consistency
+Top Problems:
+Margins and padding are inconsistent across pages, with Misaligned grids and inconsistent margins create a
+some sections having noticeably larger or smaller spacing disrupted visual rhythm that can confuse users and reduce
+than others, which disrupts the overall visual rhythm and the perceived polish of the site.
+may conf
+Sections appear logically ordered by content type, but
+Related elements such as headings, descriptions, and missing heading capture in screenshots limits
+CTAs are not consistently spaced, which can reduce clarity confirmation that users can easily understand and use the
+in content relationships and hinder quick scanning. page structure.
+What's Working
+Font families and weights are consistently applied across Repeated components are visually consistent in size,
+key pages, supporting brand identity and reducing shape, and styling, which supports brand cohesion and
+cognitive load for users. user familiarity across the site.
+Motion & Microinteractions
+Top Problems:
+No evidence was captured to determine if animation or No evidence was captured to assess whether animations
+motion serves a clear purpose in the interface. are smooth and non-disruptive, so the impact on user
+experience cannot be determined.
+No evidence was captured to evaluate whether transitions
+assist users in understanding changes between states or No evidence was captured to evaluate the consistency of
+screens. transition durations, leaving potential timing issues
+unverified.
+Page 6 UX Audit Report
+
+--- PAGE 7 ---
+Summary - Delight
+Brand Expression
+Top Problems:
+No interface screenshots or descriptions were available to Without screenshots or style guides showing colour
+assess visible brand personality expression, so the user application, it is impossible to verify if brand colours are
+cannot perceive the intended brand character. applied consistently, risking visual incoherence.
+The absence of captured textual content or language The absence of evidence prevents assessment of whether
+samples prevents evaluation of brand personality brand expression is consistent, which may cause users to
+expression in language, leaving potential inconsistencies experience a fragmented brand impression.
+undetected.
+Icons & Imagery
+Top Problems:
+The audit lacks visual or technical evidence to determine if There is no available data to verify whether unclear icons
+icons maintain a consistent style, preventing assessment are supported by labels or sufficient context, so potential
+of potential user confusion caused by inconsistent user confusion cannot be assessed.
+iconography.
+There is no captured visual or technical evidence to verify
+There is no available data to determine if icons follow a that imagery aligns with or supports the adjacent content,
+coherent visual style and corner treatment, so user leaving potential relevance issues unexamined.
+perception of visual consistency cannot be confirmed.
+Page 7 UX Audit Report
+
+--- PAGE 8 ---
+Competitor Analysis - IDEO
+(ideo.com)
+IDEO positions itself as a leader in innovative design thinking, emphasizing human-centered design processes that drive creative
+solutions.
+Screenshot unavailable
+Strengths
+IDEO likely supports its message with clearer proof, Clear storytelling that connects design thinking to business
+innovation, or trust signals. impact.
+Strong emphasis on innovation and human-centered design.
+Gaps
+IDEO may still need to connect proof points more directly to May appear less focused on immersive digital experiences
+customer outcomes. compared to Studio Vitamin-D.
+Steal this
+Add proof blocks that tie innovation or trust signals to buyer Showcase detailed case studies that highlight process and
+relevance. impact.
+Use storytelling to clearly link design thinking with client
+outcomes.
+Page 8 UX Audit Report
+
+--- PAGE 9 ---
+Competitor Analysis - Frog Design
+(frogdesign.com)
+Frog Design offers end-to-end UX/UI and brand strategy services tailored for enterprise clients, emphasizing scalable and strategic
+solutions.
+Screenshot unavailable
+Strengths
+Frog Design appears to communicate a more explicit brand Strong focus on enterprise-scale solutions.
+story and market stance.
+Comprehensive service offerings covering UX, UI, and brand
+strategy.
+Gaps
+Frog Design may still need tighter prioritization if several Less emphasis on immersive digital experiences and
+messages compete at once. storytelling.
+Steal this
+Borrow Frog Design's clearer headline-to-value framing on Present polished visuals that reinforce brand
+key landing sections. professionalism.
+Highlight enterprise-specific solutions and scalability.
+Page 9 UX Audit Report
+
+--- PAGE 10 ---
+Competitor Analysis - Huge Inc.
+(hugeinc.com)
+Huge Inc. specializes in digital transformation and immersive experience design, blending technology and creativity to drive business
+growth.
+Screenshot unavailable
+Strengths
+Strong focus on immersive and transformative digital Clear calls to action inviting collaboration.
+experiences.
+Integration of technology and creative storytelling.
+Gaps
+May have less emphasis on traditional UX/UI and brand
+strategy services.
+Steal this
+Emphasize the blend of technology and storytelling in Use clear and inviting CTAs to encourage client
+service offerings. engagement.
+Page 10 UX Audit Report
+
+--- PAGE 11 ---
+Critical Findings
+1. Consistency & UI Patterns
+Issue
+Repeated components such as buttons and navigation elements appear visually similar, but lack of interaction evidence prevents
+confirmation that they behave consistently, risking u
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+2. Consistency & UI Patterns
+Issue
+Button styles and hierarchy are inconsistent across pages, which may confuse users about which actions are primary or
+secondary, reducing clarity in task completion.
+Effect of this issue
+The page may feel harder to scan, which slows comprehension and increases friction.
+Solution for this issue
+Strengthen visual hierarchy with clearer spacing, sizing, and emphasis.
+3. Content (Impact)
+Issue
+The primary action is visually prominent on the homepage, aiding quick identification, but the generic 'Submit' label on the contact
+page may cause uncertainty about the action's r
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+4. Visual Consistency
+Issue
+Margins and padding are inconsistent across pages, with some sections having noticeably larger or smaller spacing than others,
+which disrupts the overall visual rhythm and may conf
+Effect of this issue
+The page may feel harder to scan, which slows comprehension and increases friction.
+Solution for this issue
+Page 11 UX Audit Report
+Strengthen visual hierarchy with clearer spacing sizing and emphasis
+
+--- PAGE 12 ---
+5. Visual Consistency
+Issue
+Related elements such as headings, descriptions, and CTAs are not consistently spaced, which can reduce clarity in content
+relationships and hinder quick scanning.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+6. Visual Consistency
+Issue
+Misaligned grids and inconsistent margins create a disrupted visual rhythm that can confuse users and reduce the perceived
+polish of the site.
+Effect of this issue
+The page may feel harder to scan, which slows comprehension and increases friction.
+Solution for this issue
+Strengthen visual hierarchy with clearer spacing, sizing, and emphasis.
+7. Visual Consistency
+Issue
+Sections appear logically ordered by content type, but missing heading capture in screenshots limits confirmation that users can
+easily understand and use the page structure.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+8. Visual Consistency
+Issue
+The layout includes relevant CTAs and content sections, but insufficient visual emphasis and hierarchy in screenshots may reduce
+user focus on primary goals like contact or lead ca
+Effect of this issue
+The page may feel harder to scan, which slows comprehension and increases friction.
+Solution for this issue
+Strengthen visual hierarchy with clearer spacing, sizing, and emphasis.
+Page 12 UX Audit Report
+
+--- PAGE 13 ---
+9. Motion & Microinteractions
+Issue
+There is no available evidence to determine if decorative animations are avoided, so the impact on user distraction or motion
+sickness cannot be assessed.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Capture and analyze animations across key pages and interactions to identify and remove any non-purposeful decorative motion,
+ensuring user focus and comfort.
+10. Motion & Microinteractions
+Issue
+There is no available evidence to determine if motion aligns with or enhances the product's visual personality, leaving potential
+brand expression unverified.
+Effect of this issue
+The page may feel harder to scan, which slows comprehension and increases friction.
+Solution for this issue
+Strengthen visual hierarchy with clearer spacing, sizing, and emphasis.
+11. Motion & Microinteractions
+Issue
+There is no available evidence to confirm whether interactive elements provide micro-feedback, which may lead to uncertainty
+about action registration for users.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+12. Brand Expression
+Issue
+No interface screenshots or descriptions were available to assess visible brand personality expression, so the user cannot
+perceive the intended brand character.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+Page 13 UX Audit Report
+
+--- PAGE 14 ---
+13. Brand Expression
+Issue
+Without visual design examples, it is impossible to determine if the design stands out or feels generic, which affects brand
+memorability and user engagement.
+Effect of this issue
+The page may feel harder to scan, which slows comprehension and increases friction.
+Solution for this issue
+Strengthen visual hierarchy with clearer spacing, sizing, and emphasis.
+14. Brand Expression
+Issue
+The absence of captured textual content or language samples prevents evaluation of brand personality expression in language,
+leaving potential inconsistencies undetected.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+15. Brand Expression
+Issue
+Without screenshots or style guides showing colour application, it is impossible to verify if brand colours are applied consistently,
+risking visual incoherence.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+16. Brand Expression
+Issue
+There is no captured evidence to assess the consistency of brand typography across the product.
+Effect of this issue
+The page may feel harder to scan, which slows comprehension and increases friction.
+Solution for this issue
+Provide screenshots or recordings showing typography usage across multiple pages or components to enable evaluation of
+typographic consistency.
+Page 14 UX Audit Report
+
+--- PAGE 15 ---
+17. Brand Expression
+Issue
+There is no captured evidence to assess whether imagery, illustration, and graphic elements align with the brand identity.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Capture and provide visual evidence of imagery, illustrations, and graphic elements used across key pages to verify alignment
+with brand personality and messaging.
+18. Brand Expression
+Issue
+The absence of evidence prevents assessment of whether brand expression is consistent, which may cause users to experience a
+fragmented brand impression.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+19. Icons & Imagery
+Issue
+The audit lacks visual or technical evidence to determine if icons maintain a consistent style, preventing assessment of potential
+user confusion caused by inconsistent iconography.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+20. Icons & Imagery
+Issue
+There is no available data to determine if icons follow a coherent visual style and corner treatment, so user perception of visual
+consistency cannot be confirmed.
+Effect of this issue
+The page may feel harder to scan, which slows comprehension and increases friction.
+Solution for this issue
+Strengthen visual hierarchy with clearer spacing, sizing, and emphasis.
+Page 15 UX Audit Report
+
+--- PAGE 16 ---
+21. Icons & Imagery
+Issue
+There is no available data to verify whether unclear icons are supported by labels or sufficient context, so potential user confusion
+cannot be assessed.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+22. Icons & Imagery
+Issue
+There is no captured evidence showing the meaning or labeling of important icons, so it is unknown if users can interpret them
+correctly.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+23. Icons & Imagery
+Issue
+There is no captured evidence showing the style or consistency of illustrations, so it is unknown if they follow a cohesive visual
+language.
+Effect of this issue
+The page may feel harder to scan, which slows comprehension and increases friction.
+Solution for this issue
+Strengthen visual hierarchy with clearer spacing, sizing, and emphasis.
+24. Icons & Imagery
+Issue
+There is no captured visual or technical evidence to verify that imagery aligns with or supports the adjacent content, leaving
+potential relevance issues unexamined.
+Effect of this issue
+Users may need extra effort to understand the page and decide what to do next.
+Solution for this issue
+Rewrite the content with clearer labels, tighter hierarchy, and more direct guidance.
+Page 16 UX Audit Report
+
+--- PAGE 17 ---
+25. Icons & Imagery
+Issue
+Without visual or technical evidence, it is not possible to determine if images are appropriately cropped, scaled, or rendered
+sharply, risking degraded visual experience.
+Effect of this issue
+This can increase confusion and make the task harder to complete.
+Solution for this issue
+Clarify the interaction with stronger guidance, hierarchy, and feedback.
+Page 17 UX Audit Report
+
+--- PAGE 18 ---
+Quick Wins
+ISSUE RECOMMENDATION
+Visual Feedback needs a clearer improvement. Tighten spacing and hierarchy so the layout scans more cleanly.
+Page 18 UX Audit Report
+
+--- PAGE 19 ---
+Methodology & Scope
+Selected UX audit criteria are evaluated from captured browser, DOM, interaction, screenshot, and timing evidence. Unsupported criteria
+are excluded from scoring.
+SCOPE COVERAGE
+11 selected buckets 49 of 110 criteria scored
+Visual Feedback • Color & Contrast • Typography & Capture status: full_coverage
+Readability • Navigation & Findability • Consistency & UI
+Patterns • Content (Impact) • Performance • Visual
+Consistency • Motion & Microinteractions • Brand
+Expression • Icons & Imagery
+Evidence policy
+Scores include only criteria supported by captured evidence.
+Interaction and accessibility claims require deterministic browser or DOM measurements.
+Screenshot-only observations are limited to visibly verifiable states.
+Pass scores 1 point, Partial scores 0.5 points, and every other answer scores 0 points.
+Page 19 UX Audit Report
+
+--- PAGE 20 ---
+Testing Limitations
+These criteria were not scored because the required evidence was unavailable. They are follow-up tests, not confirmed product defects.
+Visual Feedback
+10 criteria require follow-up testing.
+Does the interface provide immediate visible feedback after a user action? • Are loading or processing states clearly
+communicated when users need to wait? • Are users prevented from accidentally submitting the same action multiple times?
+Color & Contrast
+10 criteria require follow-up testing.
+Does normal text meet the minimum 4.5:1 contrast ratio? • Does large text meet the minimum 3:1 contrast ratio? • Do
+meaningful interface components and controls meet the minimum 3:1 contrast ratio?
+Typography & Readability
+10 criteria require follow-up testing.
+Is body text comfortably readable on desktop? • Is body text comfortably readable on mobile? • Is line height sufficient for
+comfortable reading?
+Navigation & Findability
+10 criteria require follow-up testing.
+Is the primary navigation easy to discover and understand? • Are navigation items grouped according to user expectations? • Are
+menu labels clear, distinct and based on user terminology?
+Page 20 UX Audit Report
+
+--- PAGE 21 ---
+These criteria were not scored because the required evidence was unavailable. They are follow-up tests, not confirmed product defects.
+Consistency & UI Patterns
+4 criteria require follow-up testing.
+Are form controls and input patterns consistent? • Are navigation patterns consistent throughout the website? • Are
+confirmation, warning and error patterns consistent?
+Content (Impact)
+4 criteria require follow-up testing.
+Is the most important information presented first? • Are navigation and button labels clear and action-oriented? • Is supporting
+information visually secondary to primary information?
+Performance
+10 criteria require follow-up testing.
+Does meaningful page content appear within a reasonable amount of time? • Does the interface respond promptly after clicks
+and taps? • Are large images and media assets appropriately optimised?
+Visual Consistency
+3 criteria require follow-up testing.
+Is the colour palette applied consistently across pages and components? • Are unnecessary colour variations avoided? • Does
+the interface follow a clear and consistent typography scale?
+Page 21 UX Audit Report
+
+--- PAGE 22 ---
+Thank you
+https://vitamin-d.in Sep 18, 2026
