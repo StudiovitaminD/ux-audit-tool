@@ -316,7 +316,7 @@ export async function PATCH(
       { merge: true },
     );
 
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, report: sanitizedReport });
   } catch (error) {
     console.error("Failed to save report:", error);
     return Response.json({ error: "Failed to save report." }, { status: 500 });

@@ -332,8 +332,8 @@ export function AIBucketAnswersRoute() {
     setSaveMessage(null);
 
     try {
-      const res = await fetch(`/api/report/${encodeURIComponent(rid)}/refresh`, {
-        method: "POST",
+      const res = await fetch(`/api/report/${encodeURIComponent(rid)}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           ...sessionHeaders,
@@ -345,12 +345,13 @@ export function AIBucketAnswersRoute() {
       });
       const data = (await res.json().catch(() => null)) as { error?: string; report?: unknown } | null;
       if (!res.ok) throw new Error(data?.error || `Save failed (${res.status})`);
-      if (data?.report && typeof data.report === "object") {
-        const refreshed = data.report as AnyRecord;
+      const refreshed = normalizedReportFromResponse(data, rid);
+      if (refreshed) {
         setBaseReport(refreshed);
         setEditableReport(refreshed);
       } else {
         setBaseReport(editableReport);
+        setEditableReport(editableReport);
       }
       setSaveMessage("Changes saved");
     } catch (err) {
