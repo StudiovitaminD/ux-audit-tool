@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   SESSION_CHANGE_EVENT,
   SESSION_STORAGE_KEY,
+  createDefaultSession,
   fetchAppSession,
   readAppSession,
   type AppSession,
@@ -414,7 +415,11 @@ export function ReportView() {
           setAccountSession(next);
         }
       })
-      .catch(() => undefined)
+      .catch(() => {
+        // Never trust a stale local identity when the server cannot validate the
+        // session. This also prevents a second Firestore request for report history.
+        setAccountSession(createDefaultSession());
+      })
       .finally(() => {
         setAccountReady(true);
       });
