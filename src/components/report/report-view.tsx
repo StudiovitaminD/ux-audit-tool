@@ -492,7 +492,7 @@ export function ReportView() {
             status?: string;
           }
         | null;
-      if (res.status === 202 || res.status === 429) {
+      if (res.status === 202 || res.status === 409 || res.status === 429) {
         setProcessDelayMs(6000);
       } else if (res.status === 502 || res.status === 503 || res.status === 504) {
         setProcessDelayMs(6000);
@@ -777,6 +777,15 @@ export function ReportView() {
       currentStage === "finalizing" ||
       currentStage === "retrying_primary_model" ||
       currentStage === "fallback_scoring";
+
+    const isActiveStage =
+      currentStage === "preparing_evidence" ||
+      currentStage === "scoring" ||
+      currentStage === "capturing_evidence";
+
+    // An active request already owns the processing lease. Poll the report GET
+    // endpoint for progress instead of flooding the POST endpoint with 409s.
+    if (isActiveStage) return;
 
     void kickProcess(isUrgentStage ? `heartbeat:${currentStage}` : "heartbeat:processing", 250);
 
@@ -1253,21 +1262,6 @@ export function ReportView() {
           >
             {retryingReport ? "Retrying…" : "Refresh status"}
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (reportId && !effectiveReport) {
-    return (
-      <div className="grid min-h-[60vh] place-items-center p-6">
-        <div className="book-loader" role="status" aria-label="Loading report">
-          <div className="book-loader__shadow" />
-          <div className="book-loader__page" />
-          <div className="book-loader__page book-loader__page--2" />
-          <div className="book-loader__page book-loader__page--3" />
-          <div className="book-loader__page book-loader__page--4" />
-          <div className="book-loader__page book-loader__page--5" />
         </div>
       </div>
     );

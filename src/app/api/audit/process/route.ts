@@ -499,7 +499,9 @@ function buildCapturePipelineFailureMessage(
 export async function POST(req: Request) {
   const accountSession = await getAccountSessionFromRequest(req);
   if (!accountSession) return Response.json({ error: "Please sign in first." }, { status: 401 });
-  const rate = checkRateLimit(`process:${accountSession.id}`, 12, 60 * 60_000);
+  // Processing is resumable and protected by a per-report lease. Allow enough
+  // requests for browser heartbeats and one-request-per-bucket continuation.
+  const rate = checkRateLimit(`process:${accountSession.id}`, 240, 60 * 60_000);
   if (!rate.allowed) return rateLimitResponse(rate.retryAfterSeconds);
   const parsedBody = (await req.json().catch(() => ({}))) as unknown;
   const body = asRecord(parsedBody) ?? {};
@@ -553,6 +555,7 @@ export async function POST(req: Request) {
         lastErrorPhase: phase,
         lastErrorStack: truncateStorageString(stack, 4000),
         failedAt: new Date().toISOString(),
+        processingLeaseUntil: 0,
       },
       { merge: true },
     );
@@ -828,6 +831,7 @@ export async function POST(req: Request) {
         await ref.set(
           {
             status: "complete",
+            processingLeaseUntil: 0,
             completedAt:
               typeof doc.completedAt === "string" && doc.completedAt
                 ? doc.completedAt
@@ -964,6 +968,7 @@ export async function POST(req: Request) {
       await ref.set(
         {
           status: "processing",
+          processingLeaseUntil: 0,
           progress: buildProgressState({
             bucketIndex,
             totalBuckets: buckets.length,
@@ -977,6 +982,20 @@ export async function POST(req: Request) {
         },
         { merge: true },
       );
+
+      if (bucketIndex < buckets.length) {
+        return Response.json(
+          {
+            status: "processing",
+            progress: {
+              bucketIndex,
+              totalBuckets: buckets.length,
+              currentStage: "queued_next_bucket",
+            },
+          },
+          { status: 202 },
+        );
+      }
     }
 
     const finalized = await finalizeStoredReport(bucketIndex, existingResults);
@@ -987,7 +1006,12 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
     if (!intake) {
       await ref.set(
-        { status: "error", error: message || "Missing intake", failedAt: now },
+        {
+          status: "error",
+          error: message || "Missing intake",
+          failedAt: now,
+          processingLeaseUntil: 0,
+        },
         { merge: true },
       );
       return Response.json({ status: "error", error: message }, { status: 500 });
@@ -1002,6 +1026,7 @@ export async function POST(req: Request) {
         lastErrorPhase: currentPhase,
         lastErrorStack: err instanceof Error ? truncateStorageString(err.stack || "", 4000) : null,
         failedAt: now,
+        processingLeaseUntil: 0,
       },
       { merge: true },
     );
