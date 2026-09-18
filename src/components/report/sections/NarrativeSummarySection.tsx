@@ -117,7 +117,41 @@ function isWorkingStrengthText(text: unknown) {
 
 function isCoverageLimitation(text: unknown) {
   const normalized = normalizeKey(text);
-  return /\b(due to (?:a )?lack of evidence|lack of evidence|without (?:direct )?evidence|without testing|without .*?(?:data|views|examples|inspection|output)|insufficient evidence|available evidence|captured evidence|evidence (?:was|is) not|not possible to (?:determine|assess|verify|observe|evaluate|confirm)|could not (?:determine|assess|verify|observe|test|evaluate|confirm)|cannot (?:determine|assess|verify|observe|test|evaluate|confirm)|unknown whether|not tested|was not tested|were not tested|not observed|was not observed|were not observed|did not observe|did not capture|not captured)\b/i.test(normalized);
+  return /\b(due to (?:a )?lack of evidence|lack of evidence|no (?:available |captured |visible |direct |visual |technical )?evidence|no evidence (?:was|is) captured|absence of (?:captured |visual |technical )?evidence|without (?:direct )?evidence|without testing|without .*?(?:data|views|examples|inspection|output)|insufficient evidence|available evidence|captured evidence|evidence (?:was|is) not|not possible to (?:determine|assess|verify|observe|evaluate|confirm)|could not (?:determine|assess|verify|observe|test|evaluate|confirm)|cannot (?:determine|assess|verify|observe|test|evaluate|confirm)|unknown whether|not tested|was not tested|were not tested|not observed|was not observed|were not observed|did not observe|did not capture|not captured)\b/i.test(normalized);
+}
+
+const signalStopWords = new Set([
+  "the", "a", "an", "and", "or", "to", "of", "in", "on", "for", "with", "is", "are",
+  "be", "been", "this", "that", "it", "its", "users", "user", "may", "can", "could",
+]);
+
+function signalTokens(value: unknown) {
+  return normalizeKey(value)
+    .split(" ")
+    .filter((word) => word.length > 2 && !signalStopWords.has(word));
+}
+
+function dedupeSimilarSignals(items: readonly string[], limit: number) {
+  const kept: string[] = [];
+  const tokenSets: Set<string>[] = [];
+
+  for (const item of items) {
+    const tokens = new Set(signalTokens(item));
+    if (!tokens.size) continue;
+    const duplicate = tokenSets.some((other) => {
+      const intersection = Array.from(tokens).filter((token) => other.has(token)).length;
+      const union = new Set([...tokens, ...other]).size;
+      const similarity = intersection / Math.max(1, union);
+      const containment = intersection / Math.max(1, Math.min(tokens.size, other.size));
+      return similarity >= 0.55 || containment >= 0.75;
+    });
+    if (duplicate) continue;
+    kept.push(item);
+    tokenSets.push(tokens);
+    if (kept.length >= limit) break;
+  }
+
+  return kept;
 }
 
 function isIncompleteNarrative(text: unknown) {
@@ -442,13 +476,13 @@ function renderBucketContent(
   const dataWhatsWorking = sanitizeWorkingItems(bucketData?.whatsWorking);
   const findingTopProblems = bucket ? bucketFindingProblems(bucket) : [];
   const rationaleTopProblems = bucket ? bucketRationaleItems(bucket, "what_is_risky") : [];
-  const topProblems = normalizeList(
-    [...dataTopProblems, ...findingTopProblems, ...rationaleTopProblems],
+  const topProblems = dedupeSimilarSignals(
+    normalizeList([...dataTopProblems, ...findingTopProblems, ...rationaleTopProblems], 12),
     4,
   );
   const topProblemKeys = new Set(topProblems.map((item) => normalizeKey(cleanNarrativeText(item))));
   const whatsWorkingFromBucket = bucket ? bucketRationaleItems(bucket, "what_is_working") : [];
-  const whatsWorking =
+  const whatsWorkingCandidates =
     dataWhatsWorking.length
       ? dataWhatsWorking.filter((item) => !topProblemKeys.has(normalizeKey(cleanNarrativeText(item))))
       : whatsWorkingFromBucket.length
@@ -456,6 +490,7 @@ function renderBucketContent(
             (item) => !topProblemKeys.has(normalizeKey(cleanNarrativeText(item))),
           )
         : [];
+  const whatsWorking = dedupeSimilarSignals(whatsWorkingCandidates, 4);
   return { topProblems, whatsWorking };
 }
 

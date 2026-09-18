@@ -107,7 +107,9 @@ function semanticDuplicate(value: unknown, accepted: string[]) {
     if (!other.size) return false;
     const intersection = Array.from(tokens).filter((token) => other.has(token)).length;
     const union = new Set(Array.from(tokens).concat(Array.from(other))).size;
-    return intersection / Math.max(1, union) >= 0.72 || (tokens.size <= 5 && intersection === tokens.size && intersection === other.size);
+    const similarity = intersection / Math.max(1, union);
+    const containment = intersection / Math.max(1, Math.min(tokens.size, other.size));
+    return similarity >= 0.58 || containment >= 0.78 || (tokens.size <= 5 && intersection === tokens.size && intersection === other.size);
   });
 }
 

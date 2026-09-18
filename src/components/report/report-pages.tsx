@@ -45,7 +45,7 @@ export function buildReportPages({
       .map((value) => asString(value))
       .filter(Boolean)
       .join(" ");
-    return /\b(not tested|not captured|insufficient evidence|no (?:available |captured |visible |direct |visual |technical )?(?:data|evidence|screenshots?)|absence of (?:captured |visual |technical )?evidence|audit lacks (?:visual |technical )?evidence|without (?:visible |direct |visual |technical )?evidence|unable to (?:assess|evaluate|verify|determine)|cannot (?:assess|evaluate|verify|determine)|impossible to (?:assess|evaluate|verify|determine)|unknown (?:if|whether))\b/i.test(text);
+    return /\b(not tested|not captured|insufficient evidence|no (?:available |captured |visible |direct |visual |technical )?(?:data|evidence|screenshots?)|no evidence (?:was|is) captured|absence of (?:captured |visual |technical )?evidence|audit lacks (?:visual |technical )?evidence|without (?:visible |direct |visual |technical )?evidence|unable to (?:assess|evaluate|verify|determine)|cannot (?:assess|evaluate|verify|determine)|impossible to (?:assess|evaluate|verify|determine)|unknown (?:if|whether))\b/i.test(text);
   };
   const findings = vm.findingsDetailed.filter((finding) => {
     const severity = asString(finding.severity).toLowerCase();

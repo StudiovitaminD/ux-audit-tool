@@ -49,6 +49,18 @@ describe("sanitizeAuditReport findings", () => {
     expect(report.testing_limitations).toHaveLength(0);
   });
 
+  it("drops no-evidence statements phrased as captured evidence", () => {
+    const report = sanitizeAuditReport(
+      reportWithFinding(
+        "No evidence was captured to determine if animation or motion serves a clear purpose.",
+        "No animation evidence was captured.",
+        "Capture an interaction before assessing its motion behavior.",
+      ),
+    );
+
+    expect(report.all_findings).toEqual([]);
+  });
+
   it("drops findings whose model output was cut mid-sentence", () => {
     const report = sanitizeAuditReport(
       reportWithFinding(
@@ -71,5 +83,35 @@ describe("sanitizeAuditReport findings", () => {
     );
 
     expect(report.all_findings).toHaveLength(1);
+  });
+
+  it("keeps only one signal when findings describe the same problem", () => {
+    const report = reportWithFinding(
+      "Button hierarchy is inconsistent across pages, making primary actions unclear.",
+      "The captured home and contact screens use competing button treatments.",
+      "Standardize the primary button treatment across pages.",
+    );
+    const bucket = report.bucket_results[0];
+    bucket.questions.push({
+      id: "D42",
+      question: "Are primary actions visually consistent?",
+      answer_state: "fail",
+      answer_status: "answered",
+      mark: 0,
+      evidence_ids: ["icons-D42-p2"],
+      evidence: "The captured pages show different styles for equivalent primary actions.",
+      observation: "Inconsistent button hierarchy across pages makes primary actions difficult to identify.",
+      recommendation: "Use one primary button style throughout the product.",
+    });
+    bucket.findings.push({
+      question_id: "D42",
+      observation: "Inconsistent button hierarchy across pages makes primary actions difficult to identify.",
+      evidence: "The captured pages show different styles for equivalent primary actions.",
+      recommendation: "Use one primary button style throughout the product.",
+    });
+
+    const sanitized = sanitizeAuditReport(report);
+
+    expect(sanitized.all_findings).toHaveLength(1);
   });
 });
