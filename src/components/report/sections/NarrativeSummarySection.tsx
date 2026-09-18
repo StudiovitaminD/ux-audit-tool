@@ -154,6 +154,39 @@ function dedupeSimilarSignals(items: readonly string[], limit: number) {
   return kept;
 }
 
+function signalContextLabel(value: string) {
+  const text = normalizeKey(value);
+  if (/^[^:]{2,42}:\s/.test(value)) return "";
+  const namedButton = value.match(
+    /(?:button|cta|call to action|label|action)[^.!?]{0,45}?[‘'“"]([^’'”"]{1,32})[’'”"]|[‘'“"]([^’'”"]{1,32})[’'”"][^.!?]{0,30}?(?:button|cta|call to action|label|action)/i,
+  );
+  const buttonName = (namedButton?.[1] || namedButton?.[2] || "").trim();
+  if (buttonName && !/^(primary|secondary|generic|button|cta|action)$/i.test(buttonName)) {
+    return `“${buttonName}” Button`;
+  }
+  if (/contact|enquiry|inquiry|submit|form field|validation|input field/.test(text)) return "Contact Form";
+  if (/homepage|home page|hero|landing page/.test(text)) return "Homepage";
+  if (/navigation|navbar|nav bar|menu|wayfinding|findability/.test(text)) return "Navigation";
+  if (/checkout|cart|payment|purchase/.test(text)) return "Checkout";
+  if (/button|call to action|\bcta\b|primary action|secondary action/.test(text)) return "Buttons & CTAs";
+  if (/loading|spinner|processing|response time|performance/.test(text)) return "Loading & Performance";
+  if (/error|success message|feedback|confirmation|system status/.test(text)) return "System Feedback";
+  if (/typography|readability|font|line height|text size/.test(text)) return "Typography";
+  if (/color|contrast|colour/.test(text)) return "Color & Contrast";
+  if (/motion|animation|transition|microinteraction/.test(text)) return "Motion";
+  if (/brand|tone of voice|visual identity/.test(text)) return "Brand";
+  if (/icon|imagery|image|illustration|photograph/.test(text)) return "Icons & Imagery";
+  if (/layout|spacing|component|visual hierarchy|alignment/.test(text)) return "UI Components";
+  if (/content|copy|terminology|language|message/.test(text)) return "Content";
+  return "Interface";
+}
+
+function contextualizeSignal(value: string) {
+  const item = cleanNarrativeText(value);
+  const label = signalContextLabel(item);
+  return label ? `${label}: ${item}` : item;
+}
+
 function isIncompleteNarrative(text: unknown) {
   return !/[.!?]$/.test(String(text || "").trim());
 }
@@ -224,6 +257,7 @@ function bucketRationaleItems(
     (item) =>
       !placeholderText(item) &&
       !isCoverageLimitation(item) &&
+      !isIncompleteNarrative(item) &&
       !looksEllipsizedText(item) &&
       !isNeutralSummaryText(item) &&
       (key === "what_is_risky" || isWorkingStrengthText(item)),
@@ -234,6 +268,7 @@ function bucketRationaleItems(
     (item) =>
       !placeholderText(item) &&
       !isCoverageLimitation(item) &&
+      !isIncompleteNarrative(item) &&
       !looksEllipsizedText(item) &&
       !isNeutralSummaryText(item) &&
       (key === "what_is_risky" || isWorkingStrengthText(item)),
@@ -249,6 +284,7 @@ function bucketRationaleItems(
           item &&
           !placeholderText(item) &&
           !isCoverageLimitation(item) &&
+          !isIncompleteNarrative(item) &&
           !looksEllipsizedText(item) &&
           !isNeutralSummaryText(item) &&
           isWorkingStrengthText(item),
@@ -266,6 +302,7 @@ function bucketRationaleItems(
         item &&
         !placeholderText(item) &&
         !isCoverageLimitation(item) &&
+        !isIncompleteNarrative(item) &&
         !looksEllipsizedText(item) &&
         !isNeutralSummaryText(item) &&
         !looksLikeWeakStatus(item),
@@ -280,6 +317,7 @@ function bucketRationaleItems(
         item &&
         !placeholderText(item) &&
         !isCoverageLimitation(item) &&
+        !isIncompleteNarrative(item) &&
         !looksEllipsizedText(item) &&
         !isNeutralSummaryText(item) &&
         !looksLikeWeakStatus(item),
@@ -289,11 +327,11 @@ function bucketRationaleItems(
   const questionItems = asArray(bucket.questions)
     .map((item) => asRecord(item) ?? {})
     .map((item) => cleanNarrativeText(synthesizeQuestionTakeaway(bucketLabel(bucket), item, "risk")))
-    .filter((item) => item && !placeholderText(item) && !isCoverageLimitation(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item));
+    .filter((item) => item && !placeholderText(item) && !isCoverageLimitation(item) && !isIncompleteNarrative(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item));
   if (questionItems.length) return normalizeList(questionItems, 4);
 
   return normalizeList(bucket.summary || bucket.note || bucket.rationale || "", 4).filter(
-    (item) => !placeholderText(item) && !isCoverageLimitation(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item),
+    (item) => !placeholderText(item) && !isCoverageLimitation(item) && !isIncompleteNarrative(item) && !looksEllipsizedText(item) && !isNeutralSummaryText(item),
   );
 }
 
@@ -319,6 +357,7 @@ function bucketFindingProblems(bucket: Record<string, unknown>) {
           item &&
           !placeholderText(item) &&
           !isCoverageLimitation(item) &&
+          !isIncompleteNarrative(item) &&
           !looksEllipsizedText(item) &&
           !isNeutralSummaryText(item) &&
           !looksLikeWeakStatus(item),
@@ -476,11 +515,11 @@ function renderBucketContent(
   const dataWhatsWorking = sanitizeWorkingItems(bucketData?.whatsWorking);
   const findingTopProblems = bucket ? bucketFindingProblems(bucket) : [];
   const rationaleTopProblems = bucket ? bucketRationaleItems(bucket, "what_is_risky") : [];
-  const topProblems = dedupeSimilarSignals(
+  const rawTopProblems = dedupeSimilarSignals(
     normalizeList([...dataTopProblems, ...findingTopProblems, ...rationaleTopProblems], 12),
     4,
   );
-  const topProblemKeys = new Set(topProblems.map((item) => normalizeKey(cleanNarrativeText(item))));
+  const topProblemKeys = new Set(rawTopProblems.map((item) => normalizeKey(cleanNarrativeText(item))));
   const whatsWorkingFromBucket = bucket ? bucketRationaleItems(bucket, "what_is_working") : [];
   const whatsWorkingCandidates =
     dataWhatsWorking.length
@@ -490,7 +529,9 @@ function renderBucketContent(
             (item) => !topProblemKeys.has(normalizeKey(cleanNarrativeText(item))),
           )
         : [];
-  const whatsWorking = dedupeSimilarSignals(whatsWorkingCandidates, 4);
+  const rawWhatsWorking = dedupeSimilarSignals(whatsWorkingCandidates, 4);
+  const topProblems = rawTopProblems.map(contextualizeSignal);
+  const whatsWorking = rawWhatsWorking.map(contextualizeSignal);
   return { topProblems, whatsWorking };
 }
 
@@ -790,7 +831,15 @@ export function SummaryBulletColumns({ items }: { items: readonly string[] }) {
         >
           {column.map((item) => (
             <li key={item} className="break-words">
-              {item}
+              {(() => {
+                const match = item.match(/^([^:]{2,42}):\s+(.+)$/);
+                if (!match) return item;
+                return (
+                  <>
+                    <strong>{match[1]}:</strong> {match[2]}
+                  </>
+                );
+              })()}
             </li>
           ))}
         </ul>

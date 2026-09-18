@@ -264,6 +264,41 @@ function trimText(value: string | null | undefined, max = 280) {
   return text.length > max ? text.slice(0, max) : text;
 }
 
+function isCompleteModelSentence(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text) return true;
+  return !/(?:\.{3}|…|[,;:]|\s[-–—])\s*$/.test(text) && /[.!?)]$/.test(text);
+}
+
+function isUsableParsedQuestion(question: Record<string, unknown>) {
+  const status = String(question.answer_status ?? "").trim();
+  const observation = String(question.observation ?? "").trim();
+  const evidence = String(question.evidence ?? "").trim();
+  const recommendation = String(question.recommendation ?? "").trim();
+  if (!observation || !evidence) return false;
+  if (!isCompleteModelSentence(observation) || !isCompleteModelSentence(evidence)) return false;
+  if (status !== "insufficient_evidence" && recommendation && !isCompleteModelSentence(recommendation)) {
+    return false;
+  }
+  return true;
+}
+
+function sanitizeModelRationale(value: unknown) {
+  const rationale = asRecord(value);
+  if (!rationale) return null;
+  const completeList = (items: unknown) =>
+    (Array.isArray(items) ? items : [])
+      .map((item) => String(item ?? "").trim())
+      .filter((item) => item && isCompleteModelSentence(item));
+  return {
+    ...rationale,
+    summary: isCompleteModelSentence(rationale.summary) ? rationale.summary : "",
+    what_is_working: completeList(rationale.what_is_working),
+    what_is_risky: completeList(rationale.what_is_risky),
+    why_now: isCompleteModelSentence(rationale.why_now) ? rationale.why_now : "",
+  };
+}
+
 function extractOpenRouterTextContent(value: unknown): string | null {
   if (typeof value === "string") return value;
   if (!Array.isArray(value)) return null;
@@ -451,6 +486,7 @@ Evidence rules:
 
 Editorial rules:
 - Write one precise finding per question. Observation must identify the interface behavior and its likely user consequence in no more than two complete sentences.
+- Begin every what_is_working and what_is_risky item with the specific screen or component followed by a colon. When a visible button or CTA has a name, use that exact name in the label, for example "“Submit” Button: The label does not explain what happens next." Otherwise use a label such as "Contact Form:" or "Navigation:".
 - For partial or fail, recommendation must name the affected component, the exact change, and the expected user outcome in no more than two complete sentences.
 - For pass, not_tested, or n_a, recommendation must be an empty string.
 - what_is_working may contain only evidence-backed pass strengths. Never place risks, caveats, or recommendations there.
@@ -674,6 +710,14 @@ export async function openRouterChat(
               JSON.stringify(data)
             );
           })();
+      const responseRecord = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+      const responseChoices = Array.isArray(responseRecord?.choices) ? responseRecord.choices : [];
+      const responseChoice = asRecord(responseChoices[0]);
+      const finishReason = String(responseChoice?.finish_reason ?? responseChoice?.finishReason ?? "").toLowerCase();
+      if (finishReason === "length" || finishReason === "max_tokens") {
+        maxTokens = capModelMaxTokens(model, Math.min(5000, Math.ceil(maxTokens * 1.6)));
+        throw new Error(`MODEL_OUTPUT_TRUNCATED [model=${model}]`);
+      }
       return String(content);
     } catch (error) {
       console.error("Audit bucket scoring failed:", error);
@@ -718,6 +762,7 @@ export async function openRouterChat(
         message.toLowerCase().includes("socket") ||
         message.toLowerCase().includes("econnreset") ||
         message.toLowerCase().includes("etimedout") ||
+        message.includes("MODEL_OUTPUT_TRUNCATED") ||
         message.includes("500") ||
         message.includes("502") ||
         message.includes("503") ||
@@ -823,7 +868,7 @@ ${criterionEvidencePacket(args.evidence, args.bucket, questionChunk)}
       const parsedQuestionInputs = Array.isArray(parsed.questions) ? parsed.questions : [];
       const parsedQuestionRecords = parsedQuestionInputs
         .map((item) => asRecord(item))
-        .filter((item): item is Record<string, unknown> => Boolean(item));
+        .filter((item): item is Record<string, unknown> => Boolean(item && isUsableParsedQuestion(item)));
       for (const question of parsedQuestionRecords) {
         const id = typeof question.id === "string" ? question.id : "";
         if (id) parsedById.set(id, question);
@@ -1534,7 +1579,7 @@ async function writeNarrative(args: {
 
   const prompt = `You are a principal UX strategist writing a client-ready audit report.\n\nUse ONLY:\n1) intake context\n2) evidence capture text (headings/nav/text snippets)\n3) scored bucket findings/improvements\n4) competitor seeds\n${args.editContext ? "5) edited question changes from the report editor\\n" : ""}\nHard rules:\n- Do not invent screens or features not supported by evidence.\n- Do not write filler or score-only narrative like "Bucket scored 43/100" unless it directly supports a decision.\n- Executive summary must be specific, action-led, and useful for a client stakeholder.\n- Section narratives must explain what is happening and what to do next in bullet-ready sentences.\n- Competitor analysis must return real per-competitor positioning, CTA, strengths, gaps, and steal_this ideas based on compare_focus and available context. If truly unknown, return empty strings/arrays instead of generic placeholders.\n- Do not abbreviate any quoted evidence, observation, or recommendation with ellipses; use complete sentences.\n- Return ONLY valid JSON.\n\nReturn ONLY valid JSON matching this schema:\n{\n  \"executive_summary\": {\n    \"one_line_verdict\": \"...\",\n    \"strongest_area\": \"...\",\n    \"main_issue\": \"...\",\n    \"top_problems\": [\"...\"],\n    \"whats_working\": [\"...\"],\n    \"first_priority\": [\"...\"],\n    \"top_3_quick_wins\": [\"...\"],\n    \"first_priority_recommendation\": \"...\"\n  },\n  \"overall_assessment\": \"...\",\n  \"top_risks\": [\"...\"],\n  \"quick_wins\": [{\"title\":\"...\",\"why\":\"...\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"recommendations\": [{\"title\":\"...\",\"details\":\"...\",\"priority\":\"P1|P2|P3|P4\",\"effort\":\"S|M|L\",\"impact\":\"Low|Med|High\"}],\n  \"strategic_insights\": [\"...\"],\n  \"per_bucket_notes\": [{\"bucket\":\"...\",\"summary\":\"...\",\"biggest_risk\":\"...\",\"best_opportunity\":\"...\"}],\n  \"section_narrative\": {\n    \"delight_narrative\": [\"...\"],\n    \"impact_narrative\": [\"...\"],\n    \"accessibility_narrative\": [\"...\"]\n  },\n  \"competitor_analysis\": {\n    \"competitors\": [{\"name\":\"...\",\"url\":\"...\",\"compare_focus\":\"...\",\"positioning\":\"...\",\"primary_cta\":\"...\",\"strengths\":[\"...\"],\"gaps\":[\"...\"],\"steal_this\":[\"...\"]}]\n  }\n}\n\nIntake:\n${JSON.stringify(compactIntake, null, 2)}\n\nCompetitor seeds:\n${JSON.stringify(competitorSeeds, null, 2)}\n\n${args.editContext ? `Edited question changes:\n${args.editContext}\n` : ""}Evidence:\n${compactEvidence}\n\nScored buckets:\n${JSON.stringify(compactBuckets, null, 2)}\n\nOverall score: ${args.overall_score}\n`;
 
-  const contentWriterRules = `\n\nContent Writer Agent rules:\n- Preserve every score, answer state, pillar, and evidence record exactly.\n- Top Problems may contain only verified product defects supported by evidence. Each item must state the observed issue, user consequence, and practical action.\n- Never present missing evidence, untested states, unavailable screens, or inability to determine something as a product problem.\n- What's Working may contain only clearly positive, evidence-backed behavior. Exclude mixed or negative statements.\n- Keep coverage limitations separate from product findings.\n- Remove duplicates, contradictions, generic filler, and unsupported claims.\n- Performance/Impact covers loading, DOM readiness, runtime responsiveness, asset efficiency, and mobile performance only; never mix in business metrics.\n- Write for a reader with no UX, design, accessibility, or engineering knowledge.\n- Prefer familiar everyday words. Replace or briefly explain technical terms such as DOM readiness, cognitive load, affordance, hierarchy, latency, and interaction state.\n- Use short, direct sentences and one idea per sentence. Do not use vague consultant language.`;
+  const contentWriterRules = `\n\nContent Writer Agent rules:\n- Preserve every score, answer state, pillar, and evidence record exactly.\n- Top Problems may contain only verified product defects supported by evidence. Each item must state the observed issue, user consequence, and practical action.\n- Begin every top_problems and whats_working item with the specific screen or component followed by a colon. When a visible button or CTA has a name, use that exact name in the label, for example "“Submit” Button: The label does not explain what happens next." Otherwise use a label such as "Contact Form:" or "Navigation:".\n- Never present missing evidence, untested states, unavailable screens, or inability to determine something as a product problem.\n- What's Working may contain only clearly positive, evidence-backed behavior. Exclude mixed or negative statements.\n- Keep coverage limitations separate from product findings.\n- Remove duplicates, contradictions, generic filler, and unsupported claims.\n- Performance/Impact covers loading, DOM readiness, runtime responsiveness, asset efficiency, and mobile performance only; never mix in business metrics.\n- Write for a reader with no UX, design, accessibility, or engineering knowledge.\n- Prefer familiar everyday words. Replace or briefly explain technical terms such as DOM readiness, cognitive load, affordance, hierarchy, latency, and interaction state.\n- Use short, direct sentences and one idea per sentence. Do not use vague consultant language.`;
   const bucketContentSchema = `\n\nFor every item in per_bucket_notes, also return top_problems and whats_working arrays. top_problems must contain only verified defects. whats_working must contain only verified positive behavior. Return empty arrays when no valid content exists.`;
   const plainLanguagePrompt = `${prompt}${contentWriterRules}${bucketContentSchema}\n\nWriting requirement: Use clear layman's language that an everyday user can understand on the first read. Clearly state what is wrong, how it affects the user, and what should be done next.`;
 
@@ -2639,11 +2684,11 @@ export async function auditOneBucket(args: {
       const chunkParsed = parseBucketJson(raw);
       if (chunkParsed.pillar) parsedPillar = chunkParsed.pillar;
       if (chunkParsed.score_rationale && !parsedScoreRationale) {
-        parsedScoreRationale = chunkParsed.score_rationale;
+        parsedScoreRationale = sanitizeModelRationale(chunkParsed.score_rationale);
       }
       for (const question of chunkParsed.questions) {
         const id = typeof question.id === "string" ? question.id : "";
-        if (id) parsedQuestionsById.set(id, question);
+        if (id && isUsableParsedQuestion(question)) parsedQuestionsById.set(id, question);
       }
     } catch {
       const schemaHint =
@@ -2654,11 +2699,11 @@ export async function auditOneBucket(args: {
           const repairedParsed = parseBucketJson(JSON.stringify(repaired));
           if (repairedParsed.pillar) parsedPillar = repairedParsed.pillar;
           if (repairedParsed.score_rationale && !parsedScoreRationale) {
-            parsedScoreRationale = repairedParsed.score_rationale;
+            parsedScoreRationale = sanitizeModelRationale(repairedParsed.score_rationale);
           }
           for (const question of repairedParsed.questions) {
             const id = typeof question.id === "string" ? question.id : "";
-            if (id) parsedQuestionsById.set(id, question);
+            if (id && isUsableParsedQuestion(question)) parsedQuestionsById.set(id, question);
           }
         } catch {}
       }
@@ -3153,13 +3198,13 @@ export async function finalizeAudit(args: {
     const topProblems = uniqueSemanticList(
       (Array.isArray(note.top_problems) ? note.top_problems : [])
         .map((item) => String(item || "").trim())
-        .filter((item) => item && !isPlaceholderText(item) && !isAuditCoverageLimitation(item)),
+        .filter((item) => item && isCompleteModelSentence(item) && !isPlaceholderText(item) && !isAuditCoverageLimitation(item)),
       4,
     );
     const whatsWorking = uniqueSemanticList(
       (Array.isArray(note.whats_working) ? note.whats_working : [])
         .map((item) => String(item || "").trim())
-        .filter((item) => item && !isPlaceholderText(item) && !isAuditCoverageLimitation(item) && !isNegativeStrength(item)),
+        .filter((item) => item && isCompleteModelSentence(item) && !isPlaceholderText(item) && !isAuditCoverageLimitation(item) && !isNegativeStrength(item)),
       4,
     );
     if (!topProblems.length && !whatsWorking.length) return bucket;
