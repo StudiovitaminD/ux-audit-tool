@@ -95,14 +95,24 @@ function promptLikeText(value: unknown, questionText: unknown) {
 function selectedOptionTextForQuestion(bucketName: string, question: Record<string, unknown>) {
   const questionId = asString(question.id);
   const questionLabel = asString(question.question);
+  const answerStatus = asString(question.answer_status);
+  const selectedState = normalizeAnswerStateValue(
+    answerStatus === "insufficient_evidence" || answerStatus === "scoring_unavailable"
+      ? "not_tested"
+      : question.selected_option_state || question.answer_state,
+  );
+  const options = lookupQuestionOptions(bucketName, questionId);
+  const matchedByState = options.find(
+    (option) => normalizeAnswerStateValue(option.state) === selectedState,
+  );
+  if (matchedByState) return formatBucketOption(matchedByState);
+
   const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
   if (selectedText && !placeholderText(selectedText)) return selectedText;
 
-  const selectedState = asString(question.selected_option_state || question.answer_state);
-  const selectedMark = Number(asString(question.selected_option || question.mark));
-  const options = lookupQuestionOptions(bucketName, questionId);
+  const selectedMark = Number(asString(question.selected_option ?? question.mark));
   const matched = options.find(
-    (option) => option.state === selectedState || Number(option.mark) === selectedMark,
+    (option) => Number(option.mark) === selectedMark,
   );
   if (matched) return formatBucketOption(matched);
   const observation = asString(question.observation);
@@ -205,8 +215,13 @@ function normalizeAnswerStateValue(value: unknown) {
 }
 
 function selectedOptionValueForQuestion(question: Record<string, unknown>, options: Array<Record<string, unknown>>) {
-  const selectedState = normalizeAnswerStateValue(question.selected_option_state || question.answer_state);
-  const selectedMark = asString(question.selected_option || question.mark);
+  const answerStatus = asString(question.answer_status);
+  const selectedState = normalizeAnswerStateValue(
+    answerStatus === "insufficient_evidence" || answerStatus === "scoring_unavailable"
+      ? "not_tested"
+      : question.selected_option_state || question.answer_state,
+  );
+  const selectedMark = asString(question.selected_option ?? question.mark);
   const selectedText = asString(question.selected_option_text).replace(/^\s*\d+\.\s*/, "").trim();
 
   const byState = options.find((option) => normalizeAnswerStateValue(option.state) === selectedState);
@@ -297,8 +312,12 @@ export function BucketAnswersCard({
               asString(bucket?.bucket_name) || asString(bucket?.section) || asString(bucket?.bucket) || "Bucket";
             const answerStatus = asString(question.answer_status);
             const selectedOption = asString(question.selected_option);
-            const selectedMark = asString(question.mark || question.selected_option);
-            const selectedState = asString(question.selected_option_state || question.answer_state);
+            const selectedMark = asString(question.mark ?? question.selected_option);
+            const selectedState = normalizeAnswerStateValue(
+              answerStatus === "insufficient_evidence" || answerStatus === "scoring_unavailable"
+                ? "not_tested"
+                : question.selected_option_state || question.answer_state,
+            );
             const options = lookupQuestionOptions(bucketName, questionId);
             const selectedOptionText =
               selectedOptionTextForQuestion(bucketName, question) ||
@@ -310,8 +329,8 @@ export function BucketAnswersCard({
               ? "No score"
               : isScoringUnavailable
                 ? "Scoring unavailable"
-                : asString(question.mark || question.selected_option)
-                  ? `${asString(question.mark || question.selected_option)}/100`
+                : asString(question.mark ?? question.selected_option)
+                  ? `${asString(question.mark ?? question.selected_option)}/100`
                   : "Not scored";
 
             return (
@@ -351,8 +370,6 @@ export function BucketAnswersCard({
                                   bucketName,
                                   questionId,
                                   event.target.value,
-                                  asString(question.user_reason) || asString(question.observation),
-                                  asString(question.user_evidence) || asString(question.evidence),
                                 )
                               : undefined
                           }
@@ -408,12 +425,11 @@ export function BucketAnswersCard({
                         defaultValue={asString(question.user_evidence) || asString(question.evidence)}
                         placeholder="Add or edit evidence..."
                         onBlur={(event) => {
-                          const activeSelection = Number(selectedMark || selectedOption || "");
-                          if (Number.isFinite(activeSelection) && activeSelection > 0) {
+                          if (selectedState) {
                             onAnswerChange(
                               bucketName,
                               questionId,
-                              activeSelection,
+                              selectedState,
                               asString(question.user_reason) || asString(question.observation),
                               event.currentTarget.value,
                             );
@@ -447,12 +463,11 @@ export function BucketAnswersCard({
                         defaultValue={asString(question.user_reason) || asString(question.observation)}
                         placeholder="Add or edit reason..."
                         onBlur={(event) => {
-                          const activeSelection = Number(selectedMark || selectedOption || "");
-                          if (Number.isFinite(activeSelection) && activeSelection > 0) {
+                          if (selectedState) {
                             onAnswerChange(
                               bucketName,
                               questionId,
-                              activeSelection,
+                              selectedState,
                               event.currentTarget.value,
                               asString(question.user_evidence) || asString(question.evidence),
                             );

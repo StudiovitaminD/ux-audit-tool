@@ -16,6 +16,7 @@ function asString(value: unknown) {
 
 function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -454,23 +455,31 @@ export function recalculateEditedReport(reportInput: unknown): AnyRecord {
           !asString(question.effort) &&
           !asString(question.impact));
       if (isScoringUnavailable) {
+        const notTestedOption = lookupQuestionOptions(bucketName, asString(question.id)).find(
+          (option) => option.state === "not_tested",
+        );
         return {
           ...question,
           id: asString(question.id),
           answer_status: "scoring_unavailable",
           selected_option: null,
-          selected_option_text: "",
+          selected_option_state: "not_tested",
+          selected_option_text: notTestedOption ? formatBucketOption(notTestedOption) : "Not Tested",
           mark: null,
           answer_state: "not_tested",
         };
       }
       if (isInsufficient) {
+        const notTestedOption = lookupQuestionOptions(bucketName, asString(question.id)).find(
+          (option) => option.state === "not_tested",
+        );
         return {
           ...question,
           id: asString(question.id),
           answer_status: "insufficient_evidence",
           selected_option: null,
-          selected_option_text: "",
+          selected_option_state: "not_tested",
+          selected_option_text: notTestedOption ? formatBucketOption(notTestedOption) : "Not Tested",
           mark: null,
           answer_state: "not_tested",
         };
@@ -721,11 +730,7 @@ export function updateReportAnswer(
     bucket.questions = asArray(bucket.questions).map((questionItem) => {
       const question = { ...(asRecord(questionItem) ?? {}) };
       if (asString(question.id) !== questionId) return question;
-      const existingReason = asString(question.user_reason);
-      const normalizedReason = typeof userReason === "string" ? userReason.trim() : existingReason;
-      const existingEvidence = asString(question.user_evidence) || asString(question.evidence);
-      const normalizedEvidence =
-        typeof userEvidence === "string" ? userEvidence.trim() : existingEvidence;
+      const options = lookupQuestionOptions(bucketName, questionId);
       const answerState =
         typeof selectedOption === "string"
           ? selectedOption
@@ -736,14 +741,35 @@ export function updateReportAnswer(
               : selectedOption === 0
                 ? "fail"
                 : "";
-      const numericSelected = typeof selectedOption === "number" ? selectedOption : null;
+      const matchedOption = options.find((option) => option.state === answerState);
+      const numericSelected = matchedOption?.score ?? (typeof selectedOption === "number" ? selectedOption : null);
+      const previousState = asString(question.answer_state || question.selected_option_state);
+      const previousStatus = asString(question.answer_status);
+      const wasUntested =
+        previousState === "not_tested" ||
+        previousStatus === "insufficient_evidence" ||
+        previousStatus === "scoring_unavailable";
+      const isNotTested = answerState === "not_tested";
+      const existingReason = asString(question.user_reason);
+      const normalizedReason =
+        typeof userReason === "string"
+          ? userReason.trim()
+          : isNotTested
+            ? matchedOption?.text || ""
+          : wasUntested && answerState !== "not_tested"
+            ? matchedOption?.text || ""
+            : existingReason || asString(question.observation);
+      const existingEvidence = asString(question.user_evidence) || asString(question.evidence);
+      const normalizedEvidence =
+        typeof userEvidence === "string" ? userEvidence.trim() : existingEvidence;
       return {
         ...question,
-        answer_status: "answered",
+        answer_status: isNotTested ? "insufficient_evidence" : "answered",
         answer_state: answerState || asString(question.answer_state) || "not_tested",
-        selected_option: numericSelected,
+        selected_option: isNotTested ? null : numericSelected,
         selected_option_state: answerState || asString(question.selected_option_state) || "not_tested",
-        mark: numericSelected,
+        selected_option_text: matchedOption ? formatBucketOption(matchedOption) : "",
+        mark: isNotTested ? null : numericSelected,
         user_reason: normalizedReason,
         user_evidence: normalizedEvidence,
         observation: normalizedReason || asString(question?.observation),
