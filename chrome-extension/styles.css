@@ -98,6 +98,26 @@ p {
   border-color: var(--border);
 }
 
+.danger {
+  color: var(--error);
+  border-color: #efb3ad;
+}
+
+.status-pill {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.runner-note {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .toggle {
   display: inline-flex;
   align-items: center;

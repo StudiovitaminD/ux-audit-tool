@@ -23,6 +23,7 @@ import { clearLastReport } from "@/lib/report-store";
 import { AUDIT_DRAFT_KEY, AUDIT_DRAFT_VERSION, hasMeaningfulAuditDraft } from "@/lib/audit-draft";
 import { prefillAuditPayload } from "@/lib/audit-prefill";
 import { getErrorMessage } from "@/lib/error-utils";
+import { mergeExtensionCaptureJson } from "@/lib/extension-capture";
 import { canCreateReport, canAccessProductType, getAllowedProductTypes } from "@/lib/access-control";
 import {
   auditUserAccessFromSession,
@@ -933,6 +934,17 @@ export function AuditForm() {
       if (event.source !== window || event.data?.source !== "ux-audit-extension") return;
       if (event.data.type !== "UX_AUDIT_IMPORT_CAPTURES" && event.data.type !== "UX_AUDIT_IMPORT_CAPTURE") return;
       const captures = Array.isArray(event.data.captures) ? event.data.captures : [];
+      setPayload((current) => ({
+        ...current,
+        accessMode: "browser_extension_capture",
+        artifacts: {
+          ...current.artifacts,
+          extensionCaptureJson: mergeExtensionCaptureJson(
+            current.artifacts.extensionCaptureJson,
+            captures,
+          ),
+        },
+      }));
       const files = captures
         .filter((capture: unknown) => {
           const item = capture as Record<string, unknown>;

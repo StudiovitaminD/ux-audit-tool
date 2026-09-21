@@ -160,7 +160,222 @@
     return summary.join(" · ");
   }
 
+  function accessibleName(element) {
+    return cleanText(
+      element.getAttribute("aria-label") ||
+      element.getAttribute("title") ||
+      element.labels?.[0]?.innerText ||
+      element.textContent ||
+      element.getAttribute("alt") ||
+      element.getAttribute("name") ||
+      "",
+    );
+  }
+
+  function parseColor(value) {
+    const match = String(value || "").match(/[\d.]+/g);
+    if (!match || match.length < 3) return null;
+    return match.slice(0, 4).map(Number);
+  }
+
+  function luminance(color) {
+    const rgb = color.slice(0, 3).map((channel) => {
+      const value = channel / 255;
+      return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+  }
+
+  function contrastRatio(foreground, background) {
+    const fg = parseColor(foreground);
+    const bg = parseColor(background);
+    if (!fg || !bg || (bg[3] !== undefined && bg[3] < 1)) return null;
+    const first = luminance(fg);
+    const second = luminance(bg);
+    return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+  }
+
+  async function deterministicChecks(testSafeInteractions) {
+    const focusables = Array.from(document.querySelectorAll(
+      "a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])",
+    )).filter(isVisible);
+    const unlabeledControls = focusables
+      .filter((element) => !accessibleName(element))
+      .slice(0, 20)
+      .map((element) => `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}`);
+    const imagesWithoutAlt = Array.from(document.images)
+      .filter(isVisible)
+      .filter((image) => !image.hasAttribute("alt"))
+      .slice(0, 20)
+      .map((image) => image.currentSrc || image.src || "image");
+    const inputsWithoutLabels = Array.from(document.querySelectorAll("input, select, textarea"))
+      .filter(isVisible)
+      .filter((element) => !accessibleName(element))
+      .slice(0, 20)
+      .map((element) => element.getAttribute("name") || element.id || element.tagName.toLowerCase());
+    const headingLevels = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6"))
+      .filter(isVisible)
+      .map((heading) => Number(heading.tagName.slice(1)));
+    const headingSkips = headingLevels.filter((level, index) => index > 0 && level > headingLevels[index - 1] + 1).length;
+    const contrastSamples = Array.from(document.querySelectorAll("p, li, label, button, a, h1, h2, h3"))
+      .filter(isVisible)
+      .slice(0, 120)
+      .map((element) => {
+        const style = getComputedStyle(element);
+        const ratio = contrastRatio(style.color, style.backgroundColor);
+        return ratio === null ? null : { text: cleanText(element.textContent).slice(0, 80), ratio: Math.round(ratio * 100) / 100 };
+      })
+      .filter(Boolean);
+    const lowContrastSamples = contrastSamples.filter((sample) => sample.ratio < 4.5).slice(0, 20);
+    const interactiveStates = [];
+    const landmarks = document.querySelectorAll("main, nav, aside, header, footer, [role='main'], [role='navigation'], [role='complementary'], [role='banner'], [role='contentinfo']").length;
+    const forms = Array.from(document.forms);
+    const fields = Array.from(document.querySelectorAll("input, select, textarea")).filter(isVisible);
+    const animations = document.getAnimations ? document.getAnimations().filter((animation) => animation.playState === "running").length : 0;
+    let axeResult = null;
+    if (globalThis.axe?.run) {
+      try {
+        const result = await globalThis.axe.run(document, { resultTypes: ["violations", "passes"] });
+        axeResult = {
+          tested: true,
+          violations: result.violations.length,
+          critical: result.violations.filter((item) => item.impact === "critical").length,
+          serious: result.violations.filter((item) => item.impact === "serious").length,
+          passes: result.passes.length,
+          rules: result.violations.slice(0, 20).map((item) => ({ id: item.id, impact: item.impact, help: item.help, nodes: item.nodes.length })),
+        };
+      } catch {
+        axeResult = { tested: false, violations: 0, critical: 0, serious: 0, passes: 0, rules: [] };
+      }
+    }
+
+    if (testSafeInteractions) {
+      const safeControls = Array.from(document.querySelectorAll(
+        "summary, button[aria-expanded], [role='tab'], button[aria-controls]",
+      ))
+        .filter(isVisible)
+        .filter((element) => !element.closest("form") || (element.getAttribute("type") || "button").toLowerCase() === "button")
+        .filter((element) => !/delete|remove|pay|buy|purchase|submit|send|save|confirm|log out|sign out/i.test(accessibleName(element)))
+        .slice(0, 8);
+      for (const control of safeControls) {
+        const before = control.getAttribute("aria-expanded") || control.getAttribute("aria-selected") || "closed";
+        try {
+          control.focus({ preventScroll: true });
+          control.click();
+          const after = control.getAttribute("aria-expanded") || control.getAttribute("aria-selected") || "changed";
+          interactiveStates.push({ control: accessibleName(control) || control.tagName.toLowerCase(), before, after, result: before !== after ? "state_changed" : "activated" });
+        } catch {
+          interactiveStates.push({ control: accessibleName(control) || control.tagName.toLowerCase(), before, after: before, result: "blocked" });
+        }
+      }
+    }
+
+    const navigation = performance.getEntriesByType("navigation")[0];
+    const resources = performance.getEntriesByType("resource");
+    const internalLinks = Array.from(document.querySelectorAll("a[href]"))
+      .map((anchor) => anchor.href)
+      .filter((href) => {
+        try { return new URL(href).origin === location.origin; } catch { return false; }
+      });
+    const activeBefore = document.activeElement;
+    const keyboardSamples = focusables.slice(0, 20).map((element) => {
+      try { element.focus({ preventScroll: true }); } catch {}
+      return { name: accessibleName(element) || element.tagName.toLowerCase(), focusable: document.activeElement === element };
+    });
+    try { activeBefore?.focus?.({ preventScroll: true }); } catch {}
+
+    return {
+      testedAt: new Date().toISOString(),
+      pageUrl: location.href,
+      viewport: { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
+      accessibility: {
+        focusableCount: focusables.length,
+        unlabeledControls,
+        imagesWithoutAlt,
+        inputsWithoutLabels,
+        headingSkips,
+        documentLanguage: document.documentElement.lang || "",
+        pageTitlePresent: Boolean(document.title.trim()),
+        landmarks,
+      },
+      keyboard: {
+        testedCount: keyboardSamples.length,
+        reachableCount: keyboardSamples.filter((sample) => sample.focusable).length,
+        samples: keyboardSamples,
+      },
+      contrast: { testedCount: contrastSamples.length, lowContrastSamples },
+      responsive: {
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+      },
+      performance: navigation ? {
+        domContentLoadedMs: Math.round(navigation.domContentLoadedEventEnd),
+        loadMs: Math.round(navigation.loadEventEnd),
+        responseMs: Math.round(navigation.responseEnd),
+        resourceCount: resources.length,
+        transferBytes: Math.round(resources.reduce((sum, entry) => sum + Number(entry.transferSize || 0), 0)),
+      } : null,
+      interactions: interactiveStates,
+      forms: {
+        formCount: forms.length,
+        requiredFields: fields.filter((field) => field.required || field.getAttribute("aria-required") === "true").length,
+        unlabeledFields: inputsWithoutLabels.length,
+        statusRegions: document.querySelectorAll("[role='status'], [role='alert'], [aria-live]").length,
+      },
+      motion: {
+        animationsDetected: animations,
+        reducedMotionMatched: matchMedia("(prefers-reduced-motion: reduce)").matches,
+      },
+      axe: axeResult,
+      internalLinks: unique(internalLinks, 80),
+    };
+  }
+
+  function ensureRunnerOverlay() {
+    let host = document.getElementById("__ux_audit_runner__");
+    if (host) return host;
+    host = document.createElement("aside");
+    host.id = "__ux_audit_runner__";
+    host.setAttribute("aria-live", "polite");
+    host.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:2147483647;width:320px;padding:16px;border:1px solid #262626;border-radius:18px;background:#fffdf8;color:#171717;box-shadow:0 18px 55px rgba(0,0,0,.24);font:14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
+    host.innerHTML = `<strong style="display:block;font-size:16px">Design AID visible audit</strong><div data-runner-message style="margin-top:6px;color:#625f58">Preparing checks…</div><div style="height:6px;margin-top:12px;border-radius:99px;background:#e7e1d8;overflow:hidden"><div data-runner-progress style="width:4%;height:100%;background:#f05d3d;transition:width .3s ease"></div></div><div style="display:flex;gap:8px;margin-top:12px"><button data-runner-pause type="button" style="padding:7px 12px;border:1px solid #bbb;border-radius:999px;background:white;color:#171717">Pause</button><button data-runner-stop type="button" style="padding:7px 12px;border:1px solid #d33;border-radius:999px;background:white;color:#a11">Stop</button></div>`;
+    host.querySelector("[data-runner-pause]").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const paused = button.dataset.paused === "true";
+      button.dataset.paused = paused ? "false" : "true";
+      button.textContent = paused ? "Pause" : "Resume";
+      await chrome.runtime.sendMessage({ type: "UX_AUDIT_RUNNER_CONTROL", action: paused ? "resume" : "pause" });
+    });
+    host.querySelector("[data-runner-stop]").addEventListener("click", () => chrome.runtime.sendMessage({ type: "UX_AUDIT_RUNNER_CONTROL", action: "stop" }));
+    document.documentElement.appendChild(host);
+    return host;
+  }
+
+  function renderRunnerStatus(state) {
+    const host = ensureRunnerOverlay();
+    host.querySelector("[data-runner-message]").textContent = state?.message || "Running audit checks";
+    const total = Math.max(1, Number(state?.total || 1));
+    const current = Math.max(0, Number(state?.current || 0));
+    host.querySelector("[data-runner-progress]").style.width = `${Math.min(100, Math.max(4, current / total * 100))}%`;
+    if (["complete", "stopped", "error"].includes(state?.status)) {
+      host.querySelector("[data-runner-pause]").hidden = true;
+      host.querySelector("[data-runner-stop]").hidden = true;
+    }
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === "UX_AUDIT_RUNNER_STATUS") {
+      renderRunnerStatus(message.state || {});
+      sendResponse({ ok: true });
+      return;
+    }
+    if (message?.type === "UX_AUDIT_RUN_DETERMINISTIC_CHECKS") {
+      deterministicChecks(Boolean(message.payload?.testSafeInteractions))
+        .then(sendResponse)
+        .catch((error) => sendResponse({ error: error instanceof Error ? error.message : "Checks failed", internalLinks: [] }));
+      return true;
+    }
     if (message?.type !== "UX_AUDIT_CAPTURE_PAGE") return;
 
     const settings = message.payload?.settings || {};

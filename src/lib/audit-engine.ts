@@ -11,7 +11,7 @@ import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../share
 import { normalizeAnswerState, normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
 import { buildRecommendationGuidanceContext } from "../../shared/ux-guidance";
 import { runMultiAgentAudit, type MultiAgentResult } from "@/lib/multi-agent-audit";
-import { sanitizeAuditReport } from "@/lib/report-quality";
+import { REPORT_COVERAGE_POLICY, sanitizeAuditReport } from "@/lib/report-quality";
 import { industryWritingRules } from "@/lib/senior-content";
 import {
   attachEvidenceDepth,
@@ -581,7 +581,7 @@ function narrativeEvidenceSummary(evidence: EvidenceBundle | null) {
   return `${pageSummary}\n\nEvidence registry (cite only these IDs):\n${registry || "No verified evidence records."}`;
 }
 
-function criterionEvidencePacket(
+export function criterionEvidencePacket(
   evidence: EvidenceBundle | null,
   bucket: string,
   questions: BucketQuestion[],
@@ -3147,13 +3147,20 @@ export async function finalizeAudit(args: {
     const answered = bucket.questions.filter((question) => question.answer_status === "answered").length;
     return { bucket: bucket.bucket_name, ratio: total > 0 ? answered / total : 0 };
   });
-  const bucketsMeetingMinimumCoverage = bucketCoverage.filter((bucket) => bucket.ratio >= 0.5).length;
+  const bucketsMeetingMinimumCoverage = bucketCoverage.filter(
+    (bucket) => bucket.ratio >= REPORT_COVERAGE_POLICY.publishBucketRatio,
+  ).length;
   const bucketCoverageRatio = onlyResults.length > 0 ? bucketsMeetingMinimumCoverage / onlyResults.length : 0;
-  const meetsReportCoverageGate = questionCoverageRatio >= 0.6 && bucketCoverageRatio === 1;
+  const meetsPublicationCoverageGate =
+    questionCoverageRatio >= REPORT_COVERAGE_POLICY.publishQuestionRatio &&
+    bucketCoverageRatio >= REPORT_COVERAGE_POLICY.publishCoveredBucketsRatio;
+  const meetsFullCoverageGate =
+    questionCoverageRatio >= REPORT_COVERAGE_POLICY.fullQuestionRatio &&
+    bucketCoverage.every((bucket) => bucket.ratio >= REPORT_COVERAGE_POLICY.fullBucketRatio);
   const scoreEligible =
     !hasCoverageShortfall &&
     !hasScoringFailure &&
-    meetsReportCoverageGate &&
+    meetsPublicationCoverageGate &&
     scoreableQuestions > 0 &&
     scoredBuckets.length > 0;
   const rawOverallScore = scoredBuckets.length
@@ -3200,14 +3207,14 @@ export async function finalizeAudit(args: {
     overall_score: overallScore,
     overall_health: overall
       ? overall.label
-      : hasCoverageShortfall || !meetsReportCoverageGate
+      : hasCoverageShortfall || !meetsPublicationCoverageGate
         ? "Not scored"
         : hasScoringFailure
           ? "Scoring unavailable"
         : "Scoring unavailable",
     overall_risk: overall
       ? overall.risk
-      : hasCoverageShortfall || !meetsReportCoverageGate
+      : hasCoverageShortfall || !meetsPublicationCoverageGate
         ? "Capture coverage insufficient"
         : hasScoringFailure
           ? "Scoring unavailable"
@@ -3247,32 +3254,38 @@ export async function finalizeAudit(args: {
       buckets_meeting_minimum: bucketsMeetingMinimumCoverage,
       selected_bucket_count: onlyResults.length,
     },
-    audit_mode: hasCoverageShortfall || !meetsReportCoverageGate
+    audit_mode: hasCoverageShortfall || !meetsPublicationCoverageGate
       ? "Limited Coverage Report"
-      : hasScoringFailure
+      : hasScoringFailure || !meetsFullCoverageGate
         ? "Provisional UX Audit"
       : provisionalCoverage
         ? "Provisional UX Audit"
         : "Full UX Audit",
-    coverage_status: meetsReportCoverageGate ? coverageStatus : "criteria_coverage_insufficient",
+    coverage_status: !meetsPublicationCoverageGate
+      ? "criteria_coverage_insufficient"
+      : meetsFullCoverageGate
+        ? coverageStatus
+        : "criteria_coverage_limited",
     ux_score_eligible: scoreEligible,
     questions_scoreable: scoreableQuestions,
     questions_total: totalQuestions,
     capture_coverage:
-      !meetsReportCoverageGate
+      !meetsPublicationCoverageGate
         ? "Low"
-        : coverageStatus === "full_coverage"
+        : meetsFullCoverageGate && coverageStatus === "full_coverage"
         ? "High"
-        : coverageStatus === "usable_coverage"
+        : meetsPublicationCoverageGate
           ? "Medium"
           : "Low",
     intake: args.intake,
     evidence: args.evidence,
     roadmap: derivedRoadmap,
     closing_note:
-      scoreEligible && (derivedRoadmap.week_1_2.length || derivedRoadmap.month_1.length || derivedRoadmap.quarter_1.length)
+      scoreEligible && !meetsFullCoverageGate
+        ? "This provisional audit is supported by enough verified evidence to guide decisions. Review the testing limitations before acting on areas that still need additional screens or interaction states."
+        : scoreEligible && (derivedRoadmap.week_1_2.length || derivedRoadmap.month_1.length || derivedRoadmap.quarter_1.length)
         ? "You have a clear path forward — start with the Week 1–2 actions to remove the sharpest UX friction, then use Month 1 for system-level cleanup and Quarter 1 for the larger structural improvements."
-        : !meetsReportCoverageGate
+        : !meetsPublicationCoverageGate
           ? "This audit did not capture enough evidence to publish a reliable score. Add the missing screens and interaction states, then run the audit again."
         : hasScoringFailure
           ? "The report still gives you a strong starting point, and once the model has a clean pass the roadmap can be sharpened further."

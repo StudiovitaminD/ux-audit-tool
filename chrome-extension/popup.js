@@ -61,10 +61,54 @@ async function refresh() {
 
   const { state } = response;
   const captures = state.captures || [];
+  const runner = state.runner || {};
+  const runnerActive = ["running", "paused"].includes(runner.status);
+  document.getElementById("runnerStatus").textContent = runner.message || "Ready to check this website.";
+  document.getElementById("runnerProgress").textContent = runner.status === "complete"
+    ? "Complete"
+    : runner.status === "paused"
+      ? "Paused"
+      : runner.status === "running"
+        ? `${runner.current || 0}/${runner.total || 1}`
+        : runner.status === "error"
+          ? "Error"
+          : "Ready";
+  document.getElementById("runVisibleAudit").hidden = runnerActive;
+  document.getElementById("pauseVisibleAudit").hidden = !runnerActive;
+  document.getElementById("pauseVisibleAudit").textContent = runner.status === "paused" ? "Resume" : "Pause";
+  document.getElementById("stopVisibleAudit").hidden = !runnerActive;
   document.getElementById("captureCount").textContent = `${captures.length} page${captures.length === 1 ? "" : "s"} captured`;
   renderCaptures(captures);
   showFlash("", "info");
 }
+
+document.getElementById("runVisibleAudit").addEventListener("click", async () => {
+  try {
+    const tab = await getCurrentTab();
+    if (!tab?.id) throw new Error("No active website tab found.");
+    const response = await send({ type: "UX_AUDIT_RUN_VISIBLE", tabId: tab.id });
+    if (!response?.ok) throw new Error(response?.error || "Could not start the visible audit.");
+    showFlash("Visible audit started. Keep the website tab open.", "success");
+    await refresh();
+  } catch (error) {
+    showFlash(error instanceof Error ? error.message : "Could not start the visible audit.", "error");
+  }
+});
+
+document.getElementById("pauseVisibleAudit").addEventListener("click", async () => {
+  const response = await send({
+    type: "UX_AUDIT_RUNNER_CONTROL",
+    action: document.getElementById("pauseVisibleAudit").textContent === "Resume" ? "resume" : "pause",
+  });
+  if (!response?.ok) showFlash(response?.error || "Could not update the audit.", "error");
+  await refresh();
+});
+
+document.getElementById("stopVisibleAudit").addEventListener("click", async () => {
+  const response = await send({ type: "UX_AUDIT_RUNNER_CONTROL", action: "stop" });
+  if (!response?.ok) showFlash(response?.error || "Could not stop the audit.", "error");
+  await refresh();
+});
 
 document.getElementById("capturePage").addEventListener("click", async () => {
   try {
@@ -111,3 +155,4 @@ document.getElementById("clearCaptures").addEventListener("click", async () => {
 });
 
 refresh();
+setInterval(refresh, 1000);

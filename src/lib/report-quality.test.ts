@@ -144,7 +144,7 @@ describe("Phase 1 report contracts", () => {
 
     const report = sanitizeAuditReport(incompleteReport);
     const quality = report.report_quality as ReturnType<typeof validateReportQuality>;
-    expect(quality.errors.some((issue) => issue.code === "INSUFFICIENT_BUCKET_COVERAGE")).toBe(true);
+    expect(quality.warnings.some((issue) => issue.code === "INSUFFICIENT_BUCKET_COVERAGE")).toBe(true);
     expect(quality.errors.some((issue) => issue.code === "INSUFFICIENT_REPORT_COVERAGE")).toBe(true);
   });
 

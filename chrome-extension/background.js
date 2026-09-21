@@ -12,7 +12,13 @@ const DEFAULT_SETTINGS = {
   maxForms: 30,
   maxTables: 20,
   maxNavigationLabels: 30,
+  maxAuditPages: 8,
+  captureMobileViewport: true,
+  testSafeInteractions: true,
 };
+
+const MOBILE_VIEWPORT = { width: 390, height: 844, deviceScaleFactor: 1, mobile: true };
+let runnerPromise = null;
 
 async function getSettings() {
   const stored = await chrome.storage.local.get(STORAGE_KEYS.settings);
@@ -44,6 +50,169 @@ async function setState(nextState) {
     [STORAGE_KEYS.state]: nextState,
   });
   return nextState;
+}
+
+function isAuditableUrl(value, origin) {
+  try {
+    const url = new URL(value);
+    return url.origin === origin && ["http:", "https:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function normalizedPageUrl(value) {
+  const url = new URL(value);
+  url.hash = "";
+  return url.href;
+}
+
+async function updateRunnerState(patch) {
+  const state = await getState();
+  const nextState = { ...state, ...patch };
+  await setState(nextState);
+  if (state.tabId) {
+    try {
+      await sendToAuditTab(state.tabId, { type: "UX_AUDIT_RUNNER_STATUS", state: nextState.runner || null });
+    } catch {}
+  }
+  return nextState;
+}
+
+async function waitForTabComplete(tabId, timeoutMs = 20000) {
+  const initial = await chrome.tabs.get(tabId);
+  if (initial.status === "complete") return initial;
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(new Error("The page did not finish loading in time."));
+    }, timeoutMs);
+    const listener = (updatedTabId, changeInfo, tab) => {
+      if (updatedTabId !== tabId || changeInfo.status !== "complete") return;
+      clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve(tab);
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+async function setMobileEmulation(tabId, enabled) {
+  try {
+    await chrome.debugger.attach({ tabId }, "1.3");
+  } catch (error) {
+    if (!String(error?.message || error).includes("already attached")) throw error;
+  }
+  if (enabled) {
+    await chrome.debugger.sendCommand({ tabId }, "Emulation.setDeviceMetricsOverride", MOBILE_VIEWPORT);
+    await chrome.debugger.sendCommand({ tabId }, "Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+  } else {
+    await chrome.debugger.sendCommand({ tabId }, "Emulation.clearDeviceMetricsOverride");
+    await chrome.debugger.sendCommand({ tabId }, "Emulation.setTouchEmulationEnabled", { enabled: false });
+    try { await chrome.debugger.detach({ tabId }); } catch {}
+  }
+}
+
+async function runnerStatus(tabId, patch) {
+  const state = await getState();
+  const runner = { ...(state.runner || {}), ...patch, updatedAt: new Date().toISOString() };
+  await setState({ ...state, runner });
+  try { await sendToAuditTab(tabId, { type: "UX_AUDIT_RUNNER_STATUS", state: runner }); } catch {}
+  return runner;
+}
+
+async function runVisibleAudit(tabId) {
+  const startingTab = await chrome.tabs.get(tabId);
+  if (!startingTab.url || !/^https?:/.test(startingTab.url)) throw new Error("Open an http or https website before starting the audit.");
+  const settings = await getSettings();
+  const origin = new URL(startingTab.url).origin;
+  const queue = [normalizedPageUrl(startingTab.url)];
+  const visited = new Set();
+  await startAudit(tabId, { journeyEnabled: true });
+  await runnerStatus(tabId, { status: "running", phase: "starting", current: 0, total: 1, message: "Preparing visible audit", origin });
+
+  try {
+    while (queue.length && visited.size < settings.maxAuditPages) {
+      const liveState = await getState();
+      if (liveState.runner?.status === "stopped") break;
+      while ((await getState()).runner?.status === "paused") await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const url = queue.shift();
+      if (!url || visited.has(url) || !isAuditableUrl(url, origin)) continue;
+      visited.add(url);
+      await runnerStatus(tabId, {
+        status: "running",
+        phase: "navigating",
+        current: visited.size,
+        total: Math.min(settings.maxAuditPages, visited.size + queue.length),
+        message: `Opening ${new URL(url).pathname || "/"}`,
+      });
+      await chrome.tabs.update(tabId, { url, active: true });
+      await waitForTabComplete(tabId);
+      await new Promise((resolve) => setTimeout(resolve, 700));
+
+      await runnerStatus(tabId, { phase: "checking", message: "Checking structure, accessibility, keyboard and performance" });
+      const inspection = await sendToAuditTab(tabId, {
+        type: "UX_AUDIT_RUN_DETERMINISTIC_CHECKS",
+        payload: { testSafeInteractions: settings.testSafeInteractions },
+      });
+      for (const link of inspection?.internalLinks || []) {
+        if (queue.length + visited.size >= settings.maxAuditPages) break;
+        const normalized = normalizedPageUrl(link);
+        if (!visited.has(normalized) && !queue.includes(normalized) && isAuditableUrl(normalized, origin)) queue.push(normalized);
+      }
+
+      await runnerStatus(tabId, { phase: "capturing_desktop", message: "Capturing desktop evidence" });
+      const desktop = await captureCurrentTab(tabId, "visible_runner_desktop");
+      const stateAfterDesktop = await getState();
+      const captures = stateAfterDesktop.captures.slice();
+      captures[captures.length - 1] = { ...desktop, viewport: "desktop", automatedChecks: inspection };
+      await setState({ ...stateAfterDesktop, captures });
+
+      if (settings.captureMobileViewport) {
+        await runnerStatus(tabId, { phase: "capturing_mobile", message: "Checking the mobile viewport" });
+        try {
+          await setMobileEmulation(tabId, true);
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          const mobileInspection = await sendToAuditTab(tabId, {
+            type: "UX_AUDIT_RUN_DETERMINISTIC_CHECKS",
+            payload: { testSafeInteractions: false },
+          });
+          const mobile = await captureCurrentTab(tabId, "visible_runner_mobile");
+          const stateAfterMobile = await getState();
+          const mobileCaptures = stateAfterMobile.captures.slice();
+          mobileCaptures[mobileCaptures.length - 1] = { ...mobile, viewport: "mobile", automatedChecks: mobileInspection };
+          await setState({ ...stateAfterMobile, captures: mobileCaptures });
+        } catch (error) {
+          const stateAfterFailure = await getState();
+          await setState({
+            ...stateAfterFailure,
+            runner: {
+              ...(stateAfterFailure.runner || {}),
+              mobileWarning: error instanceof Error ? error.message : "Mobile emulation was unavailable.",
+            },
+          });
+        } finally {
+          try { await setMobileEmulation(tabId, false); } catch {}
+        }
+      }
+    }
+
+    const state = await getState();
+    const stopped = state.runner?.status === "stopped";
+    await runnerStatus(tabId, {
+      status: stopped ? "stopped" : "complete",
+      phase: stopped ? "stopped" : "complete",
+      current: visited.size,
+      total: visited.size,
+      message: stopped ? "Audit stopped" : `Audit complete: ${visited.size} pages checked`,
+    });
+    await stopAudit();
+  } catch (error) {
+    try { await setMobileEmulation(tabId, false); } catch {}
+    await runnerStatus(tabId, { status: "error", phase: "error", message: error instanceof Error ? error.message : "Audit runner failed" });
+    throw error;
+  }
 }
 
 function summarizeDom(payload) {
@@ -317,6 +486,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return { ok: true, state };
     }
 
+    if (message?.type === "UX_AUDIT_RUN_VISIBLE") {
+      const tabId = message.tabId || sender.tab?.id;
+      if (!tabId) throw new Error("No active tab found.");
+      if (runnerPromise) throw new Error("An audit is already running.");
+      runnerPromise = runVisibleAudit(tabId)
+        .catch(() => undefined)
+        .finally(() => { runnerPromise = null; });
+      return { ok: true, started: true };
+    }
+
+    if (message?.type === "UX_AUDIT_RUNNER_CONTROL") {
+      const state = await getState();
+      const action = String(message.action || "");
+      if (!["pause", "resume", "stop"].includes(action)) throw new Error("Unknown runner action.");
+      const status = action === "pause" ? "paused" : action === "resume" ? "running" : "stopped";
+      const nextState = await updateRunnerState({ runner: { ...(state.runner || {}), status, message: action === "pause" ? "Audit paused" : action === "resume" ? "Audit resumed" : "Stopping audit" } });
+      return { ok: true, state: nextState };
+    }
+
     if (message?.type === "UX_AUDIT_STOP") {
       const state = await stopAudit();
       return { ok: true, state };
@@ -448,6 +636,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const settings = await getSettings();
 
   if (!state.running || !state.tabId || state.tabId !== tabId) return;
+  if (["running", "paused"].includes(state.runner?.status)) return;
   if (!state.journey?.enabled || !settings.autoCaptureOnNavigation) return;
   if (!tab.url || tab.url.startsWith("chrome://")) return;
 

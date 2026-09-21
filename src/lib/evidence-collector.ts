@@ -2498,7 +2498,7 @@ function parseExtensionCaptureJson(value: string) {
   return [];
 }
 
-function extensionCapturesToEvidence(input: {
+export function extensionCapturesToEvidence(input: {
   extensionCaptureJson?: string;
   productUrl: string;
   auditFlows: string[];
@@ -2541,9 +2541,41 @@ function extensionCapturesToEvidence(input: {
     ];
     const screenshotUrl = safeText(capture.screenshotUrl);
     const domSummary = safeText(capture.domSummary);
+    const automatedChecks = capture.automatedChecks && typeof capture.automatedChecks === "object"
+      ? capture.automatedChecks as Record<string, unknown>
+      : {};
+    const accessibility = automatedChecks.accessibility && typeof automatedChecks.accessibility === "object"
+      ? automatedChecks.accessibility as Record<string, unknown>
+      : {};
+    const keyboard = automatedChecks.keyboard && typeof automatedChecks.keyboard === "object"
+      ? automatedChecks.keyboard as Record<string, unknown>
+      : {};
+    const contrast = automatedChecks.contrast && typeof automatedChecks.contrast === "object"
+      ? automatedChecks.contrast as Record<string, unknown>
+      : {};
+    const responsive = automatedChecks.responsive && typeof automatedChecks.responsive === "object"
+      ? automatedChecks.responsive as Record<string, unknown>
+      : {};
+    const performance = automatedChecks.performance && typeof automatedChecks.performance === "object"
+      ? automatedChecks.performance as Record<string, unknown>
+      : {};
+    const formsCheck = automatedChecks.forms && typeof automatedChecks.forms === "object"
+      ? automatedChecks.forms as Record<string, unknown>
+      : {};
+    const motion = automatedChecks.motion && typeof automatedChecks.motion === "object"
+      ? automatedChecks.motion as Record<string, unknown>
+      : {};
+    const axeCheck = automatedChecks.axe && typeof automatedChecks.axe === "object"
+      ? automatedChecks.axe as Record<string, unknown>
+      : {};
+    const lowContrastSamples = Array.isArray(contrast.lowContrastSamples) ? contrast.lowContrastSamples : [];
+    const keyboardSamples = Array.isArray(keyboard.samples) ? keyboard.samples : [];
+    const viewport = safeText(capture.viewport);
     const pageLabel = screenTypeLabel || title || `Captured screen ${index + 1}`;
 
     pages.push({
+      capturedAt: safeText(capture.capturedAt) || undefined,
+      viewport: viewport || undefined,
       label: pageLabel,
       url,
       title,
@@ -2569,6 +2601,57 @@ function extensionCapturesToEvidence(input: {
             : [],
       emptyStateHints: [],
       textSnippet: [visibleText, domSummary].filter(Boolean).join(" \n "),
+      deterministic: {
+        contrast: {
+          tested: Number(contrast.testedCount || 0) > 0,
+          samplesTested: Number(contrast.testedCount || 0),
+          failures: lowContrastSamples.length,
+        },
+        semantics: {
+          tested: Object.keys(accessibility).length > 0,
+          landmarks: Number(accessibility.landmarks || 0),
+          unlabeledControls: Array.isArray(accessibility.unlabeledControls) ? accessibility.unlabeledControls.length : 0,
+          imagesMissingAlt: Array.isArray(accessibility.imagesWithoutAlt) ? accessibility.imagesWithoutAlt.length : 0,
+          headingOrderIssues: Number(accessibility.headingSkips || 0),
+        },
+        keyboard: {
+          tested: Number(keyboard.testedCount || 0) > 0,
+          focusableCount: Number(keyboard.testedCount || 0),
+          visibleFocusCount: keyboardSamples.filter((sample) => sample && typeof sample === "object" && (sample as Record<string, unknown>).focusable === true).length,
+          trapDetected: false,
+        },
+        responsive: {
+          tested: Object.keys(responsive).length > 0,
+          horizontalOverflow: responsive.horizontalOverflow === true,
+          overflowPixels: Math.max(0, Number(responsive.documentWidth || 0) - Number(responsive.viewportWidth || 0)),
+        },
+        reducedMotion: {
+          tested: Object.keys(motion).length > 0,
+          mediaQueryMatched: motion.reducedMotionMatched === true,
+          animationsDetected: Number(motion.animationsDetected || 0),
+        },
+        performance: {
+          tested: Object.keys(performance).length > 0,
+          domContentLoadedMs: Number(performance.domContentLoadedMs || 0),
+          loadMs: Number(performance.loadMs || 0),
+          requestCount: Number(performance.resourceCount || 0),
+          transferSize: Number(performance.transferBytes || 0),
+        },
+        forms: {
+          tested: Object.keys(formsCheck).length > 0,
+          formCount: Number(formsCheck.formCount || 0),
+          requiredFields: Number(formsCheck.requiredFields || 0),
+          unlabeledFields: Number(formsCheck.unlabeledFields || 0),
+          statusRegions: Number(formsCheck.statusRegions || 0),
+        },
+        axe: {
+          tested: axeCheck.tested === true,
+          violations: Number(axeCheck.violations || 0),
+          critical: Number(axeCheck.critical || 0),
+          serious: Number(axeCheck.serious || 0),
+          passes: Number(axeCheck.passes || 0),
+        },
+      },
     });
 
     if (screenshotUrl) {
@@ -2581,6 +2664,8 @@ function extensionCapturesToEvidence(input: {
         title,
         heading: headings[0] || "",
         visibleTextSummary: visibleText,
+        viewport: viewport || undefined,
+        capturedAt: safeText(capture.capturedAt) || undefined,
         isValidAuditEvidence: true,
       });
     }

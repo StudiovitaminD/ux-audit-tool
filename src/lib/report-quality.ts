@@ -22,6 +22,14 @@ export type ReportQualityResult = {
   checkedAt: string;
 };
 
+export const REPORT_COVERAGE_POLICY = {
+  publishQuestionRatio: 0.4,
+  publishBucketRatio: 0.3,
+  publishCoveredBucketsRatio: 0.7,
+  fullQuestionRatio: 0.6,
+  fullBucketRatio: 0.5,
+} as const;
+
 type AnyRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): AnyRecord | null {
@@ -339,8 +347,8 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
       return state === "pass" || state === "partial" || state === "fail";
     }).length;
     const bucketCoverage = bucketQuestions.length ? bucketAnswered / bucketQuestions.length : 0;
-    if (bucketCoverage < 0.5) {
-      errors.push({ code: "INSUFFICIENT_BUCKET_COVERAGE", severity: "error", bucket: bucketName, message: `${bucketName} tested only ${bucketAnswered} of ${bucketQuestions.length} criteria; at least 50% is required.` });
+    if (bucketCoverage < REPORT_COVERAGE_POLICY.publishBucketRatio) {
+      warnings.push({ code: "INSUFFICIENT_BUCKET_COVERAGE", severity: "warning", bucket: bucketName, message: `${bucketName} tested only ${bucketAnswered} of ${bucketQuestions.length} criteria and is shown as a testing limitation.` });
     }
     const displayedScore = typeof bucket.score === "number" ? bucket.score : null;
     const expectedScore = scoring.score === null ? null : Math.round(scoring.score);
@@ -437,8 +445,21 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
     }).length,
     0,
   );
-  if (!totalQuestions || answeredQuestions / totalQuestions < 0.6) {
-    errors.push({ code: "INSUFFICIENT_REPORT_COVERAGE", severity: "error", message: `The report tested only ${answeredQuestions} of ${totalQuestions} selected criteria; at least 60% is required.` });
+  const bucketsWithPublishableCoverage = buckets.filter((bucket) => {
+    const questions = asArray(bucket.questions).map((question) => asRecord(question) ?? {});
+    const answered = questions.filter((question) => {
+      const state = questionState(question);
+      return state === "pass" || state === "partial" || state === "fail";
+    }).length;
+    return questions.length > 0 && answered / questions.length >= REPORT_COVERAGE_POLICY.publishBucketRatio;
+  }).length;
+  const coveredBucketRatio = buckets.length ? bucketsWithPublishableCoverage / buckets.length : 0;
+  if (
+    !totalQuestions ||
+    answeredQuestions / totalQuestions < REPORT_COVERAGE_POLICY.publishQuestionRatio ||
+    coveredBucketRatio < REPORT_COVERAGE_POLICY.publishCoveredBucketsRatio
+  ) {
+    errors.push({ code: "INSUFFICIENT_REPORT_COVERAGE", severity: "error", message: `The report tested ${answeredQuestions} of ${totalQuestions} selected criteria across ${bucketsWithPublishableCoverage} of ${buckets.length} buckets; more evidence is required before publication.` });
   }
 
   const competitorContainer = asRecord(report.competitor_analysis) ?? {};

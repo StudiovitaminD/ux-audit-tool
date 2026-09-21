@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "UX Audit Capture",
   "description": "Capture SaaS, ecommerce, and website evidence for the UX audit tool.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "permissions": [
     "activeTab",
     "downloads",
@@ -30,6 +30,7 @@
         "<all_urls>"
       ],
       "js": [
+        "axe.min.js",
         "content.js"
       ],
       "run_at": "document_idle"

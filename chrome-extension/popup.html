@@ -16,6 +16,22 @@
       </div>
 
       <section class="card">
+        <div class="row-between">
+          <div>
+            <h2>Visible automated audit</h2>
+            <p id="runnerStatus">Ready to check this website.</p>
+          </div>
+          <span id="runnerProgress" class="status-pill">Ready</span>
+        </div>
+        <p class="runner-note">The extension will visibly navigate same-domain pages, run safe checks, and capture desktop and mobile evidence. It never submits forms or confirms destructive actions.</p>
+        <div class="actions">
+          <button id="runVisibleAudit" class="button" type="button">Run visible audit</button>
+          <button id="pauseVisibleAudit" class="button button-secondary" type="button" hidden>Pause</button>
+          <button id="stopVisibleAudit" class="button button-ghost danger" type="button" hidden>Stop</button>
+        </div>
+      </section>
+
+      <section class="card">
         <h2>Capture a page</h2>
         <p>Open the page you want to audit, then capture the complete page.</p>
         <button id="capturePage" class="button" type="button">Capture full page</button>

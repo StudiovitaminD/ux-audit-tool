@@ -7,6 +7,9 @@ const FIELDS = [
   "maxForms",
   "maxTables",
   "maxNavigationLabels",
+  "maxAuditPages",
+  "captureMobileViewport",
+  "testSafeInteractions",
 ];
 
 function setMessage(message, tone = "info") {
