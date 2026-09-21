@@ -2319,9 +2319,17 @@ function missingEvidenceForQuestion(
   bucket = normalizeBucketName(bucket);
   const plannedRecords = questionEvidence(evidence, bucket, questionId);
   if (plannedRecords.length > 0) {
-    return plannedRecords
-      .filter((record) => record.status === "blocked")
-      .map((record) => record.kind);
+    // Evidence kinds in a question packet are complementary signals, not an
+    // all-or-nothing checklist. A blocked supplemental signal must not erase a
+    // confirmed DOM, visual, or measured observation for the same criterion.
+    if (plannedRecords.some((record) => record.status === "confirmed")) return [];
+    return Array.from(
+      new Set(
+        plannedRecords
+          .filter((record) => record.status !== "confirmed")
+          .map((record) => record.kind),
+      ),
+    );
   }
   const coverageStatus = evidence?.coverage?.status || "";
   const coverageSummary = (evidence?.coverage?.evidenceSummary || {}) as Record<string, unknown>;
@@ -3133,9 +3141,19 @@ export async function finalizeAudit(args: {
     coverageStatus || "",
   );
   const provisionalCoverage = coverageStatus === "usable_coverage";
+  const questionCoverageRatio = totalQuestions > 0 ? scoreableQuestions / totalQuestions : 0;
+  const bucketCoverage = onlyResults.map((bucket) => {
+    const total = bucket.questions.length;
+    const answered = bucket.questions.filter((question) => question.answer_status === "answered").length;
+    return { bucket: bucket.bucket_name, ratio: total > 0 ? answered / total : 0 };
+  });
+  const bucketsMeetingMinimumCoverage = bucketCoverage.filter((bucket) => bucket.ratio >= 0.5).length;
+  const bucketCoverageRatio = onlyResults.length > 0 ? bucketsMeetingMinimumCoverage / onlyResults.length : 0;
+  const meetsReportCoverageGate = questionCoverageRatio >= 0.6 && bucketCoverageRatio === 1;
   const scoreEligible =
     !hasCoverageShortfall &&
     !hasScoringFailure &&
+    meetsReportCoverageGate &&
     scoreableQuestions > 0 &&
     scoredBuckets.length > 0;
   const rawOverallScore = scoredBuckets.length
@@ -3182,14 +3200,14 @@ export async function finalizeAudit(args: {
     overall_score: overallScore,
     overall_health: overall
       ? overall.label
-      : hasCoverageShortfall
+      : hasCoverageShortfall || !meetsReportCoverageGate
         ? "Not scored"
         : hasScoringFailure
           ? "Scoring unavailable"
         : "Scoring unavailable",
     overall_risk: overall
       ? overall.risk
-      : hasCoverageShortfall
+      : hasCoverageShortfall || !meetsReportCoverageGate
         ? "Capture coverage insufficient"
         : hasScoringFailure
           ? "Scoring unavailable"
@@ -3225,20 +3243,25 @@ export async function finalizeAudit(args: {
       inconclusive: evidenceRegistry.filter((record) => record.status === "inconclusive").length,
       blocked: evidenceRegistry.filter((record) => record.status === "blocked").length,
       percent: evidenceCoveragePercent,
+      criteria_percent: Math.round(questionCoverageRatio * 100),
+      buckets_meeting_minimum: bucketsMeetingMinimumCoverage,
+      selected_bucket_count: onlyResults.length,
     },
-    audit_mode: hasCoverageShortfall
+    audit_mode: hasCoverageShortfall || !meetsReportCoverageGate
       ? "Limited Coverage Report"
       : hasScoringFailure
         ? "Provisional UX Audit"
       : provisionalCoverage
         ? "Provisional UX Audit"
         : "Full UX Audit",
-    coverage_status: coverageStatus,
+    coverage_status: meetsReportCoverageGate ? coverageStatus : "criteria_coverage_insufficient",
     ux_score_eligible: scoreEligible,
     questions_scoreable: scoreableQuestions,
     questions_total: totalQuestions,
     capture_coverage:
-      coverageStatus === "full_coverage"
+      !meetsReportCoverageGate
+        ? "Low"
+        : coverageStatus === "full_coverage"
         ? "High"
         : coverageStatus === "usable_coverage"
           ? "Medium"
@@ -3249,6 +3272,8 @@ export async function finalizeAudit(args: {
     closing_note:
       scoreEligible && (derivedRoadmap.week_1_2.length || derivedRoadmap.month_1.length || derivedRoadmap.quarter_1.length)
         ? "You have a clear path forward — start with the Week 1–2 actions to remove the sharpest UX friction, then use Month 1 for system-level cleanup and Quarter 1 for the larger structural improvements."
+        : !meetsReportCoverageGate
+          ? "This audit did not capture enough evidence to publish a reliable score. Add the missing screens and interaction states, then run the audit again."
         : hasScoringFailure
           ? "The report still gives you a strong starting point, and once the model has a clean pass the roadmap can be sharpened further."
           : "You’ve already captured a useful set of findings — use them to sequence the next round of UX improvements with confidence.",

@@ -1361,21 +1361,33 @@ export function ReportView() {
             <div className="text-lg font-semibold">Creating your report…</div>
             <div className="mt-1 text-sm text-[color:var(--muted)]">{progressMessage}</div>
           </div>
-          <div className="mt-7 h-2 overflow-hidden rounded-full bg-[color:var(--cream-dark)]" aria-label={`${progressPercent}% complete`}>
-            <div className="h-full rounded-full bg-[color:var(--orange)] transition-all duration-700" style={{ width: `${progressPercent}%` }} />
+          <div
+            className="mt-7 h-2 overflow-hidden rounded-full bg-[color:var(--cream-dark)]"
+            role="progressbar"
+            aria-label="Report generation progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+          >
+            <div
+              className="h-full rounded-full bg-[color:var(--accent)] transition-[width] duration-700 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
           <div className="mt-2 text-right text-xs text-[color:var(--muted)]">{progressPercent}% complete</div>
           <div className="mt-6 space-y-4">
             {progressSteps.map((step) => (
               <div key={step.label} className="flex items-center gap-3 text-sm">
-                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${step.complete ? "border-emerald-500 bg-emerald-500 text-white" : step.active ? "border-[color:var(--orange)]" : "border-[color:var(--cream-dark)]"}`}>
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${step.complete ? "border-emerald-500 bg-emerald-500 text-white" : step.active ? "border-[color:var(--accent)]" : "border-[color:var(--cream-dark)]"}`}>
                   {step.complete ? "✓" : step.active ? <LoadingSpinner /> : null}
                 </span>
                 <span className={step.active || step.complete ? "text-[color:var(--ink)]" : "text-[color:var(--muted)]"}>{step.label}</span>
               </div>
             ))}
           </div>
-          <p className="mt-7 text-xs text-[color:var(--muted)]">You can keep this tab open while we finish. This usually takes about a minute.</p>
+          <p className="mt-7 text-xs text-[color:var(--muted)]">
+            Keep this tab open while we finish. A detailed audit can take several minutes, and progress will continue automatically.
+          </p>
         </div>
         {jobError ? (
           <div className="mt-3 text-xs text-red-600 dark:text-red-400">{jobError}</div>

@@ -333,6 +333,15 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
       errors.push({ code: "UNSELECTED_BUCKET", severity: "error", bucket: bucketName, message: `${bucketName} was not selected for this audit.` });
     }
     const scoring = scoreQuestions(asArray(bucket.questions) as ScoredAuditQuestion[]);
+    const bucketQuestions = asArray(bucket.questions).map((question) => asRecord(question) ?? {});
+    const bucketAnswered = bucketQuestions.filter((question) => {
+      const state = questionState(question);
+      return state === "pass" || state === "partial" || state === "fail";
+    }).length;
+    const bucketCoverage = bucketQuestions.length ? bucketAnswered / bucketQuestions.length : 0;
+    if (bucketCoverage < 0.5) {
+      errors.push({ code: "INSUFFICIENT_BUCKET_COVERAGE", severity: "error", bucket: bucketName, message: `${bucketName} tested only ${bucketAnswered} of ${bucketQuestions.length} criteria; at least 50% is required.` });
+    }
     const displayedScore = typeof bucket.score === "number" ? bucket.score : null;
     const expectedScore = scoring.score === null ? null : Math.round(scoring.score);
     if (displayedScore !== expectedScore) {
@@ -418,6 +427,18 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
     if (expectedScore !== null && (scoring.confidence ?? 0) < 50) {
       warnings.push({ code: "LOW_COVERAGE_SCORE", severity: "warning", bucket: bucketName, message: `${bucketName} has a score with less than 50% question coverage.` });
     }
+  }
+
+  const totalQuestions = buckets.reduce((sum, bucket) => sum + asArray(bucket.questions).length, 0);
+  const answeredQuestions = buckets.reduce(
+    (sum, bucket) => sum + asArray(bucket.questions).filter((value) => {
+      const state = questionState(asRecord(value) ?? {});
+      return state === "pass" || state === "partial" || state === "fail";
+    }).length,
+    0,
+  );
+  if (!totalQuestions || answeredQuestions / totalQuestions < 0.6) {
+    errors.push({ code: "INSUFFICIENT_REPORT_COVERAGE", severity: "error", message: `The report tested only ${answeredQuestions} of ${totalQuestions} selected criteria; at least 60% is required.` });
   }
 
   const competitorContainer = asRecord(report.competitor_analysis) ?? {};

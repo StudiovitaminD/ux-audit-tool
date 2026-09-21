@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { QUESTION_BANK } from "./question-bank";
 import { sanitizeAuditReport, validateReportQuality } from "./report-quality";
 
 function reportWithFinding(observation: string, evidence: string, recommendation: string) {
@@ -119,6 +120,34 @@ describe("sanitizeAuditReport findings", () => {
 });
 
 describe("Phase 1 report contracts", () => {
+  it("rejects reports that test less than half of a selected bucket", () => {
+    const incompleteReport = reportWithFinding(
+      "The contact form uses a generic Submit label, which makes the outcome unclear.",
+      "The captured contact screen shows a button labelled Submit.",
+      "Rename the button to Send project enquiry so visitors know what happens next.",
+    );
+    incompleteReport.bucket_results[0].questions.push(
+      ...QUESTION_BANK["Icons & Imagery"]
+        .filter((question) => question.id !== "D41")
+        .map((question) => ({
+          id: question.id,
+          question: question.question,
+          answer_state: "not_tested",
+          answer_status: "insufficient_evidence",
+          mark: 0,
+          evidence_ids: [],
+          evidence: "The required screen or state was not captured.",
+          observation: "The criterion could not be evaluated from the available evidence.",
+          recommendation: "",
+        })),
+    );
+
+    const report = sanitizeAuditReport(incompleteReport);
+    const quality = report.report_quality as ReturnType<typeof validateReportQuality>;
+    expect(quality.errors.some((issue) => issue.code === "INSUFFICIENT_BUCKET_COVERAGE")).toBe(true);
+    expect(quality.errors.some((issue) => issue.code === "INSUFFICIENT_REPORT_COVERAGE")).toBe(true);
+  });
+
   it("rejects duplicate buckets and unknown questions", () => {
     const bucket = {
       bucket_name: "Visual Feedback",

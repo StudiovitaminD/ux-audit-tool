@@ -900,6 +900,32 @@ export async function POST(req: Request) {
 
       try {
         currentPhase = "finalize_write";
+        if (report.ux_score_eligible !== true) {
+          const scoreable = Number(report.questions_scoreable || 0);
+          const total = Number(report.questions_total || 0);
+          const coverageError = `Audit coverage was too low to publish a reliable report (${scoreable} of ${total} criteria tested). Add the missing screens or interaction states and run the audit again.`;
+          await ref.set(
+            {
+              status: "error",
+              processingLeaseUntil: 0,
+              error: coverageError,
+              lastError: coverageError,
+              lastErrorAt: new Date().toISOString(),
+              failedAt: new Date().toISOString(),
+              progress: buildProgressState({
+                bucketIndex: finalBucketIndex,
+                totalBuckets: buckets.length,
+                retryCount: 0,
+                attemptCount: 0,
+                currentBucketName: null,
+                currentStage: "coverage_failed",
+                currentBucketStartedAt: null,
+              }),
+            },
+            { merge: true },
+          );
+          return false;
+        }
         await ref.set(
           {
             status: "complete",
@@ -1020,7 +1046,15 @@ export async function POST(req: Request) {
 
     if (bucketIndex >= buckets.length) {
       const finalized = await finalizeStoredReport(bucketIndex, existingResults);
-      return Response.json({ status: finalized ? "complete" : "cancelled" });
+      if (finalized) return Response.json({ status: "complete" });
+      const finalData = (await ref.get()).data() ?? {};
+      if (finalData.status === "error") {
+        return Response.json(
+          { status: "error", error: finalData.error || "The report did not meet the publication requirements." },
+          { status: 400 },
+        );
+      }
+      return Response.json({ status: "cancelled" });
     }
 
     while (bucketIndex < buckets.length) {
@@ -1072,7 +1106,15 @@ export async function POST(req: Request) {
     }
 
     const finalized = await finalizeStoredReport(bucketIndex, existingResults);
-    return Response.json({ status: finalized ? "complete" : "cancelled" });
+    if (finalized) return Response.json({ status: "complete" });
+    const finalData = (await ref.get()).data() ?? {};
+    if (finalData.status === "error") {
+      return Response.json(
+        { status: "error", error: finalData.error || "The report did not meet the publication requirements." },
+        { status: 400 },
+      );
+    }
+    return Response.json({ status: "cancelled" });
   } catch (err) {
     console.error(`Audit processing failed during ${currentPhase}:`, err);
     const message = getErrorMessage(err) || "Processing failed";
