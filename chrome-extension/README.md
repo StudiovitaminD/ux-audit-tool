@@ -37,7 +37,8 @@ This folder contains a real Chrome extension for the UX audit app.
 ## Safety policy
 
 - Navigation is restricted to the website origin where the audit started.
-- Forms are never submitted automatically.
+- Ordinary forms are submitted only after the user approves that specific submission.
+- Forms containing passwords, payment fields, purchases, deletion, publishing, logout, or account changes are permanently blocked.
 - Controls with destructive, payment, save, submit, send, confirmation, or logout labels are never activated.
 - Only tabs, accordions, menus, summaries, and disclosure controls are eligible for safe interaction checks.
 - The user can pause or stop the runner from the page overlay or extension popup.

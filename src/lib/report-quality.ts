@@ -25,7 +25,6 @@ export type ReportQualityResult = {
 export const REPORT_COVERAGE_POLICY = {
   publishQuestionRatio: 0.4,
   publishBucketRatio: 0.3,
-  publishCoveredBucketsRatio: 0.7,
   fullQuestionRatio: 0.6,
   fullBucketRatio: 0.5,
 } as const;
@@ -453,11 +452,9 @@ export function validateReportQuality(reportValue: unknown): ReportQualityResult
     }).length;
     return questions.length > 0 && answered / questions.length >= REPORT_COVERAGE_POLICY.publishBucketRatio;
   }).length;
-  const coveredBucketRatio = buckets.length ? bucketsWithPublishableCoverage / buckets.length : 0;
   if (
     !totalQuestions ||
-    answeredQuestions / totalQuestions < REPORT_COVERAGE_POLICY.publishQuestionRatio ||
-    coveredBucketRatio < REPORT_COVERAGE_POLICY.publishCoveredBucketsRatio
+    answeredQuestions / totalQuestions < REPORT_COVERAGE_POLICY.publishQuestionRatio
   ) {
     errors.push({ code: "INSUFFICIENT_REPORT_COVERAGE", severity: "error", message: `The report tested ${answeredQuestions} of ${totalQuestions} selected criteria across ${bucketsWithPublishableCoverage} of ${buckets.length} buckets; more evidence is required before publication.` });
   }

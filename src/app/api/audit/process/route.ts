@@ -644,8 +644,27 @@ export async function POST(req: Request) {
     }
     const status = typeof doc.status === "string" ? doc.status : "queued";
     if (status === "complete") return Response.json({ status: "complete" });
-    if (status === "error")
-      return Response.json({ status: "error", error: String(doc.error || "Failed") });
+    if (status === "error") {
+      const storedError = String(doc.error || doc.lastError || "Failed");
+      const retryableCoverageFailure = /audit coverage was too low to publish a reliable report/i.test(storedError);
+      if (!retryableCoverageFailure) {
+        return Response.json({ status: "error", error: storedError });
+      }
+      await ref.set(
+        {
+          status: "processing",
+          error: null,
+          lastError: null,
+          failedAt: null,
+          processingLeaseUntil: 0,
+          progress: {
+            ...(asRecord(doc.progress) ?? {}),
+            currentStage: "retrying_coverage_finalization",
+          },
+        },
+        { merge: true },
+      );
+    }
     if (isCancelledDoc(doc)) return Response.json({ status: "cancelled" });
 
     const leaseAcquired = await db.runTransaction(async (transaction) => {

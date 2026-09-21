@@ -1207,7 +1207,7 @@ export function ReportView() {
     const isLoginFailure = /login automation|login failed|authenticated state could not be confirmed|username|password|account access/i.test(
       failureMessage,
     );
-    const isCoverageFailure = /exploration coverage missing|internal product screens were not captured|navigation \/ context selectors were not captured/i.test(
+    const isCoverageFailure = /audit coverage was too low|exploration coverage missing|internal product screens were not captured|navigation \/ context selectors were not captured/i.test(
       failureMessage,
     );
     return (

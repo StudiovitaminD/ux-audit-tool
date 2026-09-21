@@ -228,6 +228,7 @@
       .filter(Boolean);
     const lowContrastSamples = contrastSamples.filter((sample) => sample.ratio < 4.5).slice(0, 20);
     const interactiveStates = [];
+    const formStates = [];
     const landmarks = document.querySelectorAll("main, nav, aside, header, footer, [role='main'], [role='navigation'], [role='complementary'], [role='banner'], [role='contentinfo']").length;
     const forms = Array.from(document.forms);
     const fields = Array.from(document.querySelectorAll("input, select, textarea")).filter(isVisible);
@@ -266,6 +267,38 @@
           interactiveStates.push({ control: accessibleName(control) || control.tagName.toLowerCase(), before, after, result: before !== after ? "state_changed" : "activated" });
         } catch {
           interactiveStates.push({ control: accessibleName(control) || control.tagName.toLowerCase(), before, after: before, result: "blocked" });
+        }
+      }
+
+      for (const form of Array.from(document.forms).filter(isVisible).slice(0, 3)) {
+        const formText = cleanText(`${form.getAttribute("aria-label") || ""} ${form.textContent || ""}`).slice(0, 180);
+        const sensitive = Boolean(form.querySelector("input[type='password'], input[autocomplete*='cc-'], input[name*='card' i], input[name*='payment' i]"));
+        const destructive = /pay|purchase|buy|delete|remove|publish|logout|log out|close account|place order|confirm order/i.test(formText);
+        if (sensitive || destructive) {
+          formStates.push({ form: formText || "Form", result: "blocked_by_safety_policy" });
+          continue;
+        }
+        const approved = window.confirm(`Design AID wants to submit this form only to capture its validation or result state:\n\n${formText || "Unnamed form"}\n\nAllow this one submission?`);
+        if (!approved) {
+          formStates.push({ form: formText || "Form", result: "user_denied" });
+          continue;
+        }
+        const beforeUrl = location.href;
+        const beforeText = cleanText(document.querySelector("[role='alert'], [role='status'], [aria-live]")?.textContent || "");
+        try {
+          form.requestSubmit();
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          const afterText = cleanText(document.querySelector("[role='alert'], [role='status'], [aria-live]")?.textContent || "");
+          const invalidFields = Array.from(form.querySelectorAll(":invalid")).map((field) => accessibleName(field) || field.getAttribute("name") || field.tagName.toLowerCase()).slice(0, 12);
+          formStates.push({
+            form: formText || "Form",
+            result: invalidFields.length ? "validation_observed" : location.href !== beforeUrl ? "navigation_observed" : "submitted",
+            invalidFields,
+            statusBefore: beforeText,
+            statusAfter: afterText,
+          });
+        } catch {
+          formStates.push({ form: formText || "Form", result: "submission_failed" });
         }
       }
     }
@@ -322,6 +355,7 @@
         requiredFields: fields.filter((field) => field.required || field.getAttribute("aria-required") === "true").length,
         unlabeledFields: inputsWithoutLabels.length,
         statusRegions: document.querySelectorAll("[role='status'], [role='alert'], [aria-live]").length,
+        testedStates: formStates,
       },
       motion: {
         animationsDetected: animations,

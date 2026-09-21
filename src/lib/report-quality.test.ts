@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { QUESTION_BANK } from "./question-bank";
 import { sanitizeAuditReport, validateReportQuality } from "./report-quality";
+import { scoreQuestions } from "../../shared/ux-audit-scoring";
 
 function reportWithFinding(observation: string, evidence: string, recommendation: string) {
   return {
@@ -120,6 +121,32 @@ describe("sanitizeAuditReport findings", () => {
 });
 
 describe("Phase 1 report contracts", () => {
+  it("allows a provisional report when at least 40 percent of selected criteria are tested", () => {
+    const questions = QUESTION_BANK["Icons & Imagery"].map((question, index) => ({
+      id: question.id,
+      question: question.question,
+      answer_state: index < 5 ? "pass" : "not_tested",
+      answer_status: index < 5 ? "answered" : "insufficient_evidence",
+      mark: index < 5 ? 1 : 0,
+      evidence_ids: index < 5 ? [`ev-${question.id}`] : [],
+      evidence: index < 5 ? "Captured browser evidence supports this criterion." : "The required state was not captured.",
+      observation: index < 5 ? "The inspected component satisfies the criterion." : "The criterion could not be evaluated.",
+      recommendation: "",
+    }));
+    const scoring = scoreQuestions(questions);
+    const quality = validateReportQuality({
+      selected_buckets: ["Icons & Imagery"],
+      bucket_results: [{
+        bucket_name: "Icons & Imagery",
+        score: scoring.score === null ? null : Math.round(scoring.score),
+        questions,
+        findings: [],
+      }],
+    });
+
+    expect(quality.errors.some((issue) => issue.code === "INSUFFICIENT_REPORT_COVERAGE")).toBe(false);
+  });
+
   it("rejects reports that test less than half of a selected bucket", () => {
     const incompleteReport = reportWithFinding(
       "The contact form uses a generic Submit label, which makes the outcome unclear.",

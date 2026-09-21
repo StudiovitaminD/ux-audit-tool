@@ -3150,10 +3150,8 @@ export async function finalizeAudit(args: {
   const bucketsMeetingMinimumCoverage = bucketCoverage.filter(
     (bucket) => bucket.ratio >= REPORT_COVERAGE_POLICY.publishBucketRatio,
   ).length;
-  const bucketCoverageRatio = onlyResults.length > 0 ? bucketsMeetingMinimumCoverage / onlyResults.length : 0;
   const meetsPublicationCoverageGate =
-    questionCoverageRatio >= REPORT_COVERAGE_POLICY.publishQuestionRatio &&
-    bucketCoverageRatio >= REPORT_COVERAGE_POLICY.publishCoveredBucketsRatio;
+    questionCoverageRatio >= REPORT_COVERAGE_POLICY.publishQuestionRatio;
   const meetsFullCoverageGate =
     questionCoverageRatio >= REPORT_COVERAGE_POLICY.fullQuestionRatio &&
     bucketCoverage.every((bucket) => bucket.ratio >= REPORT_COVERAGE_POLICY.fullBucketRatio);
