@@ -1,6 +1,7 @@
 import { QUESTION_BANK, normalizeBucketName } from "@/lib/question-bank";
 import { normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
 import { buildClientReadiness } from "@/lib/report-client-readiness";
+import { isBlockingCoverageStatus } from "@/lib/report-quality";
 
 export type AnyRecord = Record<string, unknown>;
 
@@ -2017,11 +2018,7 @@ function deriveQuestionScoringStats(report: AnyRecord) {
     (bucket) => asString(bucket.bucket_status) === "scoring_unavailable",
   );
   const coverageStatus = asString(report.coverage_status);
-  const hasCoverageShortfall = [
-    "limited_coverage",
-    "insufficient_coverage",
-    "failed_login",
-  ].includes(coverageStatus);
+  const hasCoverageShortfall = isBlockingCoverageStatus(coverageStatus);
   const storedQuestionsTotal = asNumber(report.questions_total);
   const storedQuestionsScoreable = asNumber(report.questions_scoreable);
   const questionsTotal =
@@ -2802,12 +2799,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
       asString(bucket.pillar),
     ),
   }));
-  const hasCoverageShortfall = [
-    "limited_coverage",
-    "insufficient_coverage",
-    "failed_login",
-    "capture_pipeline_not_executed",
-  ].includes(effectiveCoverageStatus);
+  const hasCoverageShortfall = isBlockingCoverageStatus(effectiveCoverageStatus);
   const scoredBucketCount = derivedScoring.bucketResults.filter((bucket) => {
     const status = asString(bucket.bucket_status);
     return status === "scored" || (asNumber(bucket?.score) !== null && status !== "insufficient_evidence");

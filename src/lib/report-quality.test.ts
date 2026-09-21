@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { QUESTION_BANK } from "./question-bank";
-import { sanitizeAuditReport, validateReportQuality } from "./report-quality";
+import {
+  isBlockingCoverageStatus,
+  sanitizeAuditReport,
+  validateReportQuality,
+} from "./report-quality";
 import { scoreQuestions } from "../../shared/ux-audit-scoring";
 
 function reportWithFinding(observation: string, evidence: string, recommendation: string) {
@@ -121,6 +125,14 @@ describe("sanitizeAuditReport findings", () => {
 });
 
 describe("Phase 1 report contracts", () => {
+  it("publishes limited capture coverage as provisional instead of blocking it", () => {
+    expect(isBlockingCoverageStatus("limited_coverage")).toBe(false);
+    expect(isBlockingCoverageStatus("usable_coverage")).toBe(false);
+    expect(isBlockingCoverageStatus("insufficient_coverage")).toBe(true);
+    expect(isBlockingCoverageStatus("failed_login")).toBe(true);
+    expect(isBlockingCoverageStatus("criteria_coverage_insufficient")).toBe(true);
+  });
+
   it("allows a provisional report when at least 40 percent of selected criteria are tested", () => {
     const questions = QUESTION_BANK["Icons & Imagery"].map((question, index) => ({
       id: question.id,

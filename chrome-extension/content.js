@@ -3,10 +3,12 @@
   window.__uxAuditExtensionRegistered = true;
 
   let pendingImport = null;
+  let pendingImportType = "UX_AUDIT_IMPORT_CAPTURE";
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type === "UX_AUDIT_IMPORT_CAPTURE_START") {
       pendingImport = { ...message.capture, screenshotUrl: "" };
+      pendingImportType = message.messageType || "UX_AUDIT_IMPORT_CAPTURE";
       return;
     }
     if (message?.type === "UX_AUDIT_IMPORT_CAPTURE_CHUNK" && pendingImport) {
@@ -16,10 +18,15 @@
     if (message?.type === "UX_AUDIT_IMPORT_CAPTURE_END" && pendingImport) {
       window.postMessage({
         source: "ux-audit-extension",
-        type: "UX_AUDIT_IMPORT_CAPTURE",
+        type: pendingImportType,
         captures: [pendingImport],
       }, "*");
       pendingImport = null;
+      pendingImportType = "UX_AUDIT_IMPORT_CAPTURE";
+      return;
+    }
+    if (message?.type === "UX_AUDIT_RECAPTURE_ERROR" || message?.type === "UX_AUDIT_RECAPTURE_COMPLETE") {
+      window.postMessage({ source: "ux-audit-extension", type: message.type, error: message.error }, "*");
       return;
     }
     if (message?.type === "UX_AUDIT_IMPORT_CAPTURES" || message?.type === "UX_AUDIT_IMPORT_CAPTURE") {
@@ -29,6 +36,31 @@
         captures: message.captures || (message.capture ? [message.capture] : []),
       }, "*");
     }
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.source !== window || event.data?.source !== "ux-audit-app") return;
+    if (event.data.type !== "UX_AUDIT_RUN_TARGETED_RECAPTURE") return;
+    if (!["ux-audit-tool-iota.vercel.app", "localhost", "127.0.0.1"].includes(location.hostname)) return;
+    chrome.runtime.sendMessage({
+      type: "UX_AUDIT_RUN_TARGETED_RECAPTURE",
+      tasks: Array.isArray(event.data.tasks) ? event.data.tasks : [],
+      reportId: event.data.reportId || "",
+    }).then((response) => {
+      window.postMessage({
+        source: "ux-audit-extension",
+        type: "UX_AUDIT_RECAPTURE_STARTED",
+        ok: Boolean(response?.ok),
+        error: response?.error || "",
+      }, "*");
+    }).catch((error) => {
+      window.postMessage({
+        source: "ux-audit-extension",
+        type: "UX_AUDIT_RECAPTURE_STARTED",
+        ok: false,
+        error: error instanceof Error ? error.message : "Extension unavailable.",
+      }, "*");
+    });
   });
 
   function cleanText(value) {

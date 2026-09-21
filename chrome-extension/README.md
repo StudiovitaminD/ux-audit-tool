@@ -13,6 +13,8 @@ This folder contains a real Chrome extension for the UX audit app.
 - Discovers internal pages and captures desktop and mobile evidence
 - Records deterministic accessibility, keyboard, contrast, responsive, and performance checks
 - Safely tests tabs, menus, accordions, and disclosure controls without submitting forms
+- Receives unresolved criteria from the report and runs one targeted follow-up capture pass
+- Returns follow-up evidence to the same audit so only affected buckets are reviewed again
 
 ## Install locally in Chrome
 
@@ -33,6 +35,8 @@ This folder contains a real Chrome extension for the UX audit app.
    - keep **Record journey** enabled in the popup
 6. Click **Capture full page** on any additional important states
 7. Open the audit form and click **Send to audit form**
+
+If the first AI review still has unsupported questions, keep the report and audited website tabs open. Click **Run follow-up capture** on the report. The extension visibly checks the requested states and sends the new evidence back to that report automatically.
 
 ## Safety policy
 

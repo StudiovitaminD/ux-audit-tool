@@ -1,0 +1,75 @@
+type RecordLike = Record<string, unknown>;
+
+export type RecaptureTask = {
+  id: string;
+  bucket: string;
+  questionId: string;
+  question: string;
+  targetUrl: string;
+  kind: "form" | "keyboard" | "responsive" | "performance" | "interaction" | "visual";
+  instruction: string;
+  requiresPermission: boolean;
+};
+
+function text(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function inferKind(value: string): RecaptureTask["kind"] {
+  const source = value.toLowerCase();
+  if (/form|validation|error message|submit|input/.test(source)) return "form";
+  if (/keyboard|focus|tab order|screen reader/.test(source)) return "keyboard";
+  if (/mobile|responsive|viewport|zoom/.test(source)) return "responsive";
+  if (/performance|load|latency|speed|processing/.test(source)) return "performance";
+  if (/interaction|feedback|motion|animation|dropdown|modal|state/.test(source)) return "interaction";
+  return "visual";
+}
+
+export function buildRecaptureTasks(args: {
+  bucketResults: unknown[];
+  productUrl: string;
+  pageUrls?: string[];
+  limit?: number;
+}) {
+  const availableUrls = Array.from(new Set((args.pageUrls || []).filter(Boolean)));
+  if (!availableUrls.length) availableUrls.push(args.productUrl);
+  const tasks: RecaptureTask[] = [];
+  const seen = new Set<string>();
+
+  for (const rawBucket of args.bucketResults) {
+    const bucket = (rawBucket || {}) as RecordLike;
+    const bucketName = text(bucket.bucket_name) || text(bucket.bucket) || "UX audit";
+    const questions = Array.isArray(bucket.questions) ? bucket.questions : [];
+    for (const rawQuestion of questions) {
+      const question = (rawQuestion || {}) as RecordLike;
+      const state = text(question.answer_state);
+      const status = text(question.answer_status);
+      if (status === "answered" && !["not_tested", "n_a"].includes(state)) continue;
+      if (state === "n_a") continue;
+      const questionId = text(question.id);
+      if (!questionId || seen.has(`${bucketName}:${questionId}`)) continue;
+      seen.add(`${bucketName}:${questionId}`);
+      const questionText = text(question.question);
+      const missing = Array.isArray(question.missing_evidence)
+        ? question.missing_evidence.map(text).filter(Boolean).join("; ")
+        : text(question.evidence) || text(question.observation);
+      const kind = inferKind(`${questionText} ${missing}`);
+      tasks.push({
+        id: `${bucketName}:${questionId}`,
+        bucket: bucketName,
+        questionId,
+        question: questionText,
+        targetUrl: availableUrls[tasks.length % availableUrls.length] || args.productUrl,
+        kind,
+        instruction: missing || `Capture direct evidence for: ${questionText}`,
+        requiresPermission: kind === "form",
+      });
+      if (tasks.length >= (args.limit || 24)) return tasks;
+    }
+  }
+  return tasks;
+}
+
+export function recaptureAffectedBuckets(tasks: RecaptureTask[]) {
+  return Array.from(new Set(tasks.map((task) => task.bucket).filter(Boolean)));
+}

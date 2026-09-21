@@ -20,6 +20,15 @@ const DEFAULT_SETTINGS = {
 const MOBILE_VIEWPORT = { width: 390, height: 844, deviceScaleFactor: 1, mobile: true };
 let runnerPromise = null;
 
+function isTrustedAuditAppUrl(value) {
+  try {
+    const url = new URL(value || "");
+    return url.hostname === "ux-audit-tool-iota.vercel.app" || url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 async function getSettings() {
   const stored = await chrome.storage.local.get(STORAGE_KEYS.settings);
   return {
@@ -121,12 +130,15 @@ async function runnerStatus(tabId, patch) {
   return runner;
 }
 
-async function runVisibleAudit(tabId) {
+async function runVisibleAudit(tabId, options = {}) {
   const startingTab = await chrome.tabs.get(tabId);
   if (!startingTab.url || !/^https?:/.test(startingTab.url)) throw new Error("Open an http or https website before starting the audit.");
   const settings = await getSettings();
   const origin = new URL(startingTab.url).origin;
-  const queue = [normalizedPageUrl(startingTab.url)];
+  const requestedUrls = Array.isArray(options.targetUrls) ? options.targetUrls : [];
+  const queue = Array.from(new Set([startingTab.url, ...requestedUrls]
+    .filter((url) => isAuditableUrl(url, origin))
+    .map(normalizedPageUrl)));
   const visited = new Set();
   await startAudit(tabId, { journeyEnabled: true });
   await runnerStatus(tabId, { status: "running", phase: "starting", current: 0, total: 1, message: "Preparing visible audit", origin });
@@ -163,7 +175,7 @@ async function runVisibleAudit(tabId) {
       }
 
       await runnerStatus(tabId, { phase: "capturing_desktop", message: "Capturing desktop evidence" });
-      const desktop = await captureCurrentTab(tabId, "visible_runner_desktop");
+      const desktop = await captureCurrentTab(tabId, options.captureReason || "visible_runner_desktop");
       const stateAfterDesktop = await getState();
       const captures = stateAfterDesktop.captures.slice();
       captures[captures.length - 1] = { ...desktop, viewport: "desktop", automatedChecks: inspection };
@@ -178,7 +190,7 @@ async function runVisibleAudit(tabId) {
             type: "UX_AUDIT_RUN_DETERMINISTIC_CHECKS",
             payload: { testSafeInteractions: false },
           });
-          const mobile = await captureCurrentTab(tabId, "visible_runner_mobile");
+          const mobile = await captureCurrentTab(tabId, options.captureReason || "visible_runner_mobile");
           const stateAfterMobile = await getState();
           const mobileCaptures = stateAfterMobile.captures.slice();
           mobileCaptures[mobileCaptures.length - 1] = { ...mobile, viewport: "mobile", automatedChecks: mobileInspection };
@@ -468,6 +480,20 @@ async function sendToAuditTab(tabId, message) {
   }
 }
 
+async function deliverCapturesToTab(tabId, captures, messageType = "UX_AUDIT_IMPORT_CAPTURE") {
+  for (const capture of captures) {
+    const screenshotUrl = String(capture.screenshotUrl || "");
+    const captureMeta = { ...capture };
+    delete captureMeta.screenshotUrl;
+    await sendToAuditTab(tabId, { type: "UX_AUDIT_IMPORT_CAPTURE_START", capture: captureMeta, messageType });
+    const chunkSize = 1024 * 1024;
+    for (let offset = 0; offset < screenshotUrl.length; offset += chunkSize) {
+      await sendToAuditTab(tabId, { type: "UX_AUDIT_IMPORT_CAPTURE_CHUNK", chunk: screenshotUrl.slice(offset, offset + chunkSize) });
+    }
+    await sendToAuditTab(tabId, { type: "UX_AUDIT_IMPORT_CAPTURE_END", messageType });
+  }
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   const settings = await getSettings();
   await chrome.storage.local.set({
@@ -493,6 +519,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       runnerPromise = runVisibleAudit(tabId)
         .catch(() => undefined)
         .finally(() => { runnerPromise = null; });
+      return { ok: true, started: true };
+    }
+
+    if (message?.type === "UX_AUDIT_RUN_TARGETED_RECAPTURE") {
+      if (!isTrustedAuditAppUrl(sender.url || sender.tab?.url)) throw new Error("Targeted capture requests are accepted only from Design AID Audit.");
+      if (runnerPromise) throw new Error("An audit is already running.");
+      const tasks = Array.isArray(message.tasks) ? message.tasks : [];
+      if (!tasks.length) throw new Error("No follow-up capture tasks were provided.");
+      const reportTabId = sender.tab?.id;
+      if (!reportTabId) throw new Error("Keep the report tab open during follow-up capture.");
+      const targetUrls = Array.from(new Set(tasks.map((task) => String(task?.targetUrl || "")).filter(Boolean)));
+      const targetOrigin = targetUrls[0] ? new URL(targetUrls[0]).origin : "";
+      const tabs = await chrome.tabs.query({});
+      const targetTab = tabs.find((tab) => {
+        if (!tab.id || !tab.url) return false;
+        try { return !targetOrigin || new URL(tab.url).origin === targetOrigin; } catch { return false; }
+      });
+      if (!targetTab?.id) throw new Error("Open the audited website in a tab before starting follow-up capture.");
+      runnerPromise = (async () => {
+        await runVisibleAudit(targetTab.id, { targetUrls, captureReason: "targeted_recapture" });
+        const state = await getState();
+        const captures = (state.captures || []).map((capture) => ({ ...capture, recaptureTasks: tasks.map((task) => task.id) }));
+        await deliverCapturesToTab(reportTabId, captures, "UX_AUDIT_RECAPTURE_RESULT");
+        await sendToAuditTab(reportTabId, { type: "UX_AUDIT_RECAPTURE_COMPLETE", count: captures.length });
+        await clearAudit();
+      })().catch(async (error) => {
+        try {
+          await sendToAuditTab(reportTabId, {
+            type: "UX_AUDIT_RECAPTURE_ERROR",
+            error: error instanceof Error ? error.message : "Follow-up capture failed.",
+          });
+        } catch {}
+      }).finally(() => { runnerPromise = null; });
       return { ok: true, started: true };
     }
 
@@ -557,23 +616,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tabs = await chrome.tabs.query({});
       const target = tabs.find((tab) => tab.id && tab.url && /\/audit(?:\?|$)/.test(tab.url));
       if (!target?.id) throw new Error("Open the audit form before sending captures.");
-      for (const capture of state.captures) {
-        const screenshotUrl = String(capture.screenshotUrl || "");
-        const captureMeta = { ...capture };
-        delete captureMeta.screenshotUrl;
-        await sendToAuditTab(target.id, {
-          type: "UX_AUDIT_IMPORT_CAPTURE_START",
-          capture: captureMeta,
-        });
-        const chunkSize = 1024 * 1024;
-        for (let offset = 0; offset < screenshotUrl.length; offset += chunkSize) {
-          await sendToAuditTab(target.id, {
-            type: "UX_AUDIT_IMPORT_CAPTURE_CHUNK",
-            chunk: screenshotUrl.slice(offset, offset + chunkSize),
-          });
-        }
-        await sendToAuditTab(target.id, { type: "UX_AUDIT_IMPORT_CAPTURE_END" });
-      }
+      await deliverCapturesToTab(target.id, state.captures);
       await clearAudit();
       return { ok: true };
     }

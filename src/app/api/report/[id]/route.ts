@@ -13,6 +13,7 @@ const AUTO_CONTINUE_STAGES = new Set([
   "finalizing",
   "retrying_primary_model",
   "fallback_scoring",
+  "queued_targeted_recapture",
 ]);
 const AUTO_CONTINUE_LEASE_MS = 8000;
 

@@ -11,7 +11,11 @@ import { buildAuditFrameworkBrief, buildBucketFrameworkBrief } from "../../share
 import { normalizeAnswerState, normalizeQuestionAnswer, scoreQuestions } from "../../shared/ux-audit-scoring";
 import { buildRecommendationGuidanceContext } from "../../shared/ux-guidance";
 import { runMultiAgentAudit, type MultiAgentResult } from "@/lib/multi-agent-audit";
-import { REPORT_COVERAGE_POLICY, sanitizeAuditReport } from "@/lib/report-quality";
+import {
+  REPORT_COVERAGE_POLICY,
+  isBlockingCoverageStatus,
+  sanitizeAuditReport,
+} from "@/lib/report-quality";
 import { industryWritingRules } from "@/lib/senior-content";
 import {
   attachEvidenceDepth,
@@ -3137,10 +3141,13 @@ export async function finalizeAudit(args: {
     0,
   );
   const hasScoringFailure = onlyResults.some((bucket) => bucket.bucket_status === "scoring_unavailable");
-  const hasCoverageShortfall = ["failed_login", "insufficient_coverage", "limited_coverage"].includes(
+  // Limited capture coverage can still support a useful provisional report once
+  // the criterion-level publication threshold is met. Only terminal capture
+  // failures should prevent scoring altogether.
+  const hasCoverageShortfall = isBlockingCoverageStatus(coverageStatus);
+  const provisionalCoverage = ["usable_coverage", "limited_coverage"].includes(
     coverageStatus || "",
   );
-  const provisionalCoverage = coverageStatus === "usable_coverage";
   const questionCoverageRatio = totalQuestions > 0 ? scoreableQuestions / totalQuestions : 0;
   const bucketCoverage = onlyResults.map((bucket) => {
     const total = bucket.questions.length;

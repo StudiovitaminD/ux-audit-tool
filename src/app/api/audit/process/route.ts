@@ -19,6 +19,7 @@ import { getAccountSessionFromRequest } from "@/lib/account-server";
 import { reportBelongsToSession } from "@/lib/report-record";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { FieldValue } from "firebase-admin/firestore";
+import { buildRecaptureTasks } from "@/lib/recapture-tasks";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -919,6 +920,49 @@ export async function POST(req: Request) {
 
       try {
         currentPhase = "finalize_write";
+        const recaptureRound = Number(doc.recaptureRound || 0);
+        const unresolvedCount = Math.max(
+          0,
+          Number(report.questions_total || 0) - Number(report.questions_scoreable || 0),
+        );
+        if (
+          intakeObj.access_mode === "browser_extension_capture" &&
+          unresolvedCount > 0 &&
+          recaptureRound < 1
+        ) {
+          const pageUrls = (evidenceBundle?.pages || [])
+            .map((page) => page.url)
+            .filter((url): url is string => Boolean(url));
+          const recaptureTasks = buildRecaptureTasks({
+            bucketResults: safeResults,
+            productUrl: intakeObj.product_url,
+            pageUrls,
+          });
+          if (recaptureTasks.length > 0) {
+            await ref.set(
+              {
+                status: "awaiting_recapture",
+                processingLeaseUntil: 0,
+                error: null,
+                lastError: null,
+                report,
+                recaptureTasks,
+                recaptureBuckets: Array.from(new Set(recaptureTasks.map((task) => task.bucket))),
+                progress: buildProgressState({
+                  bucketIndex: finalBucketIndex,
+                  totalBuckets: buckets.length,
+                  retryCount: 0,
+                  attemptCount: 0,
+                  currentBucketName: null,
+                  currentStage: "awaiting_extension_recapture",
+                  currentBucketStartedAt: null,
+                }),
+              },
+              { merge: true },
+            );
+            return false;
+          }
+        }
         if (report.ux_score_eligible !== true) {
           const scoreable = Number(report.questions_scoreable || 0);
           const total = Number(report.questions_total || 0);
@@ -1063,10 +1107,61 @@ export async function POST(req: Request) {
       });
     };
 
+    const pendingRecaptureBuckets = Array.isArray(doc.recaptureBuckets)
+      ? doc.recaptureBuckets.filter((value): value is string => typeof value === "string" && buckets.includes(value))
+      : [];
+    if (Number(doc.recaptureRound || 0) > 0 && pendingRecaptureBuckets.length > 0) {
+      currentPhase = "targeted_recapture_scoring";
+      const refreshedResults = [...existingResults];
+      const bucket = pendingRecaptureBuckets[0]!;
+      const index = buckets.indexOf(bucket);
+      const replacement = await scoreBucketWithRecovery(index);
+      const existingIndex = refreshedResults.findIndex((item) => item.bucket_name === bucket);
+      if (existingIndex >= 0) refreshedResults[existingIndex] = replacement;
+      else refreshedResults.push(replacement);
+      existingResults = buckets
+        .map((bucket) => refreshedResults.find((result) => result.bucket_name === bucket))
+        .filter((result): result is BucketResult => Boolean(result));
+      const remainingRecaptureBuckets = pendingRecaptureBuckets.slice(1);
+      await ref.set({
+        bucketResults: existingResults,
+        processingLeaseUntil: 0,
+        recaptureBuckets: remainingRecaptureBuckets.length
+          ? remainingRecaptureBuckets
+          : FieldValue.delete(),
+        progress: buildProgressState({
+          bucketIndex: buckets.length - remainingRecaptureBuckets.length,
+          totalBuckets: buckets.length,
+          retryCount: 0,
+          attemptCount: 0,
+          currentBucketName: remainingRecaptureBuckets[0] || null,
+          currentStage: remainingRecaptureBuckets.length ? "queued_targeted_recapture" : "finalizing",
+          currentBucketStartedAt: null,
+        }),
+      }, { merge: true });
+      if (remainingRecaptureBuckets.length) {
+        return Response.json({
+          status: "processing",
+          progress: { currentStage: "queued_targeted_recapture", remaining: remainingRecaptureBuckets.length },
+        }, { status: 202 });
+      }
+      await ref.set({ recaptureTasks: FieldValue.delete() }, { merge: true });
+      const finalized = await finalizeStoredReport(buckets.length, existingResults);
+      if (finalized) return Response.json({ status: "complete" });
+      const finalData = (await ref.get()).data() ?? {};
+      if (finalData.status === "error") {
+        return Response.json({ status: "error", error: finalData.error || "Follow-up scoring failed." }, { status: 400 });
+      }
+      return Response.json({ status: finalData.status || "processing" }, { status: 202 });
+    }
+
     if (bucketIndex >= buckets.length) {
       const finalized = await finalizeStoredReport(bucketIndex, existingResults);
       if (finalized) return Response.json({ status: "complete" });
       const finalData = (await ref.get()).data() ?? {};
+      if (finalData.status === "awaiting_recapture") {
+        return Response.json({ status: "awaiting_recapture", tasks: finalData.recaptureTasks || [] }, { status: 202 });
+      }
       if (finalData.status === "error") {
         return Response.json(
           { status: "error", error: finalData.error || "The report did not meet the publication requirements." },
@@ -1127,6 +1222,9 @@ export async function POST(req: Request) {
     const finalized = await finalizeStoredReport(bucketIndex, existingResults);
     if (finalized) return Response.json({ status: "complete" });
     const finalData = (await ref.get()).data() ?? {};
+    if (finalData.status === "awaiting_recapture") {
+      return Response.json({ status: "awaiting_recapture", tasks: finalData.recaptureTasks || [] }, { status: 202 });
+    }
     if (finalData.status === "error") {
       return Response.json(
         { status: "error", error: finalData.error || "The report did not meet the publication requirements." },

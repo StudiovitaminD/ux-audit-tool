@@ -29,6 +29,15 @@ export const REPORT_COVERAGE_POLICY = {
   fullBucketRatio: 0.5,
 } as const;
 
+export function isBlockingCoverageStatus(status: unknown) {
+  return [
+    "failed_login",
+    "insufficient_coverage",
+    "capture_pipeline_not_executed",
+    "criteria_coverage_insufficient",
+  ].includes(typeof status === "string" ? status.trim() : "");
+}
+
 type AnyRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): AnyRecord | null {
