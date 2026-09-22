@@ -48,7 +48,14 @@ export type EvidencePage = {
     zoom?: { tested: boolean; scale: number; horizontalOverflow: boolean; overflowPixels: number };
     reducedMotion?: { tested: boolean; mediaQueryMatched: boolean; animationsDetected: number };
     performance?: { tested: boolean; domContentLoadedMs: number; loadMs: number; requestCount: number; transferSize: number };
-    forms?: { tested: boolean; formCount: number; requiredFields: number; unlabeledFields: number; statusRegions: number };
+    forms?: {
+      tested: boolean;
+      formCount: number;
+      requiredFields: number;
+      unlabeledFields: number;
+      statusRegions: number;
+      testedStates?: Array<Record<string, unknown>>;
+    };
     axe?: { tested: boolean; violations: number; critical: number; serious: number; passes: number };
   };
 };
@@ -2672,6 +2679,9 @@ export function extensionCapturesToEvidence(input: {
           requiredFields: Number(formsCheck.requiredFields || 0),
           unlabeledFields: Number(formsCheck.unlabeledFields || 0),
           statusRegions: Number(formsCheck.statusRegions || 0),
+          testedStates: Array.isArray(formsCheck.testedStates)
+            ? formsCheck.testedStates.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
+            : [],
         },
         axe: {
           tested: axeCheck.tested === true,

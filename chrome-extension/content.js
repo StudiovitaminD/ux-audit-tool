@@ -220,6 +220,100 @@
     );
   }
 
+  function setNativeFieldValue(field, value) {
+    const prototype = field instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : field instanceof HTMLSelectElement
+        ? HTMLSelectElement.prototype
+        : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+    if (setter) setter.call(field, value);
+    else field.value = value;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function safeTextValue(field) {
+    const identity = cleanText(`${field.name || ""} ${field.id || ""} ${field.placeholder || ""} ${accessibleName(field)}`).toLowerCase();
+    const type = String(field.type || "text").toLowerCase();
+    let value = type === "email" || /e-?mail/.test(identity)
+      ? "ux-audit@example.com"
+      : type === "tel" || /phone|mobile|telephone/.test(identity)
+        ? "5550101234"
+        : type === "url" || /website|url/.test(identity)
+          ? "https://example.com"
+          : type === "date"
+            ? new Date().toISOString().slice(0, 10)
+            : type === "number"
+              ? String(Math.max(Number(field.min) || 1, 1))
+              : /first.?name/.test(identity)
+                ? "UX"
+                : /last.?name/.test(identity)
+                  ? "Audit"
+                  : /name/.test(identity)
+                    ? "UX Audit Test"
+                    : /company|organisation|organization/.test(identity)
+                      ? "UX Audit Test"
+                      : /message|comment|description|details|query|enquiry/.test(identity)
+                        ? "Automated UX audit test submission."
+                        : "UX audit test";
+    const maxLength = Number(field.maxLength);
+    if (maxLength > 0) value = value.slice(0, maxLength);
+    const minLength = Number(field.minLength);
+    if (minLength > 0 && value.length < minLength) value = `${value}${" test".repeat(Math.ceil((minLength - value.length) / 5))}`.slice(0, maxLength > 0 ? maxLength : minLength);
+    return value;
+  }
+
+  function fillFormWithSafeTestData(form) {
+    const filledFields = [];
+    const radioGroups = new Set();
+    const fields = Array.from(form.elements).filter((field) => isVisible(field) && !field.disabled);
+    for (const field of fields) {
+      if (field instanceof HTMLSelectElement) {
+        if (field.value) continue;
+        const option = Array.from(field.options).find((item) => !item.disabled && item.value);
+        if (!option) continue;
+        setNativeFieldValue(field, option.value);
+        filledFields.push(accessibleName(field) || field.name || "select");
+        continue;
+      }
+      if (field instanceof HTMLTextAreaElement) {
+        if (field.value.trim()) continue;
+        setNativeFieldValue(field, safeTextValue(field));
+        filledFields.push(accessibleName(field) || field.name || "textarea");
+        continue;
+      }
+      if (!(field instanceof HTMLInputElement)) continue;
+      const type = String(field.type || "text").toLowerCase();
+      if (["hidden", "submit", "button", "reset", "image", "file", "password"].includes(type)) continue;
+      if (type === "checkbox") {
+        if (field.required && !field.checked) {
+          field.click();
+          filledFields.push(accessibleName(field) || field.name || "checkbox");
+        }
+        continue;
+      }
+      if (type === "radio") {
+        const group = field.name || `radio-${filledFields.length}`;
+        if (radioGroups.has(group) || form.querySelector(`input[type="radio"][name="${CSS.escape(field.name)}"]:checked`)) continue;
+        field.click();
+        radioGroups.add(group);
+        filledFields.push(accessibleName(field) || field.name || "radio option");
+        continue;
+      }
+      if (field.value.trim()) continue;
+      setNativeFieldValue(field, safeTextValue(field));
+      filledFields.push(accessibleName(field) || field.name || type);
+    }
+    return filledFields;
+  }
+
+  function visibleAuditableForms() {
+    return Array.from(document.forms).filter((form) =>
+      isVisible(form) || Array.from(form.elements).some((field) => isVisible(field)),
+    );
+  }
+
   function parseColor(value) {
     const match = String(value || "").match(/[\d.]+/g);
     if (!match || match.length < 3) return null;
@@ -318,15 +412,15 @@
         }
       }
 
-      for (const form of Array.from(document.forms).filter(isVisible).slice(0, 3)) {
+      for (const form of visibleAuditableForms().slice(0, 3)) {
         const formText = cleanText(`${form.getAttribute("aria-label") || ""} ${form.textContent || ""}`).slice(0, 180);
-        const sensitive = Boolean(form.querySelector("input[type='password'], input[autocomplete*='cc-'], input[name*='card' i], input[name*='payment' i]"));
+        const sensitive = Boolean(form.querySelector("input[type='password'], input[type='file'], input[autocomplete*='cc-'], input[name*='card' i], input[name*='payment' i]"));
         const destructive = /pay|purchase|buy|delete|remove|publish|logout|log out|close account|place order|confirm order/i.test(formText);
         if (sensitive || destructive) {
           formStates.push({ form: formText || "Form", result: "blocked_by_safety_policy" });
           continue;
         }
-        const approved = window.confirm(`Design AID wants to submit this form only to capture its validation or result state:\n\n${formText || "Unnamed form"}\n\nAllow this one submission?`);
+        const approved = window.confirm(`Design AID wants to fill this form with safe test data and submit it once to capture its validation or result state:\n\n${formText || "Unnamed form"}\n\nAllow this one submission?`);
         if (!approved) {
           formStates.push({ form: formText || "Form", result: "user_denied" });
           continue;
@@ -334,7 +428,13 @@
         const beforeUrl = location.href;
         const beforeText = cleanText(document.querySelector("[role='alert'], [role='status'], [aria-live]")?.textContent || "");
         try {
-          form.requestSubmit();
+          const filledFields = fillFormWithSafeTestData(form);
+          const submitter = Array.from(form.elements).find((field) =>
+            (field instanceof HTMLButtonElement || field instanceof HTMLInputElement) &&
+            ["submit", "image"].includes(String(field.type || "submit").toLowerCase()) &&
+            !field.disabled,
+          );
+          form.requestSubmit(submitter || undefined);
           await new Promise((resolve) => setTimeout(resolve, 1200));
           const afterText = cleanText(document.querySelector("[role='alert'], [role='status'], [aria-live]")?.textContent || "");
           const invalidFields = Array.from(form.querySelectorAll(":invalid")).map((field) => accessibleName(field) || field.getAttribute("name") || field.tagName.toLowerCase()).slice(0, 12);
@@ -342,6 +442,7 @@
             form: formText || "Form",
             result: invalidFields.length ? "validation_observed" : location.href !== beforeUrl ? "navigation_observed" : "submitted",
             invalidFields,
+            filledFields,
             statusBefore: beforeText,
             statusAfter: afterText,
           });

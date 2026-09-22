@@ -89,7 +89,9 @@ function pageObservation(page: EvidencePage, kind: EvidenceKind) {
     return { status: "confirmed" as const, text: `${measured.semantics.landmarks} landmarks; ${measured.semantics.unlabeledControls} unlabeled controls; ${measured.semantics.imagesMissingAlt} images missing alt text.${axeText}` };
   }
   if (kind === "form_state" && measured?.forms?.tested) {
-    return { status: "confirmed" as const, text: `${measured.forms.formCount} forms; ${measured.forms.requiredFields} required fields; ${measured.forms.unlabeledFields} unlabeled fields; ${measured.forms.statusRegions} status regions.` };
+    const testedStates = (measured.forms.testedStates || []).slice(0, 3);
+    const stateText = testedStates.length ? ` Outcomes: ${JSON.stringify(testedStates).slice(0, 1200)}.` : "";
+    return { status: "confirmed" as const, text: `${measured.forms.formCount} forms; ${measured.forms.requiredFields} required fields; ${measured.forms.unlabeledFields} unlabeled fields; ${measured.forms.statusRegions} status regions.${stateText}` };
   }
   if (kind === "reduced_motion" && measured?.reducedMotion?.tested) {
     return { status: "confirmed" as const, text: `${measured.reducedMotion.animationsDetected} active animations detected; reduced-motion preference ${measured.reducedMotion.mediaQueryMatched ? "matched" : "not matched"}.` };
@@ -150,6 +152,7 @@ function measuredValuesFor(
       requiredFields: deterministic.forms.requiredFields,
       unlabeledFields: deterministic.forms.unlabeledFields,
       statusRegions: deterministic.forms.statusRegions,
+      testedStateCount: deterministic.forms.testedStates?.length || 0,
     };
   }
   if (kind === "reduced_motion" && deterministic.reducedMotion?.tested) {
