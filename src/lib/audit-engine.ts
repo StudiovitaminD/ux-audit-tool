@@ -23,6 +23,7 @@ import {
   evidenceConfidence,
   questionEvidence,
 } from "@/lib/evidence-depth";
+import { isScreenshotScorableCriterion } from "@/lib/criterion-evidence-policy";
 
 const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4.1-mini";
 
@@ -176,6 +177,30 @@ const PILLAR_MAP: Record<string, string> = {
   "Brand Expression": "Delight",
   "Icons & Imagery": "Delight",
 };
+
+function hasConfirmedVisualEvidence(evidence: EvidenceBundle | null, bucket: string, questionId: string) {
+  return questionEvidence(evidence, bucket, questionId).some(
+    (record) => record.kind === "screenshot" && record.status === "confirmed" && Boolean(record.screenshotUrl),
+  );
+}
+
+function hasDirectMeasuredEvidence(evidence: EvidenceBundle | null, bucket: string, questionId: string) {
+  return questionEvidence(evidence, bucket, questionId).some(
+    (record) => {
+      if (record.status !== "confirmed") return false;
+      if (record.testMethod === "targeted_browser_measurement") return true;
+      if (record.testMethod !== "deterministic_browser_measurement") return false;
+      const genericProof: Record<string, string[]> = {
+        "Color & Contrast": ["CC01", "CC02", "CC06"],
+        "Typography & Readability": ["TR08", "TR09"],
+        "Keyboard Navigation": ["KN01"],
+        "Screen Reader Support": ["SR01", "SR02", "SR03", "SR05", "SR07"],
+        Performance: ["PF01", "PF08", "PF09"],
+      };
+      return (genericProof[bucket] || []).includes(questionId);
+    },
+  );
+}
 
 const BUCKET_ALIASES: Record<string, string> = {
   "Feedback & System States": "Visual Feedback",
@@ -502,6 +527,8 @@ Evidence rules:
 - Evidence IDs are references, not facts. In evidence, name the screen or page and describe the specific visible or measured detail that supports the state.
 - Do not use product context, framework guidance, general UX knowledge, or the supplementary bucket context as proof.
 - Do not infer hidden states, interactions, errors, performance, accessibility behavior, or responsive behavior from a static screenshot.
+- A confirmed deterministic browser or DOM measurement is direct evidence. Use it to return pass, partial, or fail instead of not_tested.
+- For screenshot-scoreable visual criteria, a confirmed visual capture is direct evidence. Inspect the attached image and return pass, partial, or fail instead of not_tested.
 - Use not_tested when the required state or interaction is absent. State exactly what evidence is missing.
 - Use n_a only when the criterion cannot reasonably apply, not when evidence is missing.
 - Never invent screens, features, defects, user behavior, measurements, or evidence IDs.
@@ -601,8 +628,14 @@ export function criterionEvidencePacket(
       });
       return [
         `Criterion ${question.id}: ${question.question}`,
+        hasDirectMeasuredEvidence(evidence, bucket, question.id)
+          ? "DETERMINISTICALLY_SCOREABLE: A direct browser or DOM measurement is present. Use it to score the criterion; do not return not_tested."
+          : "",
+        isScreenshotScorableCriterion(bucket, question.id) && usable.some((record) => record.kind === "screenshot" && record.status === "confirmed")
+          ? "VISUALLY_SCOREABLE: A confirmed capture is attached. Inspect it and score the visible criterion; do not return not_tested."
+          : "",
         lines.length ? lines.join("\n") : "NO_USABLE_EVIDENCE",
-      ].join("\n");
+      ].filter(Boolean).join("\n");
     })
     .join("\n\n---\n\n");
 }
@@ -959,6 +992,16 @@ ${JSON.stringify((args.evidence?.evidenceRecords || []).filter((record) => recor
         .map(String)
         .filter((id) => validQuestionIds.has(id)),
     );
+    for (const question of args.expectedQuestions) {
+      const directlyScoreable = hasDirectMeasuredEvidence(args.evidence, args.bucket, question.id)
+        || (isScreenshotScorableCriterion(args.bucket, question.id)
+          && hasConfirmedVisualEvidence(args.evidence, args.bucket, question.id));
+      if (!directlyScoreable) continue;
+      const answer = args.questions.find((item) => String(item.id || "") === question.id);
+      const state = String(answer?.answer_state || "");
+      const status = String(answer?.answer_status || "");
+      if (state === "not_tested" || status === "insufficient_evidence") failedIds.add(question.id);
+    }
     if (!failedIds.size) return args.questions;
     return completeMissingQuestions({
       intake: args.intake,

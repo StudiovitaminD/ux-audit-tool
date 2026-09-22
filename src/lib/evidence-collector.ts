@@ -58,6 +58,7 @@ export type EvidenceScreenshot = {
   capturedAt?: string;
   label: string;
   url: string;
+  pageUrl?: string;
   source?: "browserbase" | "local_playwright" | "guided_step" | "recorded_journey" | "route" | "upload" | "auto_explore";
   screenName?: string;
   screenType?: string;
@@ -1304,6 +1305,7 @@ async function captureSupplementaryStates(
       label: `${label} · ${stateLabel}`,
       url: image,
       source: "auto_explore",
+      pageUrl: page.url(),
       screenName: label,
       screenType,
       viewport: `${page.viewportSize()?.width || originalViewport.width}x${page.viewportSize()?.height || originalViewport.height}`,
@@ -2686,6 +2688,7 @@ export function extensionCapturesToEvidence(input: {
         label: pageLabel,
         url: screenshotUrl,
         source: "upload",
+        pageUrl: url,
         screenName: pageLabel,
         screenType: screenTypeLabel,
         title,

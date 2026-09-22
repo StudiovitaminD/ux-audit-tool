@@ -1,3 +1,5 @@
+import { recaptureKindForCriterion } from "@/lib/criterion-evidence-policy";
+
 type RecordLike = Record<string, unknown>;
 
 export type RecaptureTask = {
@@ -13,19 +15,6 @@ export type RecaptureTask = {
 
 function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function inferKind(value: string): RecaptureTask["kind"] {
-  const source = value.toLowerCase();
-  if (/text spacing|letter spacing|word spacing|line height|clipping|overlapping or hiding content/.test(source)) return "text_spacing";
-  if (/zoom|200%/.test(source)) return "zoom";
-  if (/form|validation|error message|submit|input/.test(source)) return "form";
-  if (/keyboard|focus|tab order|screen reader/.test(source)) return "keyboard";
-  if (/mobile|responsive|viewport|horizontal scrolling|clipping|overlap/.test(source)) return "responsive";
-  if (/performance|load|latency|speed|processing/.test(source)) return "performance";
-  if (/motion|animation|transition/.test(source)) return "motion";
-  if (/interaction|feedback|duplicate|multiple times|click|tap|dropdown|modal|state/.test(source)) return "interaction";
-  return "visual";
 }
 
 export function buildRecaptureTasks(args: {
@@ -56,7 +45,7 @@ export function buildRecaptureTasks(args: {
       const missing = Array.isArray(question.missing_evidence)
         ? question.missing_evidence.map(text).filter(Boolean).join("; ")
         : text(question.evidence) || text(question.observation);
-      const kind = inferKind(`${questionText} ${missing}`);
+      const kind = recaptureKindForCriterion(bucketName, questionId, `${questionText} ${missing}`);
       tasks.push({
         id: `${bucketName}:${questionId}`,
         bucket: bucketName,
