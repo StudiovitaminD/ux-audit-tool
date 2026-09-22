@@ -10,10 +10,14 @@ const VISUAL_BUCKETS = new Set([
 export function criterionEvidenceKinds(bucket: string, questionId: string, question: string): EvidenceKind[] {
   const number = Number(questionId.match(/\d+$/)?.[0] || 0);
 
-  if (bucket === "Visual Feedback") return ["interaction", "form_state", "screenshot"];
+  if (bucket === "Visual Feedback") {
+    if ([3, 4, 5, 9, 10].includes(number)) return ["form_state", "interaction", "screenshot"];
+    return ["interaction", "screenshot"];
+  }
   if (bucket === "Color & Contrast") {
     if (number <= 7) return ["contrast", "screenshot"];
-    return ["form_state", "accessibility_tree", "screenshot"];
+    if (number === 8) return ["form_state", "accessibility_tree", "screenshot"];
+    return ["accessibility_tree", "screenshot"];
   }
   if (bucket === "Typography & Readability") {
     if (number === 8) return ["zoom", "responsive", "screenshot"];
@@ -80,7 +84,12 @@ export function recaptureKindForCriterion(bucket: string, questionId: string, qu
   const kinds = criterionEvidenceKinds(bucket, questionId, question);
   if (kinds.includes("text_spacing")) return "text_spacing" as const;
   if (kinds.includes("zoom")) return "zoom" as const;
-  if (kinds.includes("form_state")) return "form" as const;
+  const number = Number(questionId.match(/\d+$/)?.[0] || 0);
+  const formProbe = (bucket === "Visual Feedback" && [3, 4, 5, 9, 10].includes(number))
+    || (bucket === "Color & Contrast" && number === 8)
+    || (bucket === "Screen Reader Support" && [9, 10].includes(number))
+    || (bucket === "Content (Delight)" && number === 4);
+  if (formProbe && kinds.includes("form_state")) return "form" as const;
   if (kinds.includes("keyboard") || kinds.includes("accessibility_tree")) return "keyboard" as const;
   if (kinds.includes("interaction")) return "interaction" as const;
   if (kinds.includes("performance")) return "performance" as const;

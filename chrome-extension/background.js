@@ -258,52 +258,70 @@ async function runTargetedRecapture(tabId, tasks) {
   if (!startingTab.url || !/^https?:/.test(startingTab.url)) throw new Error("Open the audited website before starting follow-up capture.");
   const origin = new URL(startingTab.url).origin;
   await startAudit(tabId, { journeyEnabled: true });
-  await runnerStatus(tabId, { status: "running", phase: "targeted", current: 0, total: tasks.length, message: "Preparing targeted checks" });
+  const batches = [];
+  const batchByKey = new Map();
+  for (const task of tasks) {
+    const key = `${normalizedPageUrl(task.targetUrl)}::${String(task.kind || "visual")}`;
+    const existing = batchByKey.get(key);
+    if (existing) existing.tasks.push(task);
+    else {
+      const batch = { targetUrl: task.targetUrl, kind: task.kind || "visual", tasks: [task] };
+      batchByKey.set(key, batch);
+      batches.push(batch);
+    }
+  }
+  await runnerStatus(tabId, { status: "running", phase: "targeted", current: 0, total: batches.length, message: `Preparing ${batches.length} targeted checks for ${tasks.length} criteria` });
 
-  for (const [index, task] of tasks.entries()) {
-    if (!isAuditableUrl(task.targetUrl, origin)) continue;
-    await runnerStatus(tabId, { phase: "targeted", current: index + 1, total: tasks.length, message: `Checking: ${String(task.question || task.id).slice(0, 90)}` });
+  for (const [index, batch] of batches.entries()) {
+    const task = batch.tasks[0];
+    if (!isAuditableUrl(batch.targetUrl, origin)) continue;
+    await runnerStatus(tabId, { phase: "targeted", current: index + 1, total: batches.length, message: `Running ${batch.kind.replaceAll("_", " ")} check for ${batch.tasks.length} ${batch.tasks.length === 1 ? "criterion" : "criteria"}` });
     try {
       await withTimeout((async () => {
         const currentTab = await chrome.tabs.get(tabId);
         let currentUrl = "";
         try { currentUrl = normalizedPageUrl(currentTab.url || startingTab.url); } catch {}
-        if (currentUrl !== normalizedPageUrl(task.targetUrl)) {
-          await chrome.tabs.update(tabId, { url: task.targetUrl, active: true });
+        if (currentUrl !== normalizedPageUrl(batch.targetUrl)) {
+          await chrome.tabs.update(tabId, { url: batch.targetUrl, active: true });
           await waitForTabComplete(tabId, 15000);
         }
         await new Promise((resolve) => setTimeout(resolve, 350));
         const targetedCheck = await sendToAuditTab(tabId, { type: "UX_AUDIT_RUN_TARGETED_CHECK", payload: { task } });
         const inspection = await sendToAuditTab(tabId, {
           type: "UX_AUDIT_RUN_DETERMINISTIC_CHECKS",
-          payload: { testSafeInteractions: task.kind === "form" },
+          payload: { testSafeInteractions: batch.kind === "form" },
         });
         // A viewport capture is enough here because the full page was captured
         // during the first pass. Re-stitching every long page made follow-up hang.
-        const capture = await captureCurrentTab(tabId, `targeted_${task.kind || "visual"}`, false);
+        const capture = await captureCurrentTab(tabId, `targeted_${batch.kind}`, false);
         const state = await getState();
         const captures = state.captures.slice();
-        captures[captures.length - 1] = {
+        captures.splice(captures.length - 1, 1, ...batch.tasks.map((batchTask, taskIndex) => ({
           ...capture,
+          screenshotUrl: taskIndex === 0 ? capture.screenshotUrl : "",
           viewport: "desktop",
           automatedChecks: inspection,
-          targetedCheck,
-          recaptureTasks: [task.id],
-          recaptureQuestion: task.question,
-          recaptureBucket: task.bucket,
-        };
+          targetedCheck: {
+            ...targetedCheck,
+            taskId: batchTask.id,
+            question: batchTask.question,
+          },
+          recaptureTasks: batch.tasks.map((item) => item.id),
+          recaptureQuestion: batchTask.question,
+          recaptureBucket: batchTask.bucket,
+        })));
         await setState({ ...state, captures });
-      })(), 25000, `Timed out while checking ${task.id}.`);
+      })(), 25000, `Timed out while checking ${batch.kind} on ${batch.targetUrl}.`);
     } catch (error) {
       const state = await getState();
       const failures = Array.isArray(state.runner?.taskFailures) ? state.runner.taskFailures : [];
       await runnerStatus(tabId, {
-        taskFailures: [...failures, { taskId: task.id, error: error instanceof Error ? error.message : "Targeted check failed" }],
-        message: `Skipped one unavailable state; continuing (${index + 1}/${tasks.length})`,
+        taskFailures: [...failures, ...batch.tasks.map((item) => ({ taskId: item.id, error: error instanceof Error ? error.message : "Targeted check failed" }))],
+        message: `Skipped one unavailable check; continuing (${index + 1}/${batches.length})`,
       });
     }
   }
-  await runnerStatus(tabId, { status: "complete", phase: "complete", current: tasks.length, total: tasks.length, message: `Follow-up complete: ${tasks.length} checks run` });
+  await runnerStatus(tabId, { status: "complete", phase: "complete", current: batches.length, total: batches.length, message: `Follow-up complete: ${batches.length} browser checks covered ${tasks.length} criteria` });
   await stopAudit();
 }
 

@@ -2381,6 +2381,7 @@ function uploadedScreenshotsToEvidence(
   const screenshots: EvidenceScreenshot[] = uploads.map((shot, index) => ({
     label: safeText(shot.name) || `Uploaded screenshot ${index + 1}`,
     url: shot.url,
+    pageUrl: pages[index]?.url || `upload://screenshot-${index + 1}`,
     source: "upload",
     screenName: safeText(shot.name) || `Uploaded screenshot ${index + 1}`,
     screenType: normalizeScreenType(shot.label || shot.name || ""),

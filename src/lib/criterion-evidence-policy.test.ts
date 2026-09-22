@@ -33,6 +33,9 @@ describe("canonical criterion evidence policy", () => {
   it("routes frequently confused criteria to the correct probes", () => {
     expect(criterionEvidenceKinds("Visual Feedback", "VF02", "Loading states")).toContain("interaction");
     expect(criterionEvidenceKinds("Visual Feedback", "VF02", "Loading states")).not.toContain("performance");
+    expect(recaptureKindForCriterion("Visual Feedback", "VF02", "Loading states")).toBe("interaction");
+    expect(recaptureKindForCriterion("Visual Feedback", "VF09", "Error identification")).toBe("form");
+    expect(recaptureKindForCriterion("Consistency & UI Patterns", "CP02", "Repeated behavior")).toBe("interaction");
     expect(criterionEvidenceKinds("Performance", "PF10", "Layout shift")).toContain("performance");
     expect(criterionEvidenceKinds("Screen Reader Support", "SR09", "Error announcements")).toContain("form_state");
     expect(criterionEvidenceKinds("Navigation & Findability", "NF01", "Primary navigation")).not.toContain("keyboard");

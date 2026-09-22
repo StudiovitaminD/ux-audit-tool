@@ -436,8 +436,7 @@ function isNotScoredBucketRow(item: AnyRecord) {
     risk === "scoring unavailable" ||
     scoreText === "not scored" ||
     scoreText === "not tested" ||
-    scoreNumber === null ||
-    scoreNumber <= 0
+    scoreNumber === null
   );
 }
 
@@ -1972,9 +1971,6 @@ function normalizeScorecardRow(row: AnyRecord) {
     bucketStatus === "not_tested" ||
     bucketStatus === "scoring_unavailable" ||
     scoreNumber === null ||
-    scoreNumber <= 0 ||
-    scoreText === "0/100" ||
-    scoreText === "0" ||
     scoreText === "not tested";
 
   if (!isUnscored) return row;
@@ -2841,8 +2837,7 @@ export function buildReportViewModel(input: unknown): ReportViewModel {
         const derivedLooksNotScored =
           asString(matchingBucket.bucket_status) === "insufficient_evidence" ||
           asString(matchingBucket.bucket_status) === "scoring_unavailable" ||
-          matchingScore === null ||
-          matchingScore <= 0;
+          matchingScore === null;
         return storedLooksNotScored !== derivedLooksNotScored;
       }));
   const resolvedScorecardSource =

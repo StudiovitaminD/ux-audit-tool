@@ -190,6 +190,7 @@ function hasDirectMeasuredEvidence(evidence: EvidenceBundle | null, bucket: stri
       if (record.status !== "confirmed") return false;
       if (record.testMethod === "targeted_browser_measurement") return true;
       if (record.testMethod !== "deterministic_browser_measurement") return false;
+      if (record.kind === "form_state" && Number(record.measuredValues?.testedStateCount || 0) > 0) return true;
       const genericProof: Record<string, string[]> = {
         "Color & Contrast": ["CC01", "CC02", "CC06"],
         "Typography & Readability": ["TR08", "TR09"],
@@ -866,6 +867,27 @@ async function completeMissingQuestions(args: {
   const missingQuestionChunks = chunkArray(missingQuestions, missingQuestions.length);
 
   for (const questionChunk of missingQuestionChunks) {
+    const questionIds = new Set(questionChunk.map((question) => question.id));
+    const criterionImageUrls = (args.evidence?.evidenceRecords || [])
+      .filter(
+        (record) =>
+          record.bucketId === args.bucket &&
+          questionIds.has(record.questionId) &&
+          record.status === "confirmed",
+      )
+      .map((record) => record.screenshotUrl || "")
+      .filter(Boolean);
+    const visualEvidenceUrls = Array.from(
+      new Set(
+        [
+          ...criterionImageUrls,
+          ...(args.evidence?.screenshots || [])
+            .filter((screenshot) => screenshot.isValidAuditEvidence !== false)
+            .map((screenshot) => screenshot.url),
+          args.evidence?.screenshotDataUrl || "",
+        ].filter(Boolean),
+      ),
+    ).slice(0, 4);
     const missingPrompt = `You are completing missing UX audit answers for one bucket.
 
 Bucket: ${args.bucket}
@@ -918,7 +940,10 @@ ${criterionEvidencePacket(args.evidence, args.bucket, questionChunk)}
 `;
 
     try {
-      const raw = await openRouterChat(missingPrompt, { modelOverride: args.modelOverride });
+      const raw = await openRouterChat(missingPrompt, {
+        modelOverride: args.modelOverride,
+        imageUrls: visualEvidenceUrls,
+      });
       const parsed = parseBucketJson(raw);
       const parsedQuestionInputs = Array.isArray(parsed.questions) ? parsed.questions : [];
       const parsedQuestionRecords = parsedQuestionInputs
