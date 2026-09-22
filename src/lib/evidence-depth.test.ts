@@ -27,4 +27,30 @@ describe("Phase 2 evidence depth", () => {
     expect(screenshotRecord?.testMethod).toBe("visual_capture");
     expect(evidenceConfidence([screenshotRecord!])).toBe(0.75);
   });
+
+  it("routes targeted browser evidence to the exact bucket question", () => {
+    const bundle = {
+      pages: [{
+        url: "https://example.com",
+        title: "Home",
+        h1: [], h2: [], h3: [], topNavLinks: [], textSnippet: "",
+        targetedCheck: {
+          tested: true,
+          taskId: "Typography & Readability:TR06",
+          kind: "zoom",
+          method: "200_percent_layout_zoom",
+          horizontalOverflow: false,
+        },
+      }],
+      screenshotDataUrl: null,
+      screenshots: [],
+      warnings: [],
+      visitedFlows: [],
+    } as EvidenceBundle;
+    const plan = buildEvidencePlan(["Typography & Readability"]);
+    const result = attachEvidenceDepth(bundle, plan);
+    const exact = result.evidenceRecords?.find((record) => record.questionId === "TR06" && record.kind === "zoom");
+    expect(exact?.status).toBe("confirmed");
+    expect(exact?.observation).toContain("200_percent_layout_zoom");
+  });
 });

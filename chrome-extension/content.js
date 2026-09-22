@@ -40,8 +40,16 @@
 
   window.addEventListener("message", (event) => {
     if (event.source !== window || event.data?.source !== "ux-audit-app") return;
-    if (event.data.type !== "UX_AUDIT_RUN_TARGETED_RECAPTURE") return;
     if (!["ux-audit-tool-iota.vercel.app", "localhost", "127.0.0.1"].includes(location.hostname)) return;
+    if (event.data.type === "UX_AUDIT_EXTENSION_PING") {
+      window.postMessage({
+        source: "ux-audit-extension",
+        type: "UX_AUDIT_EXTENSION_READY",
+        version: chrome.runtime.getManifest().version,
+      }, "*");
+      return;
+    }
+    if (event.data.type !== "UX_AUDIT_RUN_TARGETED_RECAPTURE") return;
     chrome.runtime.sendMessage({
       type: "UX_AUDIT_RUN_TARGETED_RECAPTURE",
       tasks: Array.isArray(event.data.tasks) ? event.data.tasks : [],
@@ -62,6 +70,14 @@
       }, "*");
     });
   });
+
+  if (["ux-audit-tool-iota.vercel.app", "localhost", "127.0.0.1"].includes(location.hostname)) {
+    window.postMessage({
+      source: "ux-audit-extension",
+      type: "UX_AUDIT_EXTENSION_READY",
+      version: chrome.runtime.getManifest().version,
+    }, "*");
+  }
 
   function cleanText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
@@ -398,6 +414,101 @@
     };
   }
 
+  function pageGeometry() {
+    const elements = Array.from(document.body.querySelectorAll("*")).filter(isVisible).slice(0, 2500);
+    const clipped = elements.filter((element) => {
+      const style = getComputedStyle(element);
+      return ["hidden", "clip"].includes(style.overflowX) && element.scrollWidth > element.clientWidth + 2;
+    });
+    return {
+      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      clippedElements: clipped.slice(0, 20).map((element) => accessibleName(element) || element.tagName.toLowerCase()),
+    };
+  }
+
+  async function targetedCheck(task) {
+    const question = cleanText(task?.question || "");
+    const kind = String(task?.kind || "visual");
+    const result = { tested: false, taskId: String(task?.id || ""), kind, question, pageUrl: location.href, testedAt: new Date().toISOString() };
+
+    if (kind === "zoom" || kind === "text_spacing") {
+      const style = document.createElement("style");
+      style.id = "__ux_audit_targeted_style__";
+      if (kind === "zoom") {
+        style.textContent = "html { zoom: 2 !important; }";
+      } else {
+        style.textContent = "* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }";
+      }
+      document.documentElement.appendChild(style);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const geometry = pageGeometry();
+      style.remove();
+      return { ...result, tested: true, method: kind === "zoom" ? "200_percent_layout_zoom" : "wcag_text_spacing_override", ...geometry };
+    }
+
+    if (kind === "performance") {
+      const navigation = performance.getEntriesByType("navigation")[0];
+      const resources = performance.getEntriesByType("resource");
+      const images = Array.from(document.images);
+      const scripts = Array.from(document.scripts).filter((script) => script.src);
+      const shifts = performance.getEntriesByType("layout-shift");
+      return {
+        ...result,
+        tested: Boolean(navigation),
+        method: "performance_api",
+        domContentLoadedMs: navigation ? Math.round(navigation.domContentLoadedEventEnd) : null,
+        loadMs: navigation ? Math.round(navigation.loadEventEnd) : null,
+        responseMs: navigation ? Math.round(navigation.responseEnd) : null,
+        resourceCount: resources.length,
+        transferBytes: Math.round(resources.reduce((sum, entry) => sum + Number(entry.transferSize || 0), 0)),
+        imageCount: images.length,
+        imagesWithoutLazyLoading: images.filter((image) => image.loading !== "lazy" && !image.complete).length,
+        scriptCount: scripts.length,
+        layoutShiftScore: shifts.reduce((sum, entry) => sum + Number(entry.value || 0), 0),
+        ...pageGeometry(),
+      };
+    }
+
+    if (kind === "motion") {
+      const animations = document.getAnimations ? document.getAnimations() : [];
+      return {
+        ...result,
+        tested: true,
+        method: "web_animations_api",
+        animationsDetected: animations.length,
+        runningAnimations: animations.filter((animation) => animation.playState === "running").length,
+        durations: animations.map((animation) => Number(animation.effect?.getTiming?.().duration || 0)).filter(Number.isFinite).slice(0, 30),
+        reducedMotionMatched: matchMedia("(prefers-reduced-motion: reduce)").matches,
+      };
+    }
+
+    if (kind === "interaction") {
+      const controls = Array.from(document.querySelectorAll("button, [role='button'], summary, [aria-expanded], [role='tab']"))
+        .filter(isVisible)
+        .filter((element) => !element.closest("form"))
+        .filter((element) => !/delete|remove|pay|buy|purchase|submit|send|save|confirm|log out|sign out/i.test(accessibleName(element)))
+        .slice(0, 5);
+      const samples = [];
+      for (const control of controls) {
+        const before = cleanText(document.body.innerText).slice(0, 5000);
+        const started = performance.now();
+        control.click();
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        samples.push({
+          control: accessibleName(control) || control.tagName.toLowerCase(),
+          responseMs: Math.round(performance.now() - started),
+          stateChanged: before !== cleanText(document.body.innerText).slice(0, 5000),
+          disabledAfterAction: Boolean(control.disabled || control.getAttribute("aria-disabled") === "true"),
+        });
+      }
+      return { ...result, tested: samples.length > 0, method: "safe_control_activation", samples };
+    }
+
+    return { ...result, tested: false, method: "visual_capture_only" };
+  }
+
   function ensureRunnerOverlay() {
     let host = document.getElementById("__ux_audit_runner__");
     if (host) return host;
@@ -440,6 +551,12 @@
       deterministicChecks(Boolean(message.payload?.testSafeInteractions))
         .then(sendResponse)
         .catch((error) => sendResponse({ error: error instanceof Error ? error.message : "Checks failed", internalLinks: [] }));
+      return true;
+    }
+    if (message?.type === "UX_AUDIT_RUN_TARGETED_CHECK") {
+      targetedCheck(message.payload?.task || {})
+        .then(sendResponse)
+        .catch((error) => sendResponse({ tested: false, error: error instanceof Error ? error.message : "Targeted check failed" }));
       return true;
     }
     if (message?.type !== "UX_AUDIT_CAPTURE_PAGE") return;

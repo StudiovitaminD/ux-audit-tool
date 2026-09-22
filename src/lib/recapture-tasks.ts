@@ -6,7 +6,7 @@ export type RecaptureTask = {
   questionId: string;
   question: string;
   targetUrl: string;
-  kind: "form" | "keyboard" | "responsive" | "performance" | "interaction" | "visual";
+  kind: "form" | "keyboard" | "responsive" | "zoom" | "text_spacing" | "performance" | "interaction" | "motion" | "visual";
   instruction: string;
   requiresPermission: boolean;
 };
@@ -17,11 +17,14 @@ function text(value: unknown) {
 
 function inferKind(value: string): RecaptureTask["kind"] {
   const source = value.toLowerCase();
+  if (/text spacing|letter spacing|word spacing|line height|clipping|overlapping or hiding content/.test(source)) return "text_spacing";
+  if (/zoom|200%/.test(source)) return "zoom";
   if (/form|validation|error message|submit|input/.test(source)) return "form";
   if (/keyboard|focus|tab order|screen reader/.test(source)) return "keyboard";
-  if (/mobile|responsive|viewport|zoom/.test(source)) return "responsive";
+  if (/mobile|responsive|viewport|horizontal scrolling|clipping|overlap/.test(source)) return "responsive";
   if (/performance|load|latency|speed|processing/.test(source)) return "performance";
-  if (/interaction|feedback|motion|animation|dropdown|modal|state/.test(source)) return "interaction";
+  if (/motion|animation|transition/.test(source)) return "motion";
+  if (/interaction|feedback|duplicate|multiple times|click|tap|dropdown|modal|state/.test(source)) return "interaction";
   return "visual";
 }
 

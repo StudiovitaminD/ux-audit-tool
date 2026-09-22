@@ -32,6 +32,14 @@ export type EvidencePage = {
   tableHeaders?: string[];
   emptyStateHints?: string[];
   textSnippet: string;
+  targetedCheck?: {
+    tested: boolean;
+    taskId: string;
+    kind: string;
+    method?: string;
+    question?: string;
+    [key: string]: unknown;
+  };
   deterministic?: {
     contrast?: { tested: boolean; samplesTested: number; failures: number };
     semantics?: { tested: boolean; landmarks: number; unlabeledControls: number; imagesMissingAlt: number; headingOrderIssues: number };
@@ -2544,6 +2552,9 @@ export function extensionCapturesToEvidence(input: {
     const automatedChecks = capture.automatedChecks && typeof capture.automatedChecks === "object"
       ? capture.automatedChecks as Record<string, unknown>
       : {};
+    const targetedCheck = capture.targetedCheck && typeof capture.targetedCheck === "object"
+      ? capture.targetedCheck as Record<string, unknown>
+      : {};
     const accessibility = automatedChecks.accessibility && typeof automatedChecks.accessibility === "object"
       ? automatedChecks.accessibility as Record<string, unknown>
       : {};
@@ -2601,6 +2612,16 @@ export function extensionCapturesToEvidence(input: {
             : [],
       emptyStateHints: [],
       textSnippet: [visibleText, domSummary].filter(Boolean).join(" \n "),
+      targetedCheck: Object.keys(targetedCheck).length > 0
+        ? {
+            ...targetedCheck,
+            tested: targetedCheck.tested === true,
+            taskId: safeText(targetedCheck.taskId),
+            kind: safeText(targetedCheck.kind),
+            method: safeText(targetedCheck.method) || undefined,
+            question: safeText(targetedCheck.question) || undefined,
+          }
+        : undefined,
       deterministic: {
         contrast: {
           tested: Number(contrast.testedCount || 0) > 0,
@@ -2621,21 +2642,27 @@ export function extensionCapturesToEvidence(input: {
           trapDetected: false,
         },
         responsive: {
-          tested: Object.keys(responsive).length > 0,
-          horizontalOverflow: responsive.horizontalOverflow === true,
-          overflowPixels: Math.max(0, Number(responsive.documentWidth || 0) - Number(responsive.viewportWidth || 0)),
+          tested: Object.keys(responsive).length > 0 || (["responsive", "zoom", "text_spacing"].includes(safeText(targetedCheck.kind)) && targetedCheck.tested === true),
+          horizontalOverflow: targetedCheck.horizontalOverflow === true || responsive.horizontalOverflow === true,
+          overflowPixels: Math.max(0, Number(targetedCheck.documentWidth || responsive.documentWidth || 0) - Number(targetedCheck.viewportWidth || responsive.viewportWidth || 0)),
+        },
+        zoom: {
+          tested: safeText(targetedCheck.kind) === "zoom" && targetedCheck.tested === true,
+          scale: 2,
+          horizontalOverflow: targetedCheck.horizontalOverflow === true,
+          overflowPixels: Math.max(0, Number(targetedCheck.documentWidth || 0) - Number(targetedCheck.viewportWidth || 0)),
         },
         reducedMotion: {
-          tested: Object.keys(motion).length > 0,
-          mediaQueryMatched: motion.reducedMotionMatched === true,
-          animationsDetected: Number(motion.animationsDetected || 0),
+          tested: Object.keys(motion).length > 0 || (safeText(targetedCheck.kind) === "motion" && targetedCheck.tested === true),
+          mediaQueryMatched: targetedCheck.reducedMotionMatched === true || motion.reducedMotionMatched === true,
+          animationsDetected: Number(targetedCheck.animationsDetected ?? motion.animationsDetected ?? 0),
         },
         performance: {
-          tested: Object.keys(performance).length > 0,
-          domContentLoadedMs: Number(performance.domContentLoadedMs || 0),
-          loadMs: Number(performance.loadMs || 0),
-          requestCount: Number(performance.resourceCount || 0),
-          transferSize: Number(performance.transferBytes || 0),
+          tested: Object.keys(performance).length > 0 || (safeText(targetedCheck.kind) === "performance" && targetedCheck.tested === true),
+          domContentLoadedMs: Number(targetedCheck.domContentLoadedMs ?? performance.domContentLoadedMs ?? 0),
+          loadMs: Number(targetedCheck.loadMs ?? performance.loadMs ?? 0),
+          requestCount: Number(targetedCheck.resourceCount ?? performance.resourceCount ?? 0),
+          transferSize: Number(targetedCheck.transferBytes ?? performance.transferBytes ?? 0),
         },
         forms: {
           tested: Object.keys(formsCheck).length > 0,

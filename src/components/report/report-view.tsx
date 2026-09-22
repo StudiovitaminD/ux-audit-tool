@@ -14,6 +14,7 @@ import { readStoredIntake } from "@/lib/intake-storage";
 import { getAppSessionRequestHeaders } from "@/lib/app-session";
 import { loadLastReport } from "@/lib/report-store";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Button } from "@/components/ui/button";
 import { DemoReport } from "@/components/report/demo-report";
 import { LiveReport } from "@/components/report/live-report";
 import {
@@ -353,6 +354,7 @@ export function ReportView() {
   const [recaptureTasks, setRecaptureTasks] = useState<Array<Record<string, unknown>>>([]);
   const [recaptureState, setRecaptureState] = useState<"idle" | "running" | "uploading">("idle");
   const [recaptureError, setRecaptureError] = useState<string | null>(null);
+  const [extensionVersion, setExtensionVersion] = useState<string | null>(null);
   const recaptureCapturesRef = useRef<Array<Record<string, unknown>>>([]);
   const recaptureStartTimerRef = useRef<number | null>(null);
   const [reportSearch, setReportSearch] = useState("");
@@ -884,6 +886,10 @@ export function ReportView() {
 
     function handleExtensionMessage(event: MessageEvent) {
       if (event.source !== window || event.data?.source !== "ux-audit-extension") return;
+      if (event.data.type === "UX_AUDIT_EXTENSION_READY") {
+        setExtensionVersion(typeof event.data.version === "string" ? event.data.version : "unknown");
+        return;
+      }
       if (event.data.type === "UX_AUDIT_RECAPTURE_STARTED") {
         if (recaptureStartTimerRef.current !== null) {
           window.clearTimeout(recaptureStartTimerRef.current);
@@ -918,6 +924,7 @@ export function ReportView() {
       }
     }
     window.addEventListener("message", handleExtensionMessage);
+    window.postMessage({ source: "ux-audit-app", type: "UX_AUDIT_EXTENSION_PING" }, "*");
     return () => {
       window.removeEventListener("message", handleExtensionMessage);
       if (recaptureStartTimerRef.current !== null) window.clearTimeout(recaptureStartTimerRef.current);
@@ -931,7 +938,7 @@ export function ReportView() {
     if (recaptureStartTimerRef.current !== null) window.clearTimeout(recaptureStartTimerRef.current);
     recaptureStartTimerRef.current = window.setTimeout(() => {
       setRecaptureState("idle");
-      setRecaptureError("The updated UX Audit Capture extension was not detected. Reload extension version 0.3.0 and try again.");
+      setRecaptureError("The extension bridge is not connected to this report tab. Reload extension 0.4.2, then refresh this page once.");
       recaptureStartTimerRef.current = null;
     }, 5000);
     window.postMessage({
@@ -1419,14 +1426,18 @@ export function ReportView() {
           ))}
         </div>
         {recaptureError ? <p className="mt-3 text-sm text-red-600">{recaptureError}</p> : null}
-        <button
+        <p className="mt-3 text-xs text-[color:var(--muted)]">
+          {extensionVersion ? `Connected extension: v${extensionVersion}` : "Extension connection: not detected"}
+        </p>
+        <Button
           type="button"
+          variant="primary"
           onClick={startTargetedRecapture}
           disabled={recaptureState !== "idle" || recaptureTasks.length === 0}
-          className="mt-4 rounded-full bg-[color:var(--orange)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="mt-4 min-w-52 px-5 py-2.5 font-semibold disabled:bg-[color:var(--accent)] disabled:text-[color:var(--white)] disabled:opacity-100"
         >
           {recaptureState === "running" ? "Extension is checking…" : recaptureState === "uploading" ? "Uploading evidence…" : "Run follow-up capture"}
-        </button>
+        </Button>
       </div>
     );
   }

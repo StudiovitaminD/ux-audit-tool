@@ -20,6 +20,13 @@ const DEFAULT_SETTINGS = {
 const MOBILE_VIEWPORT = { width: 390, height: 844, deviceScaleFactor: 1, mobile: true };
 let runnerPromise = null;
 
+function withTimeout(promise, timeoutMs, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(message)), timeoutMs)),
+  ]);
+}
+
 function isTrustedAuditAppUrl(value) {
   try {
     const url = new URL(value || "");
@@ -28,6 +35,20 @@ function isTrustedAuditAppUrl(value) {
     return false;
   }
 }
+
+async function injectAuditBridgeIntoOpenTabs() {
+  const tabs = await chrome.tabs.query({});
+  for (const tab of tabs) {
+    if (!tab.id || !isTrustedAuditAppUrl(tab.url)) continue;
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["axe.min.js", "content.js"] });
+    } catch {}
+  }
+}
+
+// Unpacked-extension reloads do not re-run manifest content scripts in tabs
+// that are already open. Inject the bridge when this service worker starts.
+void injectAuditBridgeIntoOpenTabs();
 
 async function getSettings() {
   const stored = await chrome.storage.local.get(STORAGE_KEYS.settings);
@@ -227,6 +248,60 @@ async function runVisibleAudit(tabId, options = {}) {
   }
 }
 
+async function runTargetedRecapture(tabId, tasks) {
+  const startingTab = await chrome.tabs.get(tabId);
+  if (!startingTab.url || !/^https?:/.test(startingTab.url)) throw new Error("Open the audited website before starting follow-up capture.");
+  const origin = new URL(startingTab.url).origin;
+  await startAudit(tabId, { journeyEnabled: true });
+  await runnerStatus(tabId, { status: "running", phase: "targeted", current: 0, total: tasks.length, message: "Preparing targeted checks" });
+
+  for (const [index, task] of tasks.entries()) {
+    if (!isAuditableUrl(task.targetUrl, origin)) continue;
+    await runnerStatus(tabId, { phase: "targeted", current: index + 1, total: tasks.length, message: `Checking: ${String(task.question || task.id).slice(0, 90)}` });
+    try {
+      await withTimeout((async () => {
+        const currentTab = await chrome.tabs.get(tabId);
+        let currentUrl = "";
+        try { currentUrl = normalizedPageUrl(currentTab.url || startingTab.url); } catch {}
+        if (currentUrl !== normalizedPageUrl(task.targetUrl)) {
+          await chrome.tabs.update(tabId, { url: task.targetUrl, active: true });
+          await waitForTabComplete(tabId, 15000);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        const targetedCheck = await sendToAuditTab(tabId, { type: "UX_AUDIT_RUN_TARGETED_CHECK", payload: { task } });
+        const inspection = await sendToAuditTab(tabId, {
+          type: "UX_AUDIT_RUN_DETERMINISTIC_CHECKS",
+          payload: { testSafeInteractions: task.kind === "form" },
+        });
+        // A viewport capture is enough here because the full page was captured
+        // during the first pass. Re-stitching every long page made follow-up hang.
+        const capture = await captureCurrentTab(tabId, `targeted_${task.kind || "visual"}`, false);
+        const state = await getState();
+        const captures = state.captures.slice();
+        captures[captures.length - 1] = {
+          ...capture,
+          viewport: "desktop",
+          automatedChecks: inspection,
+          targetedCheck,
+          recaptureTasks: [task.id],
+          recaptureQuestion: task.question,
+          recaptureBucket: task.bucket,
+        };
+        await setState({ ...state, captures });
+      })(), 25000, `Timed out while checking ${task.id}.`);
+    } catch (error) {
+      const state = await getState();
+      const failures = Array.isArray(state.runner?.taskFailures) ? state.runner.taskFailures : [];
+      await runnerStatus(tabId, {
+        taskFailures: [...failures, { taskId: task.id, error: error instanceof Error ? error.message : "Targeted check failed" }],
+        message: `Skipped one unavailable state; continuing (${index + 1}/${tasks.length})`,
+      });
+    }
+  }
+  await runnerStatus(tabId, { status: "complete", phase: "complete", current: tasks.length, total: tasks.length, message: `Follow-up complete: ${tasks.length} checks run` });
+  await stopAudit();
+}
+
 function summarizeDom(payload) {
   const heading = (payload.headings || []).filter(Boolean).slice(0, 2).join(" · ");
   const buttons = (payload.buttons || []).filter(Boolean).slice(0, 4).join(", ");
@@ -334,7 +409,7 @@ async function captureFullPageScreenshot(tabId, windowId, includeScreenshotDataU
   }
 }
 
-async function captureCurrentTab(tabId, captureReason = "manual_capture") {
+async function captureCurrentTab(tabId, captureReason = "manual_capture", fullPage = true) {
   const tab = await chrome.tabs.get(tabId);
   const settings = await getSettings();
 
@@ -365,7 +440,13 @@ async function captureCurrentTab(tabId, captureReason = "manual_capture") {
     };
   }
 
-  const screenshotUrl = await captureFullPageScreenshot(tabId, tab.windowId, settings.includeScreenshotDataUrl);
+  let screenshotUrl = "";
+  if (settings.includeScreenshotDataUrl) {
+    if (fullPage) screenshotUrl = await captureFullPageScreenshot(tabId, tab.windowId, true);
+    else {
+      try { screenshotUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: 50 }); } catch {}
+    }
+  }
   const state = await getState();
 
   const capture = {
@@ -501,6 +582,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   });
   const state = await getState();
   await setState(state);
+  await injectAuditBridgeIntoOpenTabs();
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -538,9 +620,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       if (!targetTab?.id) throw new Error("Open the audited website in a tab before starting follow-up capture.");
       runnerPromise = (async () => {
-        await runVisibleAudit(targetTab.id, { targetUrls, captureReason: "targeted_recapture" });
+        await runTargetedRecapture(targetTab.id, tasks);
         const state = await getState();
-        const captures = (state.captures || []).map((capture) => ({ ...capture, recaptureTasks: tasks.map((task) => task.id) }));
+        const captures = state.captures || [];
         await deliverCapturesToTab(reportTabId, captures, "UX_AUDIT_RECAPTURE_RESULT");
         await sendToAuditTab(reportTabId, { type: "UX_AUDIT_RECAPTURE_COMPLETE", count: captures.length });
         await clearAudit();

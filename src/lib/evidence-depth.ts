@@ -11,6 +11,8 @@ export type EvidenceKind =
   | "contrast"
   | "responsive"
   | "zoom"
+  | "text_spacing"
+  | "interaction"
   | "reduced_motion"
   | "performance";
 
@@ -42,12 +44,14 @@ export type EvidencePlan = {
 
 function requirementKinds(bucket: string, question: string): EvidenceKind[] {
   const text = `${bucket} ${question}`.toLowerCase();
+  if (/text spacing|letter spacing|word spacing|line height|clipping, overlapping or hiding/.test(text)) return ["text_spacing", "responsive", "screenshot"];
   if (/performance|load|latency|responsive time|speed/.test(text)) return ["performance", "responsive"];
   if (/contrast|colour|color/.test(text)) return ["contrast", "screenshot"];
   if (/keyboard|focus|tab order/.test(text)) return ["keyboard", "dom"];
   if (/screen reader|semantic|aria|alternative text|alt text/.test(text)) return ["accessibility_tree", "dom"];
   if (/zoom|reflow|readability|typography/.test(text)) return ["zoom", "responsive", "screenshot"];
   if (/motion|animation|microinteraction/.test(text)) return ["reduced_motion", "screenshot"];
+  if (/feedback after|same action multiple times|clicks and taps|transition/.test(text)) return ["interaction", "dom", "screenshot"];
   if (/error|success|feedback|status|validation|form/.test(text)) return ["form_state", "dom", "screenshot"];
   if (/navigation|findability|menu/.test(text)) return ["dom", "keyboard", "screenshot"];
   return ["content", "screenshot"];
@@ -65,6 +69,17 @@ export function buildEvidencePlan(selectedBuckets: string[]): EvidencePlan {
 }
 
 function pageObservation(page: EvidencePage, kind: EvidenceKind) {
+  const targeted = page.targetedCheck;
+  const targetedKindMatches = targeted?.kind === kind
+    || (targeted?.kind === "motion" && kind === "reduced_motion")
+    || (["zoom", "text_spacing"].includes(String(targeted?.kind)) && kind === "responsive");
+  if (targeted?.tested && targetedKindMatches) {
+    const details = Object.entries(targeted)
+      .filter(([key, value]) => !["tested", "taskId", "kind", "method", "question", "pageUrl", "testedAt"].includes(key) && ["string", "number", "boolean"].includes(typeof value))
+      .map(([key, value]) => `${key}: ${String(value)}`)
+      .join("; ");
+    return { status: "confirmed" as const, text: `Targeted ${targeted.method || targeted.kind} check completed${details ? `; ${details}` : ""}.` };
+  }
   const measured = page.deterministic;
   if (kind === "performance" && measured?.performance?.tested) {
     return { status: "confirmed" as const, text: `Navigation ${measured.performance.domContentLoadedMs}ms; load ${measured.performance.loadMs}ms; ${measured.performance.requestCount} resources.` };
@@ -165,8 +180,10 @@ export function attachEvidenceDepth(bundle: EvidenceBundle, plan: EvidencePlan):
   const records: EvidenceRecord[] = [];
   for (const requirement of plan.requirements) {
     for (const kind of requirement.kinds) {
-      // Two representative pages preserve cross-page proof without overflowing the report document.
-      const sources = pages.length ? pages.slice(0, 2) : [null];
+      const taskId = `${requirement.bucketId}:${requirement.questionId}`;
+      const targetedPages = pages.filter((page) => page.targetedCheck?.taskId === taskId);
+      // Exact task evidence takes precedence. General evidence remains a bounded fallback.
+      const sources = targetedPages.length ? targetedPages.slice(0, 2) : pages.length ? pages.slice(0, 2) : [null];
       sources.forEach((page, pageIndex) => {
         const screenshot = screenshots[pageIndex] || screenshots[0];
         const result = page

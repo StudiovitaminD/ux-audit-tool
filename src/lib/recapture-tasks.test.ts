@@ -35,4 +35,20 @@ describe("targeted evidence recapture", () => {
       "https://example.com/contact",
     ]);
   });
+
+  it("creates specialized probes for evidence that screenshots cannot establish", () => {
+    const tasks = buildRecaptureTasks({
+      productUrl: "https://example.com",
+      bucketResults: [{
+        bucket_name: "Audit",
+        questions: [
+          { id: "T01", question: "Does text remain usable when users zoom to 200%?", answer_state: "not_tested" },
+          { id: "T02", question: "Does increased text spacing avoid clipping?", answer_state: "not_tested" },
+          { id: "P01", question: "Does meaningful page content load in reasonable time?", answer_state: "not_tested" },
+          { id: "M01", question: "Are animations smooth and non-disruptive?", answer_state: "not_tested" },
+        ],
+      }],
+    });
+    expect(tasks.map((task) => task.kind)).toEqual(["zoom", "text_spacing", "performance", "motion"]);
+  });
 });

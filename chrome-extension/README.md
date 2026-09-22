@@ -14,6 +14,8 @@ This folder contains a real Chrome extension for the UX audit app.
 - Records deterministic accessibility, keyboard, contrast, responsive, and performance checks
 - Safely tests tabs, menus, accordions, and disclosure controls without submitting forms
 - Receives unresolved criteria from the report and runs one targeted follow-up capture pass
+- Runs question-specific 200% zoom, WCAG text-spacing, performance, responsive-layout, motion, and safe interaction probes during targeted follow-up
+- Tags each follow-up result to the exact bucket and question so unrelated captures cannot be used as evidence
 - Returns follow-up evidence to the same audit so only affected buckets are reviewed again
 
 ## Install locally in Chrome
