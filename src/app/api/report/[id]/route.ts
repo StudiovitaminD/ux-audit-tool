@@ -8,6 +8,7 @@ import {
 } from "@/lib/report-record";
 import { collectCloudinaryPublicIds, destroyCloudinaryAsset } from "@/lib/cloudinary-cleanup";
 import { storeFullReportBlob } from "@/lib/report-storage.server";
+import { isResourceExhaustedError } from "@/lib/error-utils";
 import { FieldValue } from "firebase-admin/firestore";
 
 const AUTO_CONTINUE_STAGES = new Set([
@@ -207,16 +208,17 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
-  if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
+  try {
+    const { id } = await params;
+    if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
-  const accountSession = await getAccountSessionFromRequest(req);
-  if (!accountSession) {
-    return Response.json({ error: "Please sign in first." }, { status: 401 });
-  }
+    const accountSession = await getAccountSessionFromRequest(req);
+    if (!accountSession) {
+      return Response.json({ error: "Please sign in first." }, { status: 401 });
+    }
 
-  const snap = await resolveReportSnapshot(id);
-  if (!snap?.exists) return Response.json({ error: "Not found" }, { status: 404 });
+    const snap = await resolveReportSnapshot(id);
+    if (!snap?.exists) return Response.json({ error: "Not found" }, { status: 404 });
 
   const dataRecord = (snap.data() ?? {}) as Record<string, unknown>;
   if (!reportBelongsToSession(dataRecord, accountSession)) {
@@ -266,17 +268,29 @@ export async function GET(
   if (!loaded) return Response.json({ error: "Not found" }, { status: 404 });
   const normalizedReport = loaded.report as Record<string, unknown>;
 
-  return Response.json({
-    id: loaded.id,
-    ...loaded.data,
-    ...normalizedReport,
-    status: derivedStatus,
-    progress: {
-      ...(asRecord(dataRecord.progress) ?? {}),
-      ...normalizedProgress,
-    },
-    report: normalizedReport,
-  });
+    return Response.json({
+      id: loaded.id,
+      ...loaded.data,
+      ...normalizedReport,
+      status: derivedStatus,
+      progress: {
+        ...(asRecord(dataRecord.progress) ?? {}),
+        ...normalizedProgress,
+      },
+      report: normalizedReport,
+    });
+  } catch (error) {
+    if (isResourceExhaustedError(error)) {
+      return Response.json(
+        {
+          code: "DATA_SERVICE_QUOTA_EXHAUSTED",
+          error: "The report data service has reached its usage limit. Please retry after capacity is available.",
+        },
+        { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
+      );
+    }
+    throw error;
+  }
 }
 
 export async function PATCH(

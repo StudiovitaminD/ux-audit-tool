@@ -12,7 +12,7 @@ import {
   type Intake,
 } from "@/lib/audit-engine";
 import type { EvidenceBundle } from "@/lib/evidence-collector";
-import { getErrorMessage } from "@/lib/error-utils";
+import { getErrorMessage, isResourceExhaustedError } from "@/lib/error-utils";
 import { unwrapReportPayload } from "@/lib/report-record";
 import { getAuditModelForTier, PAID_AUDIT_MODEL } from "@/lib/access-control";
 import { getAccountSessionFromRequest } from "@/lib/account-server";
@@ -1254,6 +1254,16 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error(`Audit processing failed during ${currentPhase}:`, err);
     const message = getErrorMessage(err) || "Processing failed";
+    if (isResourceExhaustedError(err)) {
+      return Response.json(
+        {
+          status: "temporarily_unavailable",
+          code: "DATA_SERVICE_QUOTA_EXHAUSTED",
+          error: "The report data service has reached its usage limit. Processing will resume after capacity is available.",
+        },
+        { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } },
+      );
+    }
     const now = new Date().toISOString();
     if (!intake) {
       await ref.set(

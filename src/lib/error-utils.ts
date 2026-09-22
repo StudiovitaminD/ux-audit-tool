@@ -95,3 +95,17 @@ export function getErrorMessage(error: unknown): string {
 
   return "Something went wrong.";
 }
+
+export function isResourceExhaustedError(error: unknown) {
+  const record = error && typeof error === "object"
+    ? (error as Record<string, unknown>)
+    : null;
+  const code = record?.code;
+  const message = getErrorMessage(error);
+  return (
+    code === 8 ||
+    code === "8" ||
+    code === "resource-exhausted" ||
+    /resource_exhausted|quota exceeded/i.test(message)
+  );
+}

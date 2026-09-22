@@ -806,7 +806,7 @@ export function ReportView() {
       // keep polling until job completes or errors
       if (status === "complete" || status === "error" || status === "cancelled" || status === "awaiting_recapture") return;
       tick();
-    }, 2000);
+    }, 10000);
     return () => {
       cancelled = true;
       if (timer) window.clearInterval(timer);
@@ -847,7 +847,7 @@ export function ReportView() {
         isUrgentStage ? `interval:${currentStage}` : "interval:processing",
         isUrgentStage ? 750 : 1500,
       );
-    }, isUrgentStage ? 1800 : Math.max(2200, processDelayMs));
+    }, isUrgentStage ? 10000 : Math.max(15000, processDelayMs));
 
     return () => {
       window.clearInterval(interval);
