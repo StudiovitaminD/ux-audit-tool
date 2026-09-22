@@ -938,7 +938,7 @@ export function ReportView() {
     if (recaptureStartTimerRef.current !== null) window.clearTimeout(recaptureStartTimerRef.current);
     recaptureStartTimerRef.current = window.setTimeout(() => {
       setRecaptureState("idle");
-      setRecaptureError("The extension bridge is not connected to this report tab. Reload extension 0.4.2, then refresh this page once.");
+      setRecaptureError("The extension bridge is not connected to this report tab. Reload extension 0.4.3, then refresh this page once.");
       recaptureStartTimerRef.current = null;
     }, 5000);
     window.postMessage({

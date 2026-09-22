@@ -82,10 +82,15 @@ async function setState(nextState) {
   return nextState;
 }
 
+function normalizedHostname(value) {
+  try { return new URL(value).hostname.toLowerCase().replace(/^www\./, ""); } catch { return ""; }
+}
+
 function isAuditableUrl(value, origin) {
   try {
     const url = new URL(value);
-    return url.origin === origin && ["http:", "https:"].includes(url.protocol);
+    return normalizedHostname(url.href) === normalizedHostname(origin)
+      && ["http:", "https:"].includes(url.protocol);
   } catch {
     return false;
   }
@@ -616,7 +621,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const tabs = await chrome.tabs.query({});
       const targetTab = tabs.find((tab) => {
         if (!tab.id || !tab.url) return false;
-        try { return !targetOrigin || new URL(tab.url).origin === targetOrigin; } catch { return false; }
+        return !targetOrigin || normalizedHostname(tab.url) === normalizedHostname(targetOrigin);
       });
       if (!targetTab?.id) throw new Error("Open the audited website in a tab before starting follow-up capture.");
       runnerPromise = (async () => {
