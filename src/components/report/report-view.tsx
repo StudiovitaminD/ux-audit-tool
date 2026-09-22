@@ -571,9 +571,25 @@ export function ReportView() {
         },
         body: JSON.stringify({ reportId }),
       });
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        status?: string;
+      } | null;
       if (!res.ok) throw new Error(data?.error || `Failed to retry report generation (${res.status})`);
-      router.refresh();
+      if (data?.status === "error") {
+        throw new Error(data.error || "The report could not be retried.");
+      }
+      setDebugDetails((current) => current ? {
+        ...current,
+        status: data?.status || "processing",
+        currentStage: "retrying_coverage_finalization",
+        error: null,
+        lastError: null,
+        failedAt: null,
+      } : current);
+      // Changing the client state restarts report polling. router.refresh()
+      // alone leaves this client component in its terminal `error` state.
+      setStatus(data?.status === "complete" ? null : "processing");
     } catch (error) {
       setJobError(error instanceof Error ? error.message : "Failed to retry report generation");
     } finally {
