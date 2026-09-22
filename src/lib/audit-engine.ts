@@ -13,7 +13,6 @@ import { buildRecommendationGuidanceContext } from "../../shared/ux-guidance";
 import { runMultiAgentAudit, type MultiAgentResult } from "@/lib/multi-agent-audit";
 import {
   REPORT_COVERAGE_POLICY,
-  isBlockingCoverageStatus,
   sanitizeAuditReport,
 } from "@/lib/report-quality";
 import { industryWritingRules } from "@/lib/senior-content";
@@ -3212,7 +3211,13 @@ export async function finalizeAudit(args: {
   // Limited capture coverage can still support a useful provisional report once
   // the criterion-level publication threshold is met. Only terminal capture
   // failures should prevent scoring altogether.
-  const hasCoverageShortfall = isBlockingCoverageStatus(coverageStatus);
+  // Once criterion-level scoring has enough verified coverage, a legacy
+  // explorer "insufficient_coverage" label must not veto a provisional
+  // report. Only failures where capture did not actually run remain terminal.
+  const hasCoverageShortfall = [
+    "failed_login",
+    "capture_pipeline_not_executed",
+  ].includes(coverageStatus || "");
   const provisionalCoverage = ["usable_coverage", "limited_coverage"].includes(
     coverageStatus || "",
   );

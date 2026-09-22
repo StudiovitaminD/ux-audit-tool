@@ -1352,7 +1352,7 @@ export function ReportView() {
             : isLoginFailure
             ? "We could not access the product with the provided credentials, so the audit was stopped before scoring."
             : isCoverageFailure
-              ? "Login appears to have worked, but the explorer did not capture enough internal product screens to run a reliable audit."
+              ? "The audit did not capture enough verified screens or interaction states to publish a reliable report."
               : "The automation returned an error, so report creation has stopped."}
         </div>
         {jobError ? (

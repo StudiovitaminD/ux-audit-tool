@@ -159,6 +159,25 @@ describe("Phase 1 report contracts", () => {
     expect(quality.errors.some((issue) => issue.code === "INSUFFICIENT_REPORT_COVERAGE")).toBe(false);
   });
 
+  it("allows the 88 of 114 coverage level shown by the extension follow-up", () => {
+    const questions = Array.from({ length: 114 }, (_, index) => ({
+      id: `Q${index + 1}`,
+      answer_state: index < 88 ? "pass" : "not_tested",
+      answer_status: index < 88 ? "answered" : "insufficient_evidence",
+      mark: index < 88 ? 1 : 0,
+      evidence_ids: index < 88 ? [`ev-${index + 1}`] : [],
+      evidence: index < 88 ? "Verified extension evidence." : "The required state was not captured.",
+      observation: index < 88 ? "The criterion was verified." : "The criterion could not be evaluated.",
+      recommendation: "",
+    }));
+    const quality = validateReportQuality({
+      selected_buckets: ["Visual Feedback"],
+      bucket_results: [{ bucket_name: "Visual Feedback", questions, findings: [] }],
+    });
+
+    expect(quality.errors.some((issue) => issue.code === "INSUFFICIENT_REPORT_COVERAGE")).toBe(false);
+  });
+
   it("rejects reports that test less than half of a selected bucket", () => {
     const incompleteReport = reportWithFinding(
       "The contact form uses a generic Submit label, which makes the outcome unclear.",
