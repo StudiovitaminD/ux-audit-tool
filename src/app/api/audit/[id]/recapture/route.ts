@@ -3,7 +3,7 @@ import { getAccountSessionFromRequest } from "@/lib/account-server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { mergeExtensionCaptureJson } from "@/lib/extension-capture";
 import { loadStoredIntake, storeFullIntakeBlob } from "@/lib/intake-storage.server";
-import { reportBelongsToSession, unwrapReportPayload } from "@/lib/report-record";
+import { loadStoredReport, reportBelongsToSession, unwrapReportPayload } from "@/lib/report-record";
 
 export const runtime = "nodejs";
 
@@ -55,7 +55,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return Response.json({ error: "Could not store the follow-up evidence." }, { status: 500 });
   }
 
-  const previousReport = record(unwrapReportPayload(data.report));
+  const loadedReport = await loadStoredReport(id);
+  const previousReport = record(loadedReport?.report ?? unwrapReportPayload(data.report));
   const previousBucketResults = Array.isArray(previousReport.bucket_results)
     ? previousReport.bucket_results
     : Array.isArray(data.bucketResults)

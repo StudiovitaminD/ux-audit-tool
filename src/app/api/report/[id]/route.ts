@@ -7,6 +7,8 @@ import {
   unwrapReportPayload,
 } from "@/lib/report-record";
 import { collectCloudinaryPublicIds, destroyCloudinaryAsset } from "@/lib/cloudinary-cleanup";
+import { storeFullReportBlob } from "@/lib/report-storage.server";
+import { FieldValue } from "firebase-admin/firestore";
 
 const AUTO_CONTINUE_STAGES = new Set([
   "queued_next_bucket",
@@ -308,9 +310,23 @@ export async function PATCH(
     }
 
     const ref = snap.ref;
+    const reportRecord = asRecord(sanitizedReport) ?? {};
+    const storedReport = await storeFullReportBlob(snap.id, reportRecord);
+    if (!storedReport.ok) {
+      return Response.json({ error: "Failed to persist the edited report." }, { status: 500 });
+    }
     await ref.set(
       {
-        report: sanitizedReport,
+        report: FieldValue.delete(),
+        report_blob: storedReport.blob,
+        overall_score: reportRecord.overall_score ?? null,
+        overall_health: reportRecord.overall_health ?? "",
+        overall_risk: reportRecord.overall_risk ?? "",
+        audit_mode: reportRecord.audit_mode ?? "",
+        coverage_status: reportRecord.coverage_status ?? "",
+        ux_score_eligible: reportRecord.ux_score_eligible ?? false,
+        questions_scoreable: reportRecord.questions_scoreable ?? 0,
+        questions_total: reportRecord.questions_total ?? 0,
         canonical_report_version: "phase-3-v1",
         editedAt: new Date().toISOString(),
         user_edited: true,

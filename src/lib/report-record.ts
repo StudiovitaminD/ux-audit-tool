@@ -2,6 +2,7 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 import { loadStoredIntake } from "@/lib/intake-storage.server";
 import { sanitizeAuditReport } from "@/lib/report-quality";
 import { getAccountSessionFromRequest } from "@/lib/account-server";
+import { loadFullReportBlob } from "@/lib/report-storage.server";
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -217,7 +218,8 @@ export async function loadStoredReport(id: string) {
   if (!snap?.exists) return null;
 
   const data = snap.data() ?? {};
-  const parsedReport = unwrapReportPayload((data as Record<string, unknown>).report);
+  const blobReport = await loadFullReportBlob(data as Record<string, unknown>);
+  const parsedReport = blobReport ?? unwrapReportPayload((data as Record<string, unknown>).report);
   return {
     id: snap.id,
     data,

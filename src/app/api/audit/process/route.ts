@@ -20,6 +20,7 @@ import { reportBelongsToSession } from "@/lib/report-record";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { FieldValue } from "firebase-admin/firestore";
 import { buildRecaptureTasks } from "@/lib/recapture-tasks";
+import { storeFullReportBlob } from "@/lib/report-storage.server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -647,8 +648,10 @@ export async function POST(req: Request) {
     if (status === "complete") return Response.json({ status: "complete" });
     if (status === "error") {
       const storedError = String(doc.error || doc.lastError || "Failed");
-      const retryableCoverageFailure = /audit coverage was too low to publish a reliable report/i.test(storedError);
-      if (!retryableCoverageFailure) {
+      const retryableFinalizationFailure =
+        /audit coverage was too low to publish a reliable report|maximum allowed size|exceeds the maximum|invalid_argument.*document/i.test(storedError) ||
+        doc.lastErrorPhase === "finalize_write";
+      if (!retryableFinalizationFailure) {
         return Response.json({ status: "error", error: storedError });
       }
       await ref.set(
@@ -920,6 +923,10 @@ export async function POST(req: Request) {
 
       try {
         currentPhase = "finalize_write";
+        const storedReport = await storeFullReportBlob(ref.id, report);
+        if (!storedReport.ok) {
+          throw new Error(`The canonical report could not be persisted: ${storedReport.error}`);
+        }
         const recaptureRound = Number(doc.recaptureRound || 0);
         const unresolvedCount = Math.max(
           0,
@@ -945,7 +952,8 @@ export async function POST(req: Request) {
                 processingLeaseUntil: 0,
                 error: null,
                 lastError: null,
-                report,
+                report: FieldValue.delete(),
+                report_blob: storedReport.blob,
                 recaptureTasks,
                 recaptureBuckets: Array.from(new Set(recaptureTasks.map((task) => task.bucket))),
                 progress: buildProgressState({
@@ -993,6 +1001,12 @@ export async function POST(req: Request) {
           {
             status: "complete",
             processingLeaseUntil: 0,
+            error: null,
+            lastError: null,
+            lastErrorAt: null,
+            lastErrorPhase: null,
+            lastErrorStack: null,
+            failedAt: null,
             completedAt:
               typeof doc.completedAt === "string" && doc.completedAt
                 ? doc.completedAt
@@ -1006,19 +1020,24 @@ export async function POST(req: Request) {
               currentStage: "report_complete",
               currentBucketStartedAt: null,
             }),
-            report,
+            report: FieldValue.delete(),
+            report_blob: storedReport.blob,
             canonical_report_version: "phase-3-v1",
             bucketResults: FieldValue.delete(),
             evidence: FieldValue.delete(),
-            overall_score: FieldValue.delete(),
-            overall_health: FieldValue.delete(),
-            overall_risk: FieldValue.delete(),
-            audit_mode: FieldValue.delete(),
-            coverage_status: FieldValue.delete(),
-            ux_score_eligible: FieldValue.delete(),
-            questions_scoreable: FieldValue.delete(),
-            questions_total: FieldValue.delete(),
-            scorecard: FieldValue.delete(),
+            product_name: report.product_name || intakeObj.product_name,
+            product_url: report.product_url || intakeObj.product_url,
+            product_type: report.product_type || intakeObj.product_type,
+            primary_platform: report.primary_platform || intakeObj.primary_platform,
+            overall_score: report.overall_score,
+            overall_health: report.overall_health,
+            overall_risk: report.overall_risk,
+            audit_mode: report.audit_mode,
+            coverage_status: report.coverage_status,
+            ux_score_eligible: report.ux_score_eligible,
+            questions_scoreable: report.questions_scoreable,
+            questions_total: report.questions_total,
+            scorecard: Array.isArray(report.scorecard) ? report.scorecard.slice(0, 20) : [],
             captureDebug: {
               phase: "report_complete",
               ...payloadDebug,
