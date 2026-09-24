@@ -23,7 +23,16 @@ export function buildRecaptureTasks(args: {
   pageUrls?: string[];
   limit?: number;
 }) {
-  const availableUrls = Array.from(new Set((args.pageUrls || []).filter(Boolean)));
+  const product = new URL(args.productUrl);
+  if (!["http:", "https:"].includes(product.protocol)) throw new Error("Invalid audited website URL.");
+  const availableUrls = Array.from(new Set((args.pageUrls || []).filter((value) => {
+    try {
+      const url = new URL(value);
+      return ["http:", "https:"].includes(url.protocol)
+        && url.hostname.replace(/^www\./, "") === product.hostname.replace(/^www\./, "")
+        && url.port === product.port && !url.username && !url.password;
+    } catch { return false; }
+  })));
   if (!availableUrls.length) availableUrls.push(args.productUrl);
   const tasks: RecaptureTask[] = [];
   const seen = new Set<string>();

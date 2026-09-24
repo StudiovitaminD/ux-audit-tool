@@ -257,8 +257,14 @@ async function runTargetedRecapture(tabId, tasks, reportTabId, reportId) {
   if (!reportId) throw new Error("Missing report ID. Refresh the report before retrying.");
   const startingTab = await chrome.tabs.get(tabId);
   const origin = new URL(startingTab.url).origin;
-  if (tasks.some((task) => !isAuditableUrl(task.targetUrl, origin))) throw new Error("Follow-up task is outside the audited website.");
+  const rejectedTasks = tasks.filter((task) => !isAuditableUrl(task.targetUrl, origin));
+  tasks = tasks.filter((task) => isAuditableUrl(task.targetUrl, origin));
+  if (!tasks.length) throw new Error("No follow-up tasks target this website. Generate a new audit to rebuild the task list.");
   await startAudit(tabId, { journeyEnabled: true });
+  if (rejectedTasks.length) await runnerStatus(tabId, {
+    taskFailures: rejectedTasks.map((task) => ({ taskId: task.id, error: "Blocked off-site or invalid task URL", targetUrl: task.targetUrl })),
+    message: `${rejectedTasks.length} off-site tasks blocked; continuing with ${tasks.length} safe tasks`,
+  });
   let completed = 0;
   const formResults = new Map();
   async function checkControl() {
@@ -334,7 +340,7 @@ async function runTargetedRecapture(tabId, tasks, reportTabId, reportId) {
       await setMobileEmulation(tabId, false);
       if (decision.action === "complete") completed++;
     }
-    await runnerStatus(tabId, { status: "complete", phase: "complete", current: tasks.length, total: tasks.length, message: `Evidence returned for review: ${completed}/${tasks.length} guide checks sufficient; remaining checks stay unresolved.` });
+    await runnerStatus(tabId, { status: "complete", phase: "complete", current: tasks.length, total: tasks.length, message: `Evidence returned for review: ${completed}/${tasks.length} guide checks sufficient; ${rejectedTasks.length} off-site tasks blocked. Remaining checks stay unresolved.` });
   } finally {
     try { await setMobileEmulation(tabId, false); } catch {}
     await stopAudit();

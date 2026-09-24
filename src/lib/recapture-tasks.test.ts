@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import { buildRecaptureTasks, recaptureAffectedBuckets } from "./recapture-tasks";
 
 describe("targeted evidence recapture", () => {
+  it("excludes external, malformed and unsafe task URLs while accepting www aliases", () => {
+    const tasks = buildRecaptureTasks({ productUrl: "https://example.com", pageUrls: [
+      "https://competitor.com/contact", "not a URL", "javascript:alert(1)",
+      "https://example.com.evil.test", "https://example.com:444/contact", "https://www.example.com/contact",
+    ], bucketResults: [{ bucket_name: "Visual Feedback", questions: [{ id: "VF09", answer_state: "not_tested" }] }] });
+    expect(tasks[0].targetUrl).toBe("https://www.example.com/contact");
+  });
+  it("falls back to the audited URL when all captured URLs are external", () => {
+    const tasks = buildRecaptureTasks({ productUrl: "https://example.com", pageUrls: ["https://competitor.com"],
+      bucketResults: [{ bucket_name: "Visual Feedback", questions: [{ id: "VF09", answer_state: "not_tested" }] }] });
+    expect(tasks[0].targetUrl).toBe("https://example.com");
+  });
   it("targets an existing contact page rather than the homepage for a form question", () => {
     const tasks = buildRecaptureTasks({ productUrl: "https://example.com", pageUrls: ["https://example.com/", "https://example.com/contact"],
       bucketResults: [{ bucket_name: "Visual Feedback", questions: [{ id: "VF03", question: "Duplicate submissions?", answer_state: "not_tested" }] }],
