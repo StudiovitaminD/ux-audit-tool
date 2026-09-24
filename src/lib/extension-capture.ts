@@ -11,7 +11,12 @@ function parseStoredCaptures(value: string) {
 }
 
 function captureKey(capture: CaptureRecord) {
-  return [capture.url, capture.viewport, capture.capturedAt, capture.captureReason]
+  // A targeted recapture shares one screenshot across several criteria. Each
+  // criterion must remain distinct so its deterministic result reaches GPT.
+  const targeted = capture.targetedCheck && typeof capture.targetedCheck === "object"
+    ? capture.targetedCheck as CaptureRecord
+    : {};
+  return [capture.url, capture.viewport, capture.capturedAt, capture.captureReason, targeted.taskId]
     .map((value) => String(value || ""))
     .join("|");
 }

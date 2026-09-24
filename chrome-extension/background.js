@@ -258,24 +258,26 @@ async function runTargetedRecapture(tabId, tasks) {
   if (!startingTab.url || !/^https?:/.test(startingTab.url)) throw new Error("Open the audited website before starting follow-up capture.");
   const origin = new URL(startingTab.url).origin;
   await startAudit(tabId, { journeyEnabled: true });
+  // One page visit can test several criteria. The previous URL-and-kind grouping
+  // revisited the same page repeatedly, making a 24-task follow-up look endless.
   const batches = [];
-  const batchByKey = new Map();
+  const batchByUrl = new Map();
   for (const task of tasks) {
-    const key = `${normalizedPageUrl(task.targetUrl)}::${String(task.kind || "visual")}`;
-    const existing = batchByKey.get(key);
+    if (!task?.targetUrl || !isAuditableUrl(task.targetUrl, origin)) continue;
+    const key = normalizedPageUrl(task.targetUrl);
+    const existing = batchByUrl.get(key);
     if (existing) existing.tasks.push(task);
     else {
-      const batch = { targetUrl: task.targetUrl, kind: task.kind || "visual", tasks: [task] };
-      batchByKey.set(key, batch);
+      const batch = { targetUrl: key, tasks: [task] };
+      batchByUrl.set(key, batch);
       batches.push(batch);
     }
   }
+  if (!batches.length) throw new Error("None of the follow-up tasks has a valid page URL on the audited website.");
   await runnerStatus(tabId, { status: "running", phase: "targeted", current: 0, total: batches.length, message: `Preparing ${batches.length} targeted checks for ${tasks.length} criteria` });
 
   for (const [index, batch] of batches.entries()) {
-    const task = batch.tasks[0];
-    if (!isAuditableUrl(batch.targetUrl, origin)) continue;
-    await runnerStatus(tabId, { phase: "targeted", current: index + 1, total: batches.length, message: `Running ${batch.kind.replaceAll("_", " ")} check for ${batch.tasks.length} ${batch.tasks.length === 1 ? "criterion" : "criteria"}` });
+    await runnerStatus(tabId, { phase: "targeted", current: index + 1, total: batches.length, message: `Checking ${batch.tasks.length} ${batch.tasks.length === 1 ? "criterion" : "criteria"} on ${new URL(batch.targetUrl).pathname || "/"}` });
     try {
       await withTimeout((async () => {
         const currentTab = await chrome.tabs.get(tabId);
@@ -286,17 +288,39 @@ async function runTargetedRecapture(tabId, tasks) {
           await waitForTabComplete(tabId, 15000);
         }
         await new Promise((resolve) => setTimeout(resolve, 350));
-        const targetedCheck = await sendToAuditTab(tabId, { type: "UX_AUDIT_RUN_TARGETED_CHECK", payload: { task } });
+        const taskChecks = [];
+        for (const task of batch.tasks) {
+          try {
+            const result = await withTimeout(
+              sendToAuditTab(tabId, { type: "UX_AUDIT_RUN_TARGETED_CHECK", payload: { task } }),
+              7_000,
+              `Timed out while checking ${task.kind || "visual"}.`,
+            );
+            taskChecks.push({ task, result });
+          } catch (error) {
+            taskChecks.push({
+              task,
+              result: {
+                tested: false,
+                taskId: task.id,
+                kind: task.kind || "visual",
+                question: task.question || "",
+                pageUrl: batch.targetUrl,
+                error: error instanceof Error ? error.message : "Targeted check failed.",
+              },
+            });
+          }
+        }
         const inspection = await sendToAuditTab(tabId, {
           type: "UX_AUDIT_RUN_DETERMINISTIC_CHECKS",
-          payload: { testSafeInteractions: batch.kind === "form" },
+          payload: { testSafeInteractions: batch.tasks.some((task) => task.kind === "form") },
         });
         // A viewport capture is enough here because the full page was captured
         // during the first pass. Re-stitching every long page made follow-up hang.
         const capture = await captureCurrentTab(tabId, `targeted_${batch.kind}`, false);
         const state = await getState();
         const captures = state.captures.slice();
-        captures.splice(captures.length - 1, 1, ...batch.tasks.map((batchTask, taskIndex) => ({
+        captures.splice(captures.length - 1, 1, ...taskChecks.map(({ task: batchTask, result: targetedCheck }, taskIndex) => ({
           ...capture,
           screenshotUrl: taskIndex === 0 ? capture.screenshotUrl : "",
           viewport: "desktop",

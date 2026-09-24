@@ -357,6 +357,7 @@ export function ReportView() {
   const [extensionVersion, setExtensionVersion] = useState<string | null>(null);
   const recaptureCapturesRef = useRef<Array<Record<string, unknown>>>([]);
   const recaptureStartTimerRef = useRef<number | null>(null);
+  const recaptureSubmissionStartedRef = useRef(false);
   const [reportSearch, setReportSearch] = useState("");
   const [draftProductName, setDraftProductName] = useState("");
   const [reportHistory, setReportHistory] = useState<
@@ -930,6 +931,10 @@ export function ReportView() {
         return;
       }
       if (event.data.type === "UX_AUDIT_RECAPTURE_COMPLETE") {
+        // A reloaded extension can leave an old bridge in a tab briefly. Accept
+        // one terminal signal only so duplicate messages cannot restart the job.
+        if (recaptureSubmissionStartedRef.current) return;
+        recaptureSubmissionStartedRef.current = true;
         if (recaptureStartTimerRef.current !== null) window.clearTimeout(recaptureStartTimerRef.current);
         recaptureStartTimerRef.current = null;
         const captures = recaptureCapturesRef.current.splice(0);
@@ -950,11 +955,12 @@ export function ReportView() {
   function startTargetedRecapture() {
     setRecaptureError(null);
     recaptureCapturesRef.current = [];
+    recaptureSubmissionStartedRef.current = false;
     setRecaptureState("running");
     if (recaptureStartTimerRef.current !== null) window.clearTimeout(recaptureStartTimerRef.current);
     recaptureStartTimerRef.current = window.setTimeout(() => {
       setRecaptureState("idle");
-      setRecaptureError("The extension bridge is not connected to this report tab. Reload extension 0.4.3, then refresh this page once.");
+      setRecaptureError("The extension bridge is not connected to this report tab. Reload the extension, then refresh this report page once.");
       recaptureStartTimerRef.current = null;
     }, 5000);
     window.postMessage({

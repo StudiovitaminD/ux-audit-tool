@@ -585,6 +585,38 @@
       };
     }
 
+    if (kind === "keyboard") {
+      const focusables = Array.from(document.querySelectorAll(
+        "a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])",
+      )).filter(isVisible).slice(0, 20);
+      const activeBefore = document.activeElement;
+      const samples = focusables.map((element) => {
+        try { element.focus({ preventScroll: true }); } catch {}
+        return {
+          control: accessibleName(element) || element.tagName.toLowerCase(),
+          focusable: document.activeElement === element,
+        };
+      });
+      try { activeBefore?.focus?.({ preventScroll: true }); } catch {}
+      return { ...result, tested: samples.length > 0, method: "keyboard_focus_probe", samples };
+    }
+
+    if (kind === "responsive") {
+      return { ...result, tested: true, method: "responsive_layout_probe", ...pageGeometry() };
+    }
+
+    if (kind === "form") {
+      const forms = visibleAuditableForms();
+      return {
+        ...result,
+        tested: forms.length > 0,
+        method: "form_structure_probe",
+        formCount: forms.length,
+        requiredFieldCount: forms.reduce((count, form) => count + form.querySelectorAll("[required], [aria-required='true']").length, 0),
+        statusRegionCount: document.querySelectorAll("[role='status'], [role='alert'], [aria-live]").length,
+      };
+    }
+
     if (kind === "interaction") {
       const controls = Array.from(document.querySelectorAll("button, [role='button'], summary, [aria-expanded], [role='tab']"))
         .filter(isVisible)
@@ -607,7 +639,8 @@
       return { ...result, tested: samples.length > 0, method: "safe_control_activation", samples };
     }
 
-    return { ...result, tested: false, method: "visual_capture_only" };
+    // A screenshot plus visible DOM evidence is valid for visual-only criteria.
+    return { ...result, tested: true, method: "visual_capture", ...pageGeometry() };
   }
 
   function ensureRunnerOverlay() {

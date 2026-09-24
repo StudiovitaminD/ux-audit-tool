@@ -37,4 +37,18 @@ describe("extension capture import", () => {
     const second = mergeExtensionCaptureJson(first, [capture]);
     expect(JSON.parse(second)).toHaveLength(1);
   });
+
+  it("keeps every targeted criterion captured from the same page and screenshot", () => {
+    const sharedCapture = {
+      url: "https://example.com/contact",
+      viewport: "desktop",
+      capturedAt: "2026-09-24T06:30:00.000Z",
+      captureReason: "targeted_interaction",
+    };
+    const json = mergeExtensionCaptureJson("", [
+      { ...sharedCapture, targetedCheck: { taskId: "Visual Feedback:VF01", tested: true } },
+      { ...sharedCapture, targetedCheck: { taskId: "Visual Feedback:VF02", tested: true } },
+    ]);
+    expect(JSON.parse(json)).toHaveLength(2);
+  });
 });
