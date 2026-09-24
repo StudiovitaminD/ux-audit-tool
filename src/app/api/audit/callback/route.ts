@@ -2,6 +2,8 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 import { parseStoredIntake } from "@/lib/intake-storage";
 import { loadStoredIntake } from "@/lib/intake-storage.server";
 import { bucketPillarFromName, normalizeCompetitorAnalysis } from "@/lib/report-model";
+import { storeFullReportBlob } from "@/lib/report-storage.server";
+import { FieldValue } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -540,6 +542,11 @@ export async function POST(req: Request) {
       return Response.json({ ok: true, status: "error" });
     }
 
+    const storedReport = await storeFullReportBlob(reportId, report);
+    if (!storedReport.ok) {
+      throw new Error(`The canonical report could not be persisted: ${storedReport.error}`);
+    }
+
     await ref.set(
       {
         createdAt: safeString(existingData.createdAt) || now,
@@ -548,9 +555,22 @@ export async function POST(req: Request) {
         reportId,
         rid: reportId,
         report_id: reportId,
-        report,
+        report: FieldValue.delete(),
+        report_blob: storedReport.blob,
+        product_name: report.product_name || "",
+        product_url: report.product_url || "",
+        product_type: report.product_type || "",
+        primary_platform: report.primary_platform || "",
+        overall_score: report.overall_score ?? null,
+        overall_health: report.overall_health || "",
+        overall_risk: report.overall_risk || "",
+        coverage_status: report.coverage_status || "",
+        ux_score_eligible: report.ux_score_eligible === true,
+        questions_scoreable: report.questions_scoreable || 0,
+        questions_total: report.questions_total || 0,
         canonical_report_version: "phase-3-v1",
       },
+      { merge: true },
     );
 
     return Response.json({ ok: true });

@@ -4,6 +4,7 @@ import {
 } from "@/lib/cloudinary-cleanup";
 import { getAccountSessionFromRequest } from "@/lib/account-server";
 import { resolveReportSnapshot } from "@/lib/report-record";
+import { deleteFullReportBlob } from "@/lib/report-storage.server";
 
 export async function POST(req: Request) {
   try {
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
         }
 
         try {
+          await deleteFullReportBlob(data as Record<string, unknown>);
           await snapshot.ref.delete();
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to delete report record.";
