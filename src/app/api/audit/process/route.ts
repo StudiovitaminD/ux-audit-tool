@@ -885,7 +885,18 @@ export async function POST(req: Request) {
     }
 
     currentPhase = "load_existing_results";
-    existingResults = normalizeStoredBucketResults(extractStoredBucketResults(doc));
+    const checkpoint = doc.bucket_results_blob
+      ? await loadFullReportBlob({ report_blob: doc.bucket_results_blob })
+      : null;
+    if (doc.bucket_results_blob && !Array.isArray(checkpoint?.bucketResults)) {
+      throw new Error("The saved bucket checkpoint could not be read. Retry without discarding previous results.");
+    }
+    existingResults = normalizeStoredBucketResults(extractStoredBucketResults(checkpoint || doc));
+    const saveBucketCheckpoint = async (results: BucketResult[]) => {
+      const stored = await storeFullReportBlob(`${ref.id}-buckets`, { bucketResults: results });
+      if (!stored.ok) throw new Error("Could not persist the complete bucket results.");
+      return stored.blob;
+    };
 
     const finalizeStoredReport = async (finalBucketIndex: number, results: BucketResult[]) => {
       const safeResults = normalizeStoredBucketResults(results);
@@ -1038,6 +1049,7 @@ export async function POST(req: Request) {
             report_blob: storedReport.blob,
             canonical_report_version: "phase-3-v1",
             bucketResults: FieldValue.delete(),
+            bucket_results_blob: FieldValue.delete(),
             evidence: FieldValue.delete(),
             product_name: report.product_name || intakeObj.product_name,
             product_url: report.product_url || intakeObj.product_url,
@@ -1156,8 +1168,10 @@ export async function POST(req: Request) {
         .map((bucket) => refreshedResults.find((result) => result.bucket_name === bucket))
         .filter((result): result is BucketResult => Boolean(result));
       const remainingRecaptureBuckets = pendingRecaptureBuckets.slice(1);
+      const bucketCheckpoint = await saveBucketCheckpoint(existingResults);
       await ref.set({
-        bucketResults: existingResults,
+        bucket_results_blob: bucketCheckpoint,
+        bucketResults: existingResults.map(compactBucketResultForStorage),
         processingLeaseUntil: 0,
         recaptureBuckets: remainingRecaptureBuckets.length
           ? remainingRecaptureBuckets
@@ -1218,6 +1232,7 @@ export async function POST(req: Request) {
 
       existingResults = [...existingResults, bucketResult];
       bucketIndex += 1;
+      const bucketCheckpoint = await saveBucketCheckpoint(existingResults);
 
       await ref.set(
         {
@@ -1233,6 +1248,7 @@ export async function POST(req: Request) {
             currentBucketStartedAt: null,
           }),
           bucketResults: existingResults.map(compactBucketResultForStorage),
+          bucket_results_blob: bucketCheckpoint,
         },
         { merge: true },
       );

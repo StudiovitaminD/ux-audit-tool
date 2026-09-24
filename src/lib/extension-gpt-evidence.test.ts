@@ -80,7 +80,7 @@ describe("extension evidence reaches GPT", () => {
         title: "Homepage",
         screenshotUrl: "data:image/png;base64,AAAA",
         automatedChecks: {
-          contrast: { testedCount: 12, lowContrastSamples: [] },
+          contrast: { testedCount: 12, lowContrastSamples: [], normalText: { tested: 12, failures: 0 } },
         },
       }]),
     })!;
@@ -94,7 +94,7 @@ describe("extension evidence reaches GPT", () => {
       .not.toContain("DETERMINISTICALLY_SCOREABLE");
   });
 
-  it("marks visible feedback, brand, icon, and observable motion criteria as screenshot scoreable", () => {
+  it("does not use a homepage screenshot as proof of successful actions", () => {
     const rawEvidence = extensionCapturesToEvidence({
       productUrl: "https://example.com",
       auditFlows: [],
@@ -117,7 +117,7 @@ describe("extension evidence reaches GPT", () => {
     const motion = QUESTION_BANK["Motion & Microinteractions"].find((question) => question.id === "MM05")!;
 
     expect(criterionEvidencePacket(evidence, "Visual Feedback", [visibleFeedback]))
-      .toContain("VISUALLY_SCOREABLE");
+      .not.toContain("VISUALLY_SCOREABLE");
     expect(criterionEvidencePacket(evidence, "Visual Feedback", [duplicatePrevention]))
       .not.toContain("VISUALLY_SCOREABLE");
     expect(criterionEvidencePacket(evidence, "Brand Expression", [brand]))

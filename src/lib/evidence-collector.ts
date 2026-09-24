@@ -41,7 +41,7 @@ export type EvidencePage = {
     [key: string]: unknown;
   };
   deterministic?: {
-    contrast?: { tested: boolean; samplesTested: number; failures: number };
+    contrast?: { tested: boolean; samplesTested: number; failures: number; normalText?: { tested: number; failures: number }; largeText?: { tested: number; failures: number } };
     semantics?: { tested: boolean; landmarks: number; unlabeledControls: number; imagesMissingAlt: number; headingOrderIssues: number };
     keyboard?: { tested: boolean; focusableCount: number; visibleFocusCount: number; trapDetected: boolean };
     responsive?: { tested: boolean; horizontalOverflow: boolean; overflowPixels: number };
@@ -1192,7 +1192,9 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
       mainText,
       viewport: `${window.innerWidth}x${window.innerHeight}`,
       deterministic: {
-        contrast: { tested: contrastSamples.length > 0, samplesTested: contrastSamples.length, failures: contrastSamples.filter((sample) => sample.ratio < sample.threshold).length },
+        contrast: { tested: contrastSamples.length > 0, samplesTested: contrastSamples.length, failures: contrastSamples.filter((sample) => sample.ratio < sample.threshold).length,
+          normalText: { tested: contrastSamples.filter((sample) => sample.threshold === 4.5).length, failures: contrastSamples.filter((sample) => sample.threshold === 4.5 && sample.ratio < sample.threshold).length },
+          largeText: { tested: contrastSamples.filter((sample) => sample.threshold === 3).length, failures: contrastSamples.filter((sample) => sample.threshold === 3 && sample.ratio < sample.threshold).length } },
         semantics: {
           tested: true,
           landmarks: document.querySelectorAll("main, nav, header, footer, aside, [role='main'], [role='navigation'], [role='banner'], [role='contentinfo'], [role='complementary']").length,
@@ -2636,7 +2638,9 @@ export function extensionCapturesToEvidence(input: {
         contrast: {
           tested: Number(contrast.testedCount || 0) > 0,
           samplesTested: Number(contrast.testedCount || 0),
-          failures: lowContrastSamples.length,
+          failures: Number(contrast.failureCount ?? lowContrastSamples.length),
+          normalText: contrast.normalText as { tested: number; failures: number } | undefined,
+          largeText: contrast.largeText as { tested: number; failures: number } | undefined,
         },
         semantics: {
           tested: Object.keys(accessibility).length > 0,

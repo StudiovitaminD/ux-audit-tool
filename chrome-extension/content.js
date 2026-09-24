@@ -364,10 +364,33 @@
   function contrastRatio(foreground, background) {
     const fg = parseColor(foreground);
     const bg = parseColor(background);
-    if (!fg || !bg || (bg[3] !== undefined && bg[3] < 1)) return null;
+    if (!fg || !bg || (fg[3] !== undefined && fg[3] < 1) || (bg[3] !== undefined && bg[3] < 1)) return null;
     const first = luminance(fg);
     const second = luminance(bg);
     return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+  }
+
+  function textContrastSample(element) {
+    const style = getComputedStyle(element);
+    let background = null;
+    for (let parent = element; parent; parent = parent.parentElement) {
+      const computed = getComputedStyle(parent);
+      // Image backgrounds, blending and opacity require pixel-level inspection.
+      if (computed.backgroundImage !== "none" || Number(computed.opacity) < 1 || computed.mixBlendMode !== "normal") return null;
+      if (background) continue;
+      const color = parseColor(computed.backgroundColor);
+      if (!color) return null;
+      const alpha = color[3] ?? 1;
+      if (alpha === 0) continue;
+      if (alpha < 1) return null;
+      background = computed.backgroundColor;
+    }
+    const ratio = contrastRatio(style.color, background || "rgb(255, 255, 255)");
+    if (ratio === null) return null;
+    const size = Number.parseFloat(style.fontSize);
+    const weight = style.fontWeight === "bold" ? 700 : Number(style.fontWeight);
+    const large = size >= 24 || (size >= 18.6667 && weight >= 700);
+    return { text: cleanText(element.textContent).slice(0, 80), ratio, threshold: large ? 3 : 4.5, large };
   }
 
   async function deterministicChecks(testSafeInteractions) {
@@ -394,14 +417,12 @@
     const headingSkips = headingLevels.filter((level, index) => index > 0 && level > headingLevels[index - 1] + 1).length;
     const contrastSamples = Array.from(document.querySelectorAll("p, li, label, button, a, h1, h2, h3"))
       .filter(isVisible)
+      .filter((element) => !element.closest("#__ux_audit_runner__"))
       .slice(0, 120)
-      .map((element) => {
-        const style = getComputedStyle(element);
-        const ratio = contrastRatio(style.color, style.backgroundColor);
-        return ratio === null ? null : { text: cleanText(element.textContent).slice(0, 80), ratio: Math.round(ratio * 100) / 100 };
-      })
+      .map(textContrastSample)
       .filter(Boolean);
-    const lowContrastSamples = contrastSamples.filter((sample) => sample.ratio < 4.5).slice(0, 20);
+    const failedContrastSamples = contrastSamples.filter((sample) => sample.ratio < sample.threshold);
+    const lowContrastSamples = failedContrastSamples.slice(0, 20);
     const interactiveStates = [];
     const formStates = [];
     const landmarks = document.querySelectorAll("main, nav, aside, header, footer, [role='main'], [role='navigation'], [role='complementary'], [role='banner'], [role='contentinfo']").length;
@@ -518,7 +539,9 @@
         reachableCount: keyboardSamples.filter((sample) => sample.focusable).length,
         samples: keyboardSamples,
       },
-      contrast: { testedCount: contrastSamples.length, lowContrastSamples },
+      contrast: { testedCount: contrastSamples.length, failureCount: failedContrastSamples.length, lowContrastSamples,
+        normalText: { tested: contrastSamples.filter((sample) => !sample.large).length, failures: failedContrastSamples.filter((sample) => !sample.large).length },
+        largeText: { tested: contrastSamples.filter((sample) => sample.large).length, failures: failedContrastSamples.filter((sample) => sample.large).length } },
       responsive: {
         horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 2,
         documentWidth: document.documentElement.scrollWidth,

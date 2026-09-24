@@ -19,6 +19,16 @@ import { loadFullReportBlob, storeFullReportBlob } from "./report-storage.server
 describe("complete evidence checkpoint", () => {
   beforeEach(() => storage.clear());
 
+  it("preserves every question, state and evidence reference across bucket checkpoints", async () => {
+    const bucketResults = [{ bucket_name: "Visual Feedback", questions: Array.from({ length: 14 }, (_, index) => ({
+      id: `VF${index}`, answer_state: index === 0 ? "not_tested" : "partial", mark: index === 0 ? 0 : 0.5,
+      evidence_ids: [`ev-${index}`], recommendation: "A complete recommendation. ".repeat(30),
+    })) }];
+    const saved = await storeFullReportBlob("audit-buckets", { bucketResults });
+    if (!saved.ok) throw new Error(saved.error);
+    expect((await loadFullReportBlob({ report_blob: saved.blob }))?.bucketResults).toEqual(bucketResults);
+  });
+
   it("preserves late-bucket evidence and targeted captures across request boundaries", async () => {
     const evidence = {
       pages: Array.from({ length: 48 }, (_, index) => ({

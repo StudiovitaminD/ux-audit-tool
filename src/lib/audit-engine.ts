@@ -22,7 +22,7 @@ import {
   evidenceConfidence,
   questionEvidence,
 } from "@/lib/evidence-depth";
-import { isScreenshotScorableCriterion } from "@/lib/criterion-evidence-policy";
+import { isScreenshotScorableCriterion, supportsAccessibilityCriterion } from "@/lib/criterion-evidence-policy";
 
 const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4.1-mini";
 
@@ -179,14 +179,14 @@ const PILLAR_MAP: Record<string, string> = {
 
 function hasConfirmedVisualEvidence(evidence: EvidenceBundle | null, bucket: string, questionId: string) {
   return questionEvidence(evidence, bucket, questionId).some(
-    (record) => record.kind === "screenshot" && record.status === "confirmed" && Boolean(record.screenshotUrl),
+    (record) => record.kind === "screenshot" && supportsAccessibilityCriterion(bucket, questionId, record) && Boolean(record.screenshotUrl),
   );
 }
 
 function hasDirectMeasuredEvidence(evidence: EvidenceBundle | null, bucket: string, questionId: string) {
   return questionEvidence(evidence, bucket, questionId).some(
     (record) => {
-      if (record.status !== "confirmed") return false;
+      if (!supportsAccessibilityCriterion(bucket, questionId, record)) return false;
       if (record.testMethod === "targeted_browser_measurement") return true;
       if (record.testMethod !== "deterministic_browser_measurement") return false;
       if (record.kind === "form_state" && Number(record.measuredValues?.testedStateCount || 0) > 0) return true;
@@ -631,7 +631,7 @@ export function criterionEvidencePacket(
         hasDirectMeasuredEvidence(evidence, bucket, question.id)
           ? "DETERMINISTICALLY_SCOREABLE: A direct browser or DOM measurement is present. Use it to score the criterion; do not return not_tested."
           : "",
-        isScreenshotScorableCriterion(bucket, question.id) && usable.some((record) => record.kind === "screenshot" && record.status === "confirmed")
+        isScreenshotScorableCriterion(bucket, question.id) && hasConfirmedVisualEvidence(evidence, bucket, question.id)
           ? "VISUALLY_SCOREABLE: A confirmed capture is attached. Inspect it and score the visible criterion; do not return not_tested."
           : "",
         lines.length ? lines.join("\n") : "NO_USABLE_EVIDENCE",
@@ -1773,7 +1773,7 @@ async function writeNarrative(args: {
   }
 }
 
-function parseBucketJson(raw: string) {
+export function parseBucketJson(raw: string) {
   const attempts = new Set<string>();
   const tryParse = (candidate: string) => {
     const normalized = candidate.trim();
@@ -1929,6 +1929,7 @@ function parseBucketJson(raw: string) {
       selected_option: explicitSelectedOption ?? mark,
       evidence: String(qRec.evidence || ""),
       observation: String(qRec.observation || ""),
+      evidence_ids: Array.isArray(qRec.evidence_ids) ? qRec.evidence_ids.map(String) : [],
       answer_status: answerStatus,
       missing_evidence: Array.isArray(missingEvidenceValue)
         ? missingEvidenceValue.map((item) => String(item))
@@ -2004,6 +2005,7 @@ export type BucketResult = {
     evidence: string;
     observation: string;
     answer_status?: "answered" | "insufficient_evidence" | "scoring_unavailable";
+    answer_state?: string | null;
     missing_evidence?: string[];
     evidence_ids?: string[];
     confidence?: number;
@@ -2397,11 +2399,11 @@ function missingEvidenceForQuestion(
     // Evidence kinds in a question packet are complementary signals, not an
     // all-or-nothing checklist. A blocked supplemental signal must not erase a
     // confirmed DOM, visual, or measured observation for the same criterion.
-    if (plannedRecords.some((record) => record.status === "confirmed")) return [];
+    if (plannedRecords.some((record) => supportsAccessibilityCriterion(bucket, questionId, record))) return [];
     return Array.from(
       new Set(
         plannedRecords
-          .filter((record) => record.status !== "confirmed")
+          .filter((record) => !supportsAccessibilityCriterion(bucket, questionId, record))
           .map((record) => record.kind),
       ),
     );
@@ -2985,6 +2987,7 @@ export async function auditOneBucket(args: {
     .map((q) => ({
       id: String(q.id ?? "Q"),
       question: String(q.question ?? ""),
+      answer_state: normalizeAnswerState(q.answer_state ?? q.selected_option_state),
       mark:
         q.answer_status === "insufficient_evidence" ||
         q.answer_status === "scoring_unavailable"
@@ -2998,7 +3001,7 @@ export async function auditOneBucket(args: {
       evidence: String(q.evidence ?? ""),
       observation: String(q.observation ?? ""),
       answer_status:
-        q.answer_status === "insufficient_evidence"
+        q.answer_status === "insufficient_evidence" || normalizeAnswerState(q.answer_state ?? q.selected_option_state) === "not_tested"
           ? ("insufficient_evidence" as const)
           : q.answer_status === "scoring_unavailable"
             ? ("scoring_unavailable" as const)
@@ -3019,6 +3022,7 @@ export async function auditOneBucket(args: {
     const caveatText = `${question.evidence} ${question.observation}`.toLowerCase();
     const hasMaterialCaveat = /\bhowever\b|\bbut\b|\bmissing\b|\black(?:s|ing)?\b|\bgeneric\b|\binconsistent\b|\blimit(?:s|ed|ing)?\b|\bunclear\b|\bweak\b|\bproblem(?:s)?\b|\bcould be improved\b|\bnot consistently\b/.test(caveatText);
     if (hasMaterialCaveat && question.mark === 1) {
+      question.answer_state = "partial";
       question.mark = 0.5;
       question.selected_option = 0.5;
     }
@@ -3028,13 +3032,10 @@ export async function auditOneBucket(args: {
       records.filter((record) => record.status !== "blocked").map((record) => record.evidenceId),
     );
     const citedEvidenceIds = (question.evidence_ids || []).filter((id) => validEvidenceIds.has(id));
-    question.evidence_ids = citedEvidenceIds.length
-      ? citedEvidenceIds
-      : records
-          .filter((record) => record.status !== "blocked")
-          .map((record) => record.evidenceId);
+    question.evidence_ids = citedEvidenceIds;
     question.confidence = evidenceConfidence(records);
-    if (missingEvidence.length > 0) {
+    if (missingEvidence.length > 0 || question.answer_status === "insufficient_evidence" || !citedEvidenceIds.length) {
+      question.answer_state = "not_tested";
       question.mark = null;
       question.selected_option = null;
       question.answer_status = "insufficient_evidence";
@@ -3070,7 +3071,7 @@ export async function auditOneBucket(args: {
 
   const findings = enoughEvidence
     ? questions
-    .filter((q) => typeof q.mark === "number" && q.mark < 1)
+    .filter((q) => q.answer_status === "answered" && q.answer_state !== "n_a" && typeof q.mark === "number" && q.mark < 1)
     .map((q) => ({
       bucket,
       question_id: q.id,

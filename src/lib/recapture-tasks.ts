@@ -46,12 +46,16 @@ export function buildRecaptureTasks(args: {
         ? question.missing_evidence.map(text).filter(Boolean).join("; ")
         : text(question.evidence) || text(question.observation);
       const kind = recaptureKindForCriterion(bucketName, questionId, `${questionText} ${missing}`);
+      const formUrl = kind === "form" ? availableUrls.find((url) => {
+        try { return /contact|enquir|inquir|register|signup|checkout|support/.test(new URL(url).pathname.toLowerCase()); }
+        catch { return false; }
+      }) : undefined;
       tasks.push({
         id: `${bucketName}:${questionId}`,
         bucket: bucketName,
         questionId,
         question: questionText,
-        targetUrl: availableUrls[tasks.length % availableUrls.length] || args.productUrl,
+        targetUrl: formUrl || availableUrls[tasks.length % availableUrls.length] || args.productUrl,
         kind,
         instruction: missing || `Capture direct evidence for: ${questionText}`,
         requiresPermission: kind === "form",

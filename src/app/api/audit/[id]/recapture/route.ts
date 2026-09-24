@@ -74,6 +74,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     recaptureSubmittedAt: new Date().toISOString(),
     evidence: FieldValue.delete(),
     evidence_blob: FieldValue.delete(),
+    bucket_results_blob: FieldValue.delete(),
     bucketResults: previousBucketResults,
     report: FieldValue.delete(),
     progress: {

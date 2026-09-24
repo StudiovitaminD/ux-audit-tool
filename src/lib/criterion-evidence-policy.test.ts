@@ -25,7 +25,8 @@ describe("canonical criterion evidence policy", () => {
     expect(isScreenshotScorableCriterion("Brand Expression", "BE01")).toBe(true);
     expect(isScreenshotScorableCriterion("Icons & Imagery", "II10")).toBe(true);
     expect(isScreenshotScorableCriterion("Navigation & Findability", "NF01")).toBe(true);
-    expect(isScreenshotScorableCriterion("Visual Feedback", "VF04")).toBe(true);
+    expect(isScreenshotScorableCriterion("Visual Feedback", "VF04")).toBe(false);
+    expect(isScreenshotScorableCriterion("Visual Feedback", "VF07")).toBe(true);
     expect(isScreenshotScorableCriterion("Visual Feedback", "VF03")).toBe(false);
     expect(isScreenshotScorableCriterion("Color & Contrast", "CC06")).toBe(true);
     expect(isScreenshotScorableCriterion("Color & Contrast", "CC04")).toBe(false);

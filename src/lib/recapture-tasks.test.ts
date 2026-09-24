@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { buildRecaptureTasks, recaptureAffectedBuckets } from "./recapture-tasks";
 
 describe("targeted evidence recapture", () => {
+  it("targets an existing contact page rather than the homepage for a form question", () => {
+    const tasks = buildRecaptureTasks({ productUrl: "https://example.com", pageUrls: ["https://example.com/", "https://example.com/contact"],
+      bucketResults: [{ bucket_name: "Visual Feedback", questions: [{ id: "VF03", question: "Duplicate submissions?", answer_state: "not_tested" }] }],
+    });
+    expect(tasks[0].targetUrl).toBe("https://example.com/contact");
+    expect(tasks[0].requiresPermission).toBe(true);
+  });
   it("creates tasks only for unresolved questions and flags forms for permission", () => {
     const tasks = buildRecaptureTasks({
       productUrl: "https://example.com",

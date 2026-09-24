@@ -71,7 +71,8 @@ function pageObservation(page: EvidencePage, kind: EvidenceKind) {
     return { status: "confirmed" as const, text: `Navigation ${measured.performance.domContentLoadedMs}ms; load ${measured.performance.loadMs}ms; ${measured.performance.requestCount} resources.` };
   }
   if (kind === "contrast" && measured?.contrast?.tested) {
-    return { status: "confirmed" as const, text: `${measured.contrast.samplesTested} visible text samples checked; ${measured.contrast.failures} failed the computed contrast threshold.` };
+    const groups = measured.contrast;
+    return { status: "confirmed" as const, text: `${groups.samplesTested} visible text samples checked; ${groups.failures} failed the computed contrast threshold. Normal text: ${JSON.stringify(groups.normalText || "not separately measured")}; large text: ${JSON.stringify(groups.largeText || "not separately measured")}. Text measurements do not test focus indicators, component boundaries, or hover states.` };
   }
   if (kind === "keyboard" && measured?.keyboard?.tested) {
     return { status: "confirmed" as const, text: `${measured.keyboard.focusableCount} focusable controls found; visible focus observed on ${measured.keyboard.visibleFocusCount} tab stops.` };
@@ -89,9 +90,9 @@ function pageObservation(page: EvidencePage, kind: EvidenceKind) {
     return { status: "confirmed" as const, text: `${measured.semantics.landmarks} landmarks; ${measured.semantics.unlabeledControls} unlabeled controls; ${measured.semantics.imagesMissingAlt} images missing alt text.${axeText}` };
   }
   if (kind === "form_state" && measured?.forms?.tested) {
-    const testedStates = (measured.forms.testedStates || []).slice(0, 3);
+    const testedStates = (measured.forms.testedStates || []).filter((state) => ["validation_observed", "navigation_observed", "submitted"].includes(String(state.result))).slice(0, 3);
     const stateText = testedStates.length ? ` Outcomes: ${JSON.stringify(testedStates).slice(0, 1200)}.` : "";
-    return { status: "confirmed" as const, text: `${measured.forms.formCount} forms; ${measured.forms.requiredFields} required fields; ${measured.forms.unlabeledFields} unlabeled fields; ${measured.forms.statusRegions} status regions.${stateText}` };
+    return { status: testedStates.length ? "confirmed" as const : "inconclusive" as const, text: `${measured.forms.formCount} forms; ${measured.forms.requiredFields} required fields; ${measured.forms.unlabeledFields} unlabeled fields; ${measured.forms.statusRegions} status regions.${stateText} Form inventory alone does not prove success, error, loading, or duplicate-submission behavior.` };
   }
   if (kind === "reduced_motion" && measured?.reducedMotion?.tested) {
     return { status: "confirmed" as const, text: `${measured.reducedMotion.animationsDetected} active animations detected; reduced-motion preference ${measured.reducedMotion.mediaQueryMatched ? "matched" : "not matched"}.` };
@@ -118,6 +119,10 @@ function measuredValuesFor(
     return {
       samplesTested: deterministic.contrast.samplesTested,
       failures: deterministic.contrast.failures,
+      normalTextTested: deterministic.contrast.normalText?.tested ?? 0,
+      normalTextFailures: deterministic.contrast.normalText?.failures ?? 0,
+      largeTextTested: deterministic.contrast.largeText?.tested ?? 0,
+      largeTextFailures: deterministic.contrast.largeText?.failures ?? 0,
     };
   }
   if (kind === "keyboard" && deterministic.keyboard?.tested) {
@@ -152,7 +157,9 @@ function measuredValuesFor(
       requiredFields: deterministic.forms.requiredFields,
       unlabeledFields: deterministic.forms.unlabeledFields,
       statusRegions: deterministic.forms.statusRegions,
-      testedStateCount: deterministic.forms.testedStates?.length || 0,
+      testedStateCount: deterministic.forms.testedStates?.filter((state) => ["validation_observed", "navigation_observed", "submitted"].includes(String(state.result))).length || 0,
+      validationStateCount: deterministic.forms.testedStates?.filter((state) => state.result === "validation_observed").length || 0,
+      submissionStateCount: deterministic.forms.testedStates?.filter((state) => ["navigation_observed", "submitted"].includes(String(state.result))).length || 0,
     };
   }
   if (kind === "reduced_motion" && deterministic.reducedMotion?.tested) {
@@ -172,7 +179,7 @@ function pageSupportsKind(page: EvidencePage, kind: EvidenceKind) {
   if (kind === "responsive") return measured?.responsive?.tested === true;
   if (kind === "zoom") return measured?.zoom?.tested === true;
   if (kind === "accessibility_tree") return measured?.semantics?.tested === true;
-  if (kind === "form_state") return measured?.forms?.tested === true;
+  if (kind === "form_state") return measured?.forms?.tested === true && Boolean(measured.forms.testedStates?.some((state) => ["validation_observed", "navigation_observed", "submitted"].includes(String(state.result))));
   if (kind === "reduced_motion") return measured?.reducedMotion?.tested === true;
   if (kind === "text_spacing") return page.targetedCheck?.kind === "text_spacing" && page.targetedCheck.tested === true;
   if (kind === "interaction") return page.targetedCheck?.kind === "interaction" && page.targetedCheck.tested === true;

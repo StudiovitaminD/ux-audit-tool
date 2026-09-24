@@ -1,4 +1,28 @@
-import type { EvidenceKind } from "@/lib/evidence-depth";
+import type { EvidenceKind, EvidenceRecord } from "@/lib/evidence-depth";
+
+export function supportsAccessibilityCriterion(bucket: string, questionId: string, record: EvidenceRecord) {
+  if (record.status !== "confirmed") return false;
+  const number = Number(questionId.match(/\d+$/)?.[0] || 0);
+  if (bucket === "Visual Feedback") {
+    // A generic page screenshot or form inventory is not a captured action outcome.
+    if (record.kind === "screenshot") return number === 7;
+    if (record.kind === "form_state") {
+      if ([4, 5].includes(number)) return Number(record.measuredValues?.submissionStateCount || 0) > 0;
+      if ([9, 10].includes(number)) return Number(record.measuredValues?.validationStateCount || 0) > 0;
+      return false;
+    }
+    return [1, 7, 8].includes(number) && record.kind === "interaction" && record.testMethod === "targeted_browser_measurement";
+  }
+  if (bucket === "Color & Contrast") {
+    if (record.kind === "contrast") {
+      if (number === 1) return Number(record.measuredValues?.normalTextTested || 0) > 0;
+      if (number === 2) return Number(record.measuredValues?.largeTextTested || 0) > 0;
+      return false;
+    }
+    return record.kind === "screenshot" && number >= 6;
+  }
+  return true;
+}
 
 const VISUAL_BUCKETS = new Set([
   "Content (Impact)",
@@ -10,7 +34,7 @@ const VISUAL_BUCKETS = new Set([
 // A screenshot can score a criterion only when the criterion is observable in
 // one captured state. Interaction and runtime behavior still require a probe.
 const SCREENSHOT_SCOREABLE_BY_BUCKET: Record<string, number[]> = {
-  "Visual Feedback": [2, 4, 5, 6, 7, 9, 10],
+  "Visual Feedback": [7],
   "Color & Contrast": [6, 7, 8, 9, 10],
   "Motion & Microinteractions": [1, 5, 7],
 };
