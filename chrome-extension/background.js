@@ -253,100 +253,92 @@ async function runVisibleAudit(tabId, options = {}) {
   }
 }
 
-async function runTargetedRecapture(tabId, tasks) {
+async function runTargetedRecapture(tabId, tasks, reportTabId, reportId) {
+  if (!reportId) throw new Error("Missing report ID. Refresh the report before retrying.");
   const startingTab = await chrome.tabs.get(tabId);
-  if (!startingTab.url || !/^https?:/.test(startingTab.url)) throw new Error("Open the audited website before starting follow-up capture.");
   const origin = new URL(startingTab.url).origin;
+  if (tasks.some((task) => !isAuditableUrl(task.targetUrl, origin))) throw new Error("Follow-up task is outside the audited website.");
   await startAudit(tabId, { journeyEnabled: true });
-  // One page visit can test several criteria. The previous URL-and-kind grouping
-  // revisited the same page repeatedly, making a 24-task follow-up look endless.
-  const batches = [];
-  const batchByUrl = new Map();
-  for (const task of tasks) {
-    if (!task?.targetUrl || !isAuditableUrl(task.targetUrl, origin)) continue;
-    const key = normalizedPageUrl(task.targetUrl);
-    const existing = batchByUrl.get(key);
-    if (existing) existing.tasks.push(task);
-    else {
-      const batch = { targetUrl: key, tasks: [task] };
-      batchByUrl.set(key, batch);
-      batches.push(batch);
-    }
+  let completed = 0;
+  const formResults = new Map();
+  async function checkControl() {
+    while ((await getState()).runner?.status === "paused") await new Promise((resolve) => setTimeout(resolve, 500));
+    if ((await getState()).runner?.status === "stopped") throw new Error("Follow-up stopped. Existing captures are retained.");
   }
-  if (!batches.length) throw new Error("None of the follow-up tasks has a valid page URL on the audited website.");
-  await runnerStatus(tabId, { status: "running", phase: "targeted", current: 0, total: batches.length, message: `Preparing ${batches.length} targeted checks for ${tasks.length} criteria` });
-
-  for (const [index, batch] of batches.entries()) {
-    await runnerStatus(tabId, { phase: "targeted", current: index + 1, total: batches.length, message: `Checking ${batch.tasks.length} ${batch.tasks.length === 1 ? "criterion" : "criteria"} on ${new URL(batch.targetUrl).pathname || "/"}` });
-    try {
-      await withTimeout((async () => {
-        const currentTab = await chrome.tabs.get(tabId);
-        let currentUrl = "";
-        try { currentUrl = normalizedPageUrl(currentTab.url || startingTab.url); } catch {}
-        if (currentUrl !== normalizedPageUrl(batch.targetUrl)) {
-          await chrome.tabs.update(tabId, { url: batch.targetUrl, active: true });
-          await waitForTabComplete(tabId, 15000);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 350));
-        const taskChecks = [];
-        for (const task of batch.tasks) {
-          try {
-            const result = await withTimeout(
-              sendToAuditTab(tabId, { type: "UX_AUDIT_RUN_TARGETED_CHECK", payload: { task } }),
-              7_000,
-              `Timed out while checking ${task.kind || "visual"}.`,
-            );
-            taskChecks.push({ task, result });
-          } catch (error) {
-            taskChecks.push({
-              task,
-              result: {
-                tested: false,
-                taskId: task.id,
-                kind: task.kind || "visual",
-                question: task.question || "",
-                pageUrl: batch.targetUrl,
-                error: error instanceof Error ? error.message : "Targeted check failed.",
-              },
-            });
-          }
-        }
-        const inspection = await sendToAuditTab(tabId, {
-          type: "UX_AUDIT_RUN_DETERMINISTIC_CHECKS",
-          payload: { testSafeInteractions: batch.tasks.some((task) => task.kind === "form") },
-        });
-        // A viewport capture is enough here because the full page was captured
-        // during the first pass. Re-stitching every long page made follow-up hang.
-        const capture = await captureCurrentTab(tabId, `targeted_${batch.kind}`, false);
+  try {
+    for (const [index, task] of tasks.entries()) {
+      await checkControl();
+      await runnerStatus(tabId, { status: "running", phase: "targeted", current: index, total: tasks.length, message: `GPT-guided check ${index + 1}/${tasks.length}: ${task.question}` });
+      const current = await chrome.tabs.get(tabId);
+      if (normalizedPageUrl(current.url) !== normalizedPageUrl(task.targetUrl)) {
+        await chrome.tabs.update(tabId, { url: task.targetUrl, active: true });
+        await waitForTabComplete(tabId, 15000);
+      }
+      const history = [];
+      const seen = new Set();
+      let lastResult = { tested: false };
+      let inspection;
+      let decision = { action: "blocked", reason: "Attempt limit reached." };
+      for (let attempt = 0; attempt <= 3; attempt++) {
+        await checkControl();
+        const snapshot = await sendToAuditTab(tabId, { type: "UX_AUDIT_GUIDE_SNAPSHOT" });
+        if (!isAuditableUrl(snapshot.url, origin)) throw new Error("Navigation left the audited website.");
+        const capture = await captureCurrentTab(tabId, "gpt_guided_followup", false);
         const state = await getState();
-        const captures = state.captures.slice();
-        captures.splice(captures.length - 1, 1, ...taskChecks.map(({ task: batchTask, result: targetedCheck }, taskIndex) => ({
-          ...capture,
-          screenshotUrl: taskIndex === 0 ? capture.screenshotUrl : "",
-          viewport: "desktop",
-          automatedChecks: inspection,
-          targetedCheck: {
-            ...targetedCheck,
-            taskId: batchTask.id,
-            question: batchTask.question,
-          },
-          recaptureTasks: batch.tasks.map((item) => item.id),
-          recaptureQuestion: batchTask.question,
-          recaptureBucket: batchTask.bucket,
-        })));
-        await setState({ ...state, captures });
-      })(), 25000, `Timed out while checking ${batch.kind} on ${batch.targetUrl}.`);
-    } catch (error) {
+        state.captures[state.captures.length - 1] = {
+          ...capture, automatedChecks: inspection,
+          targetedCheck: { ...lastResult, taskId: task.id, question: task.question, kind: task.kind, guideHistory: history.slice() },
+          recaptureTasks: [task.id], recaptureQuestion: task.question, recaptureBucket: task.bucket,
+        };
+        await setState(state);
+        decision = await sendToAuditTab(reportTabId, {
+          type: "UX_AUDIT_GUIDE_REQUEST", reportId,
+          payload: { taskId: task.id, snapshot, history, screenshot: capture.screenshotUrl },
+        });
+        if (!decision || decision.error) throw new Error(decision?.error || "GPT capture guide did not respond.");
+        await checkControl();
+        if (["complete", "blocked"].includes(decision.action)) break;
+        if (attempt === 3) {
+          decision = { action: "blocked", reason: "Three actions attempted without sufficient evidence." };
+          break;
+        }
+        const key = JSON.stringify([decision.action, decision.kind, decision.target ?? null]);
+        if (seen.has(key)) {
+          decision = { action: "blocked", reason: "Repeated action prevented." };
+          break;
+        }
+        seen.add(key);
+        await runnerStatus(tabId, { message: decision.reason });
+        if (["focus", "scroll"].includes(decision.action)) {
+          lastResult = await sendToAuditTab(tabId, { type: "UX_AUDIT_GUIDE_ACTION", decision });
+        } else if (decision.action === "probe") {
+          if (decision.kind === "form") {
+            // Never submit again for another question on the same page.
+            if (!formResults.has(snapshot.url)) {
+              formResults.set(snapshot.url, await sendToAuditTab(tabId, { type: "UX_AUDIT_RUN_DETERMINISTIC_CHECKS", payload: { testSafeInteractions: true } }));
+            }
+            inspection = formResults.get(snapshot.url);
+            lastResult = { tested: false, method: "form_observation", forms: inspection?.forms };
+          } else {
+            if (decision.kind === "responsive") await setMobileEmulation(tabId, true);
+            lastResult = await sendToAuditTab(tabId, { type: "UX_AUDIT_RUN_TARGETED_CHECK", payload: { task: { ...task, kind: decision.kind } } });
+          }
+        } else throw new Error("Unsupported guide action.");
+        if (lastResult?.error) throw new Error(lastResult.error);
+        history.push({ action: decision, result: lastResult });
+      }
       const state = await getState();
-      const failures = Array.isArray(state.runner?.taskFailures) ? state.runner.taskFailures : [];
-      await runnerStatus(tabId, {
-        taskFailures: [...failures, ...batch.tasks.map((item) => ({ taskId: item.id, error: error instanceof Error ? error.message : "Targeted check failed" }))],
-        message: `Skipped one unavailable check; continuing (${index + 1}/${batches.length})`,
-      });
+      const last = state.captures[state.captures.length - 1];
+      if (last) last.targetedCheck = { ...last.targetedCheck, guideOutcome: decision };
+      await setState(state);
+      await setMobileEmulation(tabId, false);
+      if (decision.action === "complete") completed++;
     }
+    await runnerStatus(tabId, { status: "complete", phase: "complete", current: tasks.length, total: tasks.length, message: `Evidence returned for review: ${completed}/${tasks.length} guide checks sufficient; remaining checks stay unresolved.` });
+  } finally {
+    try { await setMobileEmulation(tabId, false); } catch {}
+    await stopAudit();
   }
-  await runnerStatus(tabId, { status: "complete", phase: "complete", current: batches.length, total: batches.length, message: `Follow-up complete: ${batches.length} browser checks covered ${tasks.length} criteria` });
-  await stopAudit();
 }
 
 function summarizeDom(payload) {
@@ -667,7 +659,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       if (!targetTab?.id) throw new Error("Open the audited website in a tab before starting follow-up capture.");
       runnerPromise = (async () => {
-        await runTargetedRecapture(targetTab.id, tasks);
+        await runTargetedRecapture(targetTab.id, tasks, reportTabId, message.reportId);
         const state = await getState();
         const captures = state.captures || [];
         await deliverCapturesToTab(reportTabId, captures, "UX_AUDIT_RECAPTURE_RESULT");

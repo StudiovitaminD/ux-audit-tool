@@ -20,7 +20,7 @@ import { reportBelongsToSession } from "@/lib/report-record";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { FieldValue } from "firebase-admin/firestore";
 import { buildRecaptureTasks } from "@/lib/recapture-tasks";
-import { storeFullReportBlob } from "@/lib/report-storage.server";
+import { storeFullReportBlob, loadFullReportBlob } from "@/lib/report-storage.server";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -702,8 +702,16 @@ export async function POST(req: Request) {
     retryCount = Number(progressRec.retryCount || 0);
     attemptCount = Number(progressRec.attemptCount || 0); // ADDED
 
-    // Ensure evidence exists (text-only; no screenshot data persisted)
-    let evidence = doc.evidence as unknown;
+    // Scoring must resume from the complete evidence, never the Firestore
+    // display summary, whose record/page limits discard later buckets.
+    let evidence: unknown = null;
+    if (doc.evidence_blob) {
+      const storedEvidence = await loadFullReportBlob({ report_blob: doc.evidence_blob });
+      if (!storedEvidence?.evidence) {
+        throw new Error("Stored audit evidence could not be loaded. Retry processing; the evidence has not been replaced.");
+      }
+      evidence = storedEvidence.evidence;
+    }
     if (!evidence) {
       await ref.set(
         {
@@ -731,8 +739,14 @@ export async function POST(req: Request) {
       if (isCancelledDoc(latestAfterPrepare.data() ?? {})) {
         return Response.json({ status: "cancelled" });
       }
+      if (!evidence) throw new Error("No audit evidence was prepared.");
+      const evidenceStorage = await storeFullReportBlob(`${ref.id}-evidence`, { evidence });
+      if (!evidenceStorage.ok) {
+        throw new Error(`Complete audit evidence could not be persisted: ${evidenceStorage.error}`);
+      }
       await ref.set(
         {
+          evidence_blob: evidenceStorage.blob,
           evidence: compactEvidenceForStorage(
             evidence && typeof evidence === "object" ? (evidence as EvidenceBundle) : null,
           ),

@@ -73,6 +73,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     recaptureRound: Number(data.recaptureRound || 0) + 1,
     recaptureSubmittedAt: new Date().toISOString(),
     evidence: FieldValue.delete(),
+    evidence_blob: FieldValue.delete(),
     bucketResults: previousBucketResults,
     report: FieldValue.delete(),
     progress: {

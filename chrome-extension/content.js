@@ -5,6 +5,39 @@
   let pendingImport = null;
   let pendingImportType = "UX_AUDIT_IMPORT_CAPTURE";
 
+  // Execute authenticated planner requests in the report tab. No API key is
+  // distributed to the extension or the audited website.
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type !== "UX_AUDIT_GUIDE_REQUEST") return;
+    if (!["ux-audit-tool-iota.vercel.app", "localhost", "127.0.0.1"].includes(location.hostname)) return;
+    fetch(`/api/audit/${encodeURIComponent(message.reportId)}/capture-guide`, {
+      method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(message.payload), signal: AbortSignal.timeout(110000),
+    }).then(async (response) => {
+      const body = await response.json();
+      sendResponse(response.ok ? body : { error: body.error || "Guide unavailable" });
+    }).catch((error) => sendResponse({ error: String(error.message || error) }));
+    return true;
+  });
+
+  let guideControls = [];
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === "UX_AUDIT_GUIDE_SNAPSHOT") {
+      guideControls = Array.from(document.querySelectorAll("button, a[href], input:not([type='hidden']), select, textarea, summary, [tabindex]"))
+        .filter((element) => isVisible(element) && !element.closest("#__ux_audit_runner__")).slice(0, 40);
+      sendResponse({ url: location.href, text: cleanText(document.body.innerText).slice(0, 6000),
+        controls: guideControls.map((element, index) => ({ index, tag: element.tagName, name: accessibleName(element), type: element.getAttribute("type") })) });
+    }
+    if (message?.type === "UX_AUDIT_GUIDE_ACTION") {
+      const control = guideControls[message.decision?.target];
+      if (!control?.isConnected) { sendResponse({ error: "Control is no longer present" }); return; }
+      if (message.decision.action === "focus") control.focus({ preventScroll: false });
+      else if (message.decision.action === "scroll") control.scrollIntoView({ block: "center" });
+      else { sendResponse({ error: "Unsupported action" }); return; }
+      sendResponse({ tested: true, method: message.decision.action, control: accessibleName(control) });
+    }
+  });
+
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type === "UX_AUDIT_IMPORT_CAPTURE_START") {
       pendingImport = { ...message.capture, screenshotUrl: "" };
@@ -620,7 +653,7 @@
     if (kind === "interaction") {
       const controls = Array.from(document.querySelectorAll("button, [role='button'], summary, [aria-expanded], [role='tab']"))
         .filter(isVisible)
-        .filter((element) => !element.closest("form"))
+        .filter((element) => !element.closest("form, #__ux_audit_runner__"))
         .filter((element) => !/delete|remove|pay|buy|purchase|submit|send|save|confirm|log out|sign out/i.test(accessibleName(element)))
         .slice(0, 5);
       const samples = [];
