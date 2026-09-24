@@ -863,7 +863,11 @@ async function completeMissingQuestions(args: {
   if (!missingQuestions.length) return args.existingQuestions;
 
   const parsedById = new Map<string, Record<string, unknown>>();
-  const missingQuestionChunks = chunkArray(missingQuestions, missingQuestions.length);
+  // A full bucket can be too large for a vision response once it includes
+  // several captures. Recover missing answers in compact groups so one bad or
+  // truncated response cannot turn an otherwise evidenced visual bucket into
+  // "Not Tested".
+  const missingQuestionChunks = chunkArray(missingQuestions, 4);
 
   for (const questionChunk of missingQuestionChunks) {
     const questionIds = new Set(questionChunk.map((question) => question.id));
@@ -2873,6 +2877,28 @@ export async function auditOneBucket(args: {
       .map((question) => parsedQuestionsById.get(question.id))
       .filter(Boolean) as Array<Record<string, unknown>>,
   };
+
+  if (parsed.questions.length === 0) {
+    // The initial full-bucket call preserves cross-question reasoning. If it
+    // cannot be parsed, retry every criterion through the smaller completion
+    // path before declaring the entire bucket unavailable.
+    try {
+      parsed = {
+        ...parsed,
+        questions: await completeMissingQuestions({
+          intake,
+          bucket,
+          expectedQuestions: qs,
+          existingQuestions: [],
+          evidence,
+          modelOverride: args.modelOverride,
+        }),
+      };
+    } catch {
+      // The standard unavailable result below remains the truthful fallback
+      // only after both the full-bucket and compact recovery paths fail.
+    }
+  }
 
   if (parsed.questions.length === 0) {
     const fallback: BucketResult = {
