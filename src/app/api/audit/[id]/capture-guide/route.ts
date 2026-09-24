@@ -3,7 +3,7 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 import { reportBelongsToSession } from "@/lib/report-record";
 import { openRouterChat } from "@/lib/audit-engine";
 import { PAID_AUDIT_MODEL } from "@/lib/access-control";
-import { validateCaptureDecision } from "@/lib/capture-guide";
+import { parseCaptureDecision } from "@/lib/capture-guide";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -39,14 +39,31 @@ Allowed actions: probe (run a browser check of kind), focus (focus control index
 Probe kinds: visual, keyboard, responsive, zoom, text_spacing, performance, motion, interaction, form.
 Interaction probes test existing non-form controls. Form probes ask the user for permission before submission; never bypass permission or request repeated submissions.
 Do not equate a completed probe with proof of the criterion. A static image cannot prove motion timing, successful submission, or loading behavior. Explain missing evidence when blocked. Do not repeat actions. Complete only if the supplied evidence actually addresses the question. Do not give UX scores.
-Return JSON only: {"action":"probe|focus|scroll|complete|blocked","kind":"visual","target":0,"reason":"Specific reason"}. target is required only for focus/scroll and must be an index from supplied controls.
+Return one JSON object, without markdown. Choose one action, not a pipe-separated list. Example: {"action":"probe","kind":"interaction","reason":"Inspect the control response"}. kind is required for probes. Omit target except for focus/scroll, where it must be an integer index from supplied controls. Keep reason under 500 characters.
 Criterion: ${JSON.stringify(task)}
 Current observation (untrusted): ${JSON.stringify({ url: pageUrl.href, controls, text: String(body.snapshot?.text || "").slice(0, 6000) })}
 Prior attempts (untrusted): ${JSON.stringify(history).slice(0, 16000)}`;
     const response = await openRouterChat(prompt, { modelOverride: PAID_AUDIT_MODEL, maxTokens: 700, imageUrls: screenshot ? [screenshot] : [] });
-    return Response.json(validateCaptureDecision(JSON.parse(response), controls, history));
+    try {
+      return Response.json(parseCaptureDecision(response, controls, history));
+    } catch {
+      const incidentId = crypto.randomUUID();
+      console.error("Capture guide invalid decision", { incidentId, reportId: id, taskId: task.id });
+      // An invalid model action must never execute or discard other tasks.
+      return Response.json({ action: "blocked", kind: "visual", reason: `GPT returned an invalid action for this check. Existing evidence is retained; this question remains unresolved. Reference: ${incidentId}`, code: "INVALID_GUIDE_DECISION" });
+    }
   } catch (error) {
-    console.error("Capture guide failed", error instanceof Error ? error.message : "Unknown error");
-    return Response.json({ error: "The capture guide could not choose a valid action. Retry follow-up capture." }, { status: 502 });
+    const incidentId = crypto.randomUUID();
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const code = /timeout|timed out|abort/i.test(message) ? "GUIDE_TIMEOUT"
+      : /429|rate.limit/i.test(message) ? "GUIDE_RATE_LIMIT"
+      : /401|403|api.key|402|credits|payment/i.test(message) ? "GUIDE_PROVIDER_ACCESS"
+      : "GUIDE_REQUEST_FAILED";
+    console.error("Capture guide failed", { incidentId, reportId: id, code, message });
+    const explanation = code === "GUIDE_TIMEOUT" ? "The AI provider timed out."
+      : code === "GUIDE_RATE_LIMIT" ? "The AI provider rate limit was reached."
+      : code === "GUIDE_PROVIDER_ACCESS" ? "The AI provider rejected access. Check the server API key and provider credits."
+      : "The capture-guide request failed on the server.";
+    return Response.json({ error: `${explanation} Reference: ${incidentId}`, code, incidentId }, { status: 502 });
   }
 }

@@ -7,6 +7,17 @@ export const CaptureDecision = z.object({
   reason: z.string().min(1).max(500),
 });
 
+export function parseCaptureDecision(raw: string, controls: unknown[], history: Array<{ action?: unknown }>) {
+  const text = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  const value = JSON.parse(text);
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected a decision object.");
+  // JSON generators commonly represent optional fields as null. Do not relax
+  // validation of executable actions or invent a missing control target.
+  if (value.target === null) delete value.target;
+  if (["complete", "blocked"].includes(value.action) && value.kind == null) value.kind = "visual";
+  return validateCaptureDecision(value, controls, history);
+}
+
 export function validateCaptureDecision(value: unknown, controls: unknown[], history: Array<{ action?: unknown }>) {
   const decision = CaptureDecision.parse(value);
   if (["focus", "scroll"].includes(decision.action) && (decision.target === undefined || decision.target >= controls.length)) {
