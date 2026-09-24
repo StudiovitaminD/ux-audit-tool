@@ -7,6 +7,14 @@ const VISUAL_BUCKETS = new Set([
   "Icons & Imagery",
 ]);
 
+// A screenshot can score a criterion only when the criterion is observable in
+// one captured state. Interaction and runtime behavior still require a probe.
+const SCREENSHOT_SCOREABLE_BY_BUCKET: Record<string, number[]> = {
+  "Visual Feedback": [2, 4, 5, 6, 7, 9, 10],
+  "Color & Contrast": [6, 7, 8, 9, 10],
+  "Motion & Microinteractions": [1, 5, 7],
+};
+
 export function criterionEvidenceKinds(bucket: string, questionId: string, question: string): EvidenceKind[] {
   const number = Number(questionId.match(/\d+$/)?.[0] || 0);
 
@@ -75,7 +83,7 @@ export function isScreenshotScorableCriterion(bucket: string, questionId: string
   if (bucket === "Typography & Readability") return ![8, 9].includes(number);
   if (bucket === "Navigation & Findability") return ![7, 9, 10].includes(number);
   if (bucket === "Consistency & UI Patterns") return ![2, 3, 7, 8].includes(number);
-  if (bucket === "Color & Contrast") return [6, 7, 8, 9, 10].includes(number);
+  if (SCREENSHOT_SCOREABLE_BY_BUCKET[bucket]?.includes(number)) return true;
   if (bucket === "Content (Delight)") return ![4, 9].includes(number);
   return false;
 }

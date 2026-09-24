@@ -21,11 +21,16 @@ describe("canonical criterion evidence policy", () => {
     }
   });
 
-  it("scores static visual criteria without pretending interaction tests are visual", () => {
+  it("scores visible criteria from confirmed screenshots without treating hidden behavior as visual", () => {
     expect(isScreenshotScorableCriterion("Brand Expression", "BE01")).toBe(true);
     expect(isScreenshotScorableCriterion("Icons & Imagery", "II10")).toBe(true);
     expect(isScreenshotScorableCriterion("Navigation & Findability", "NF01")).toBe(true);
-    expect(isScreenshotScorableCriterion("Visual Feedback", "VF01")).toBe(false);
+    expect(isScreenshotScorableCriterion("Visual Feedback", "VF04")).toBe(true);
+    expect(isScreenshotScorableCriterion("Visual Feedback", "VF03")).toBe(false);
+    expect(isScreenshotScorableCriterion("Color & Contrast", "CC06")).toBe(true);
+    expect(isScreenshotScorableCriterion("Color & Contrast", "CC04")).toBe(false);
+    expect(isScreenshotScorableCriterion("Motion & Microinteractions", "MM05")).toBe(true);
+    expect(isScreenshotScorableCriterion("Motion & Microinteractions", "MM03")).toBe(false);
     expect(isScreenshotScorableCriterion("Typography & Readability", "TR08")).toBe(false);
     expect(isScreenshotScorableCriterion("Content (Delight)", "CD04")).toBe(false);
   });

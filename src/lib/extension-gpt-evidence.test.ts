@@ -93,4 +93,38 @@ describe("extension evidence reaches GPT", () => {
     expect(criterionEvidencePacket(evidence, "Color & Contrast", [focusContrast]))
       .not.toContain("DETERMINISTICALLY_SCOREABLE");
   });
+
+  it("marks visible feedback, brand, icon, and observable motion criteria as screenshot scoreable", () => {
+    const rawEvidence = extensionCapturesToEvidence({
+      productUrl: "https://example.com",
+      auditFlows: [],
+      extensionCaptureJson: JSON.stringify([{
+        url: "https://example.com",
+        title: "Homepage",
+        screenshotUrl: "data:image/png;base64,AAAA",
+      }]),
+    })!;
+    const evidence = attachEvidenceDepth(rawEvidence, buildEvidencePlan([
+      "Visual Feedback",
+      "Brand Expression",
+      "Icons & Imagery",
+      "Motion & Microinteractions",
+    ]));
+    const visibleFeedback = QUESTION_BANK["Visual Feedback"].find((question) => question.id === "VF04")!;
+    const duplicatePrevention = QUESTION_BANK["Visual Feedback"].find((question) => question.id === "VF03")!;
+    const brand = QUESTION_BANK["Brand Expression"][0];
+    const icons = QUESTION_BANK["Icons & Imagery"][0];
+    const motion = QUESTION_BANK["Motion & Microinteractions"].find((question) => question.id === "MM05")!;
+
+    expect(criterionEvidencePacket(evidence, "Visual Feedback", [visibleFeedback]))
+      .toContain("VISUALLY_SCOREABLE");
+    expect(criterionEvidencePacket(evidence, "Visual Feedback", [duplicatePrevention]))
+      .not.toContain("VISUALLY_SCOREABLE");
+    expect(criterionEvidencePacket(evidence, "Brand Expression", [brand]))
+      .toContain("VISUALLY_SCOREABLE");
+    expect(criterionEvidencePacket(evidence, "Icons & Imagery", [icons]))
+      .toContain("VISUALLY_SCOREABLE");
+    expect(criterionEvidencePacket(evidence, "Motion & Microinteractions", [motion]))
+      .toContain("VISUALLY_SCOREABLE");
+  });
 });
