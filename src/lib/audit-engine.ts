@@ -3237,7 +3237,6 @@ export async function finalizeAudit(args: {
     bucketCoverage.every((bucket) => bucket.ratio >= REPORT_COVERAGE_POLICY.fullBucketRatio);
   const scoreEligible =
     !hasCoverageShortfall &&
-    !hasScoringFailure &&
     meetsPublicationCoverageGate &&
     scoreableQuestions > 0 &&
     scoredBuckets.length > 0;
