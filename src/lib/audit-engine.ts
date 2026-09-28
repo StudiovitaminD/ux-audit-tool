@@ -23,6 +23,7 @@ import {
   questionEvidence,
 } from "@/lib/evidence-depth";
 import { isScreenshotScorableCriterion, supportsAccessibilityCriterion } from "@/lib/criterion-evidence-policy";
+import { runExternalToolPipeline } from "@/lib/external-tool-pipeline";
 
 const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4.1-mini";
 
@@ -2670,6 +2671,10 @@ export async function prepareEvidence(intake: Intake) {
   }
 
   if (!evidence) return null;
+
+  // Keep external-tool provenance attached to the bundle before it is turned
+  // into question packets, so the model can only score from recorded results.
+  evidence = await runExternalToolPipeline(evidence, intake.product_url);
 
   const normalizedPages = Array.isArray(evidence.pages)
     ? evidence.pages.map((page) => ({
