@@ -26,6 +26,11 @@ type LighthouseSummary = {
   seo?: number;
 };
 
+const loadRuntimeModule = new Function(
+  "specifier",
+  "return import(specifier)",
+) as (specifier: string) => Promise<any>;
+
 /**
  * Makes the external evidence contract explicit. Playwright and axe already
  * run in the collector; this layer records their contribution and prevents
@@ -118,9 +123,9 @@ export async function runExternalToolPipeline(bundle: EvidenceBundle, url: strin
 
   try {
     const [{ default: lighthouse }, chromeLauncher, chromiumModule] = await Promise.all([
-      import("lighthouse"),
-      import("chrome-launcher"),
-      import("@sparticuz/chromium"),
+      loadRuntimeModule("lighthouse"),
+      loadRuntimeModule("chrome-launcher"),
+      loadRuntimeModule("@sparticuz/chromium"),
     ]);
     const chromePath = await chromiumModule.default.executablePath();
     const chrome = await chromeLauncher.launch({

@@ -351,13 +351,6 @@ export function ReportView() {
   const [downloadingPptx, setDownloadingPptx] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [retryingReport, setRetryingReport] = useState(false);
-  const [recaptureTasks, setRecaptureTasks] = useState<Array<Record<string, unknown>>>([]);
-  const [recaptureState, setRecaptureState] = useState<"idle" | "running" | "uploading">("idle");
-  const [recaptureError, setRecaptureError] = useState<string | null>(null);
-  const [extensionVersion, setExtensionVersion] = useState<string | null>(null);
-  const recaptureCapturesRef = useRef<Array<Record<string, unknown>>>([]);
-  const recaptureStartTimerRef = useRef<number | null>(null);
-  const recaptureSubmissionStartedRef = useRef(false);
   const [reportSearch, setReportSearch] = useState("");
   const [draftProductName, setDraftProductName] = useState("");
   const [reportHistory, setReportHistory] = useState<
@@ -495,7 +488,7 @@ export function ReportView() {
 
   const kickProcess = useCallback(async (reason: string, minIntervalMs = 0) => {
     if (!rid) return;
-    if (status === "complete" || status === "error" || status === "cancelled" || status === "awaiting_recapture") return;
+    if (status === "complete" || status === "error" || status === "cancelled") return;
 
     const now = Date.now();
     if (processInFlightRef.current) return;
@@ -715,11 +708,6 @@ export function ReportView() {
             ? ((rec.evidence as Record<string, unknown>).debug as Record<string, unknown>)
             : null;
         setStatus(nextStatus);
-        setRecaptureTasks(
-          rec && Array.isArray(rec.recaptureTasks)
-            ? rec.recaptureTasks.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
-            : [],
-        );
         setJobError(nextError);
         setLastError(nextLastError);
         setDebugDetails(
@@ -784,7 +772,6 @@ export function ReportView() {
         const shouldKickImmediately =
           nextStatus === "processing" &&
           (currentStage === "queued_next_bucket" ||
-            currentStage === "queued_targeted_recapture" ||
             currentStage === "finalizing" ||
             currentStage === "retrying_primary_model" ||
             currentStage === "fallback_scoring");
@@ -805,7 +792,7 @@ export function ReportView() {
     timer = window.setInterval(() => {
       if (cancelled) return;
       // keep polling until job completes or errors
-      if (status === "complete" || status === "error" || status === "cancelled" || status === "awaiting_recapture") return;
+      if (status === "complete" || status === "error" || status === "cancelled") return;
       tick();
     }, 10000);
     return () => {
@@ -819,7 +806,7 @@ export function ReportView() {
   // and `finalizing` continue even if the browser misses a prior trigger.
   useEffect(() => {
     if (!rid) return;
-    if (status === "complete" || status === "error" || status === "cancelled" || status === "awaiting_recapture") return;
+    if (status === "complete" || status === "error" || status === "cancelled") return;
 
     const currentStage =
       debugDetails && typeof debugDetails.currentStage === "string"
@@ -827,7 +814,6 @@ export function ReportView() {
         : null;
     const isUrgentStage =
       currentStage === "queued_next_bucket" ||
-      currentStage === "queued_targeted_recapture" ||
       currentStage === "finalizing" ||
       currentStage === "retrying_primary_model" ||
       currentStage === "fallback_scoring";
@@ -854,122 +840,6 @@ export function ReportView() {
       window.clearInterval(interval);
     };
   }, [rid, status, debugDetails, processDelayMs, kickProcess]);
-
-  useEffect(() => {
-    if (!rid) return;
-    const activeReportId = rid;
-    async function submitRecapture(captures: Array<Record<string, unknown>>) {
-      setRecaptureState("uploading");
-      const screenshots: Array<Record<string, unknown>> = [];
-      const captureMetadata: Array<Record<string, unknown>> = [];
-      for (const [index, capture] of captures.entries()) {
-        const screenshotUrl = typeof capture.screenshotUrl === "string" ? capture.screenshotUrl : "";
-        const metadata = { ...capture };
-        delete metadata.screenshotUrl;
-        captureMetadata.push(metadata);
-        if (!screenshotUrl.startsWith("data:image/")) continue;
-        const [header, data] = screenshotUrl.split(",");
-        const bytes = Uint8Array.from(atob(data || ""), (char) => char.charCodeAt(0));
-        const type = header.match(/data:(.*?);/)?.[1] || "image/png";
-        const form = new FormData();
-        form.set("file", new File([bytes], `follow-up-${index + 1}.png`, { type }));
-        const upload = await fetch("/api/uploads/screenshots", { method: "POST", body: form, headers: sessionHeaders });
-        const uploaded = await upload.json() as Record<string, unknown>;
-        if (!upload.ok) throw new Error(typeof uploaded.error === "string" ? uploaded.error : "Follow-up screenshot upload failed.");
-        screenshots.push({
-          name: `Follow-up capture ${index + 1}`,
-          type,
-          size: bytes.length,
-          url: uploaded.url,
-          publicId: uploaded.publicId,
-          width: uploaded.width,
-          height: uploaded.height,
-          format: uploaded.format,
-          resourceType: uploaded.resourceType,
-          label: "interaction_state",
-        });
-      }
-      const response = await fetch(`/api/audit/${encodeURIComponent(activeReportId)}/recapture`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...sessionHeaders },
-        body: JSON.stringify({ captures: captureMetadata, screenshots }),
-      });
-      const result = await response.json() as Record<string, unknown>;
-      if (!response.ok) throw new Error(typeof result.error === "string" ? result.error : "Follow-up evidence could not be submitted.");
-      setStatus("processing");
-      setRecaptureState("idle");
-      setProcessKickCount((count) => count + 1);
-    }
-
-    function handleExtensionMessage(event: MessageEvent) {
-      if (event.source !== window || event.data?.source !== "ux-audit-extension") return;
-      if (event.data.type === "UX_AUDIT_EXTENSION_READY") {
-        setExtensionVersion(typeof event.data.version === "string" ? event.data.version : "unknown");
-        return;
-      }
-      if (event.data.type === "UX_AUDIT_RECAPTURE_STARTED") {
-        if (recaptureStartTimerRef.current !== null) {
-          window.clearTimeout(recaptureStartTimerRef.current);
-          recaptureStartTimerRef.current = null;
-        }
-        if (!event.data.ok) {
-          setRecaptureState("idle");
-          setRecaptureError(event.data.error || "The extension could not start follow-up capture.");
-        }
-        return;
-      }
-      if (event.data.type === "UX_AUDIT_RECAPTURE_RESULT") {
-        const captures = Array.isArray(event.data.captures) ? event.data.captures : [];
-        recaptureCapturesRef.current.push(...captures);
-        return;
-      }
-      if (event.data.type === "UX_AUDIT_RECAPTURE_ERROR") {
-        if (recaptureStartTimerRef.current !== null) window.clearTimeout(recaptureStartTimerRef.current);
-        recaptureStartTimerRef.current = null;
-        setRecaptureState("idle");
-        setRecaptureError(event.data.error || "Follow-up capture failed.");
-        return;
-      }
-      if (event.data.type === "UX_AUDIT_RECAPTURE_COMPLETE") {
-        // A reloaded extension can leave an old bridge in a tab briefly. Accept
-        // one terminal signal only so duplicate messages cannot restart the job.
-        if (recaptureSubmissionStartedRef.current) return;
-        recaptureSubmissionStartedRef.current = true;
-        if (recaptureStartTimerRef.current !== null) window.clearTimeout(recaptureStartTimerRef.current);
-        recaptureStartTimerRef.current = null;
-        const captures = recaptureCapturesRef.current.splice(0);
-        void submitRecapture(captures).catch((error) => {
-          setRecaptureState("idle");
-          setRecaptureError(error instanceof Error ? error.message : "Follow-up evidence could not be submitted.");
-        });
-      }
-    }
-    window.addEventListener("message", handleExtensionMessage);
-    window.postMessage({ source: "ux-audit-app", type: "UX_AUDIT_EXTENSION_PING" }, "*");
-    return () => {
-      window.removeEventListener("message", handleExtensionMessage);
-      if (recaptureStartTimerRef.current !== null) window.clearTimeout(recaptureStartTimerRef.current);
-    };
-  }, [rid, sessionHeaders]);
-
-  function startTargetedRecapture() {
-    setRecaptureError(null);
-    recaptureCapturesRef.current = [];
-    recaptureSubmissionStartedRef.current = false;
-    setRecaptureState("running");
-    if (recaptureStartTimerRef.current !== null) window.clearTimeout(recaptureStartTimerRef.current);
-    recaptureStartTimerRef.current = window.setTimeout(() => {
-      setRecaptureState("idle");
-      setRecaptureError("The extension bridge is not connected to this report tab. Reload the extension, then refresh this report page once.");
-      recaptureStartTimerRef.current = null;
-    }, 5000);
-    window.postMessage({
-      source: "ux-audit-app",
-      type: "UX_AUDIT_RUN_TARGETED_RECAPTURE",
-      reportId: rid,
-      tasks: recaptureTasks,
-    }, "*");
-  }
 
   const effectiveReport = rid
     ? remoteReport?.reportId === rid
@@ -1422,44 +1292,6 @@ export function ReportView() {
             {retryingReport ? "Retrying…" : "Try again"}
           </button>
         </div>
-      </div>
-    );
-  }
-
-  if (reportId && status === "awaiting_recapture") {
-    const permissionTasks = recaptureTasks.filter((task) => task.requiresPermission === true).length;
-    return (
-      <div className="p-6">
-        <div className="text-lg font-semibold">More evidence can improve this report</div>
-        <p className="mt-3 max-w-3xl text-sm text-[color:var(--muted)]">
-          The first pass found {recaptureTasks.length} unresolved checks. Run one visible follow-up pass and the extension will capture the missing states, then only the affected audit buckets will be reviewed again.
-        </p>
-        {permissionTasks > 0 ? (
-          <p className="mt-2 text-sm text-[color:var(--muted)]">
-            {permissionTasks} {permissionTasks === 1 ? "task may" : "tasks may"} involve a form. The extension will ask before every submission.
-          </p>
-        ) : null}
-        <div className="mt-4 max-h-72 space-y-2 overflow-auto rounded-[var(--radius)] border border-[color:var(--cream-dark)] bg-white p-4">
-          {recaptureTasks.map((task) => (
-            <div key={String(task.id)} className="text-sm">
-              <span className="font-semibold">{String(task.bucket || "Audit")}: </span>
-              {String(task.question || task.instruction || "Capture additional evidence")}
-            </div>
-          ))}
-        </div>
-        {recaptureError ? <p className="mt-3 text-sm text-red-600">{recaptureError}</p> : null}
-        <p className="mt-3 text-xs text-[color:var(--muted)]">
-          {extensionVersion ? `Connected extension: v${extensionVersion}` : "Extension connection: not detected"}
-        </p>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={startTargetedRecapture}
-          disabled={recaptureState !== "idle" || recaptureTasks.length === 0}
-          className="mt-4 min-w-52 px-5 py-2.5 font-semibold disabled:bg-[color:var(--accent)] disabled:text-[color:var(--white)] disabled:opacity-100"
-        >
-          {recaptureState === "running" ? "Extension is checking…" : recaptureState === "uploading" ? "Uploading evidence…" : "Run follow-up capture"}
-        </Button>
       </div>
     );
   }
