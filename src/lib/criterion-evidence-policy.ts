@@ -11,7 +11,7 @@ export function supportsAccessibilityCriterion(bucket: string, questionId: strin
       if ([9, 10].includes(number)) return Number(record.measuredValues?.validationStateCount || 0) > 0;
       return false;
     }
-    return [1, 7, 8].includes(number) && record.kind === "interaction" && record.testMethod === "targeted_browser_measurement";
+    return [1, 7, 8].includes(number) && record.kind === "interaction" && ["targeted_browser_measurement", "deterministic_browser_measurement"].includes(record.testMethod);
   }
   if (bucket === "Color & Contrast") {
     if (record.kind === "contrast") {

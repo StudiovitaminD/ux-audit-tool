@@ -391,7 +391,7 @@
 
     if (testSafeInteractions) {
       const safeControls = Array.from(document.querySelectorAll(
-        "summary, button[aria-expanded], [role='tab'], button[aria-controls]",
+        "summary, button:not([type='submit']), [role='button'], [role='tab'], button[aria-controls], a[href]",
       ))
         .filter(isVisible)
         .filter((element) => !element.closest("form") || (element.getAttribute("type") || "button").toLowerCase() === "button")

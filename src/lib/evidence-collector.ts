@@ -44,6 +44,7 @@ export type EvidencePage = {
     contrast?: { tested: boolean; samplesTested: number; failures: number; normalText?: { tested: number; failures: number }; largeText?: { tested: number; failures: number } };
     semantics?: { tested: boolean; landmarks: number; unlabeledControls: number; imagesMissingAlt: number; headingOrderIssues: number };
     keyboard?: { tested: boolean; focusableCount: number; visibleFocusCount: number; trapDetected: boolean };
+    interaction?: { tested: boolean; controlsTested: number; stateChanges: number; activations: number };
     responsive?: { tested: boolean; horizontalOverflow: boolean; overflowPixels: number };
     zoom?: { tested: boolean; scale: number; horizontalOverflow: boolean; overflowPixels: number };
     reducedMotion?: { tested: boolean; mediaQueryMatched: boolean; animationsDetected: number };
@@ -2585,6 +2586,7 @@ export function extensionCapturesToEvidence(input: {
     const formsCheck = automatedChecks.forms && typeof automatedChecks.forms === "object"
       ? automatedChecks.forms as Record<string, unknown>
       : {};
+    const interactionsCheck = Array.isArray(automatedChecks.interactions) ? automatedChecks.interactions : [];
     const motion = automatedChecks.motion && typeof automatedChecks.motion === "object"
       ? automatedChecks.motion as Record<string, unknown>
       : {};
@@ -2654,6 +2656,12 @@ export function extensionCapturesToEvidence(input: {
           focusableCount: Number(keyboard.testedCount || 0),
           visibleFocusCount: keyboardSamples.filter((sample) => sample && typeof sample === "object" && (sample as Record<string, unknown>).focusable === true).length,
           trapDetected: false,
+        },
+        interaction: {
+          tested: interactionsCheck.length > 0,
+          controlsTested: interactionsCheck.length,
+          stateChanges: interactionsCheck.filter((item) => item && typeof item === "object" && (item as Record<string, unknown>).result === "state_changed").length,
+          activations: interactionsCheck.filter((item) => item && typeof item === "object" && ["activated", "state_changed"].includes(String((item as Record<string, unknown>).result))).length,
         },
         responsive: {
           tested: Object.keys(responsive).length > 0 || (["responsive", "zoom", "text_spacing"].includes(safeText(targetedCheck.kind)) && targetedCheck.tested === true),

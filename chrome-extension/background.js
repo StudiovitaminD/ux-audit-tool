@@ -192,7 +192,9 @@ async function runVisibleAudit(tabId, options = {}) {
       await runnerStatus(tabId, { phase: "checking", message: "Checking structure, accessibility, keyboard and performance" });
       const inspection = await sendToAuditTab(tabId, {
         type: "UX_AUDIT_RUN_DETERMINISTIC_CHECKS",
-        payload: { testSafeInteractions: settings.testSafeInteractions },
+        // Always run non-destructive interaction probes. Form submission still
+        // requires the separate permission prompt inside the content script.
+        payload: { testSafeInteractions: true },
       });
       for (const link of inspection?.internalLinks || []) {
         if (queue.length + visited.size >= settings.maxAuditPages) break;

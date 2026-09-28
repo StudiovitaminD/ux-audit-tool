@@ -77,6 +77,9 @@ function pageObservation(page: EvidencePage, kind: EvidenceKind) {
   if (kind === "keyboard" && measured?.keyboard?.tested) {
     return { status: "confirmed" as const, text: `${measured.keyboard.focusableCount} focusable controls found; visible focus observed on ${measured.keyboard.visibleFocusCount} tab stops.` };
   }
+  if (kind === "interaction" && measured?.interaction?.tested) {
+    return { status: "confirmed" as const, text: `${measured.interaction.controlsTested} safe interactive controls were tested; ${measured.interaction.stateChanges} changed state and ${measured.interaction.activations} produced activation feedback.` };
+  }
   if (kind === "responsive" && measured?.responsive?.tested) {
     return { status: "confirmed" as const, text: measured.responsive.horizontalOverflow ? "Horizontal overflow was measured." : "No horizontal overflow was measured at the captured viewport." };
   }
@@ -131,6 +134,13 @@ function measuredValuesFor(
       visibleFocusCount: deterministic.keyboard.visibleFocusCount,
     };
   }
+  if (kind === "interaction" && deterministic.interaction?.tested) {
+    return {
+      controlsTested: deterministic.interaction.controlsTested,
+      stateChanges: deterministic.interaction.stateChanges,
+      activations: deterministic.interaction.activations,
+    };
+  }
   if (kind === "responsive" && deterministic.responsive?.tested) {
     return { horizontalOverflow: deterministic.responsive.horizontalOverflow };
   }
@@ -176,13 +186,13 @@ function pageSupportsKind(page: EvidencePage, kind: EvidenceKind) {
   if (kind === "performance") return measured?.performance?.tested === true;
   if (kind === "contrast") return measured?.contrast?.tested === true;
   if (kind === "keyboard") return measured?.keyboard?.tested === true;
+  if (kind === "interaction") return measured?.interaction?.tested === true || (page.targetedCheck?.kind === "interaction" && page.targetedCheck.tested === true);
   if (kind === "responsive") return measured?.responsive?.tested === true;
   if (kind === "zoom") return measured?.zoom?.tested === true;
   if (kind === "accessibility_tree") return measured?.semantics?.tested === true;
   if (kind === "form_state") return measured?.forms?.tested === true && Boolean(measured.forms.testedStates?.some((state) => ["validation_observed", "navigation_observed", "submitted"].includes(String(state.result))));
   if (kind === "reduced_motion") return measured?.reducedMotion?.tested === true;
   if (kind === "text_spacing") return page.targetedCheck?.kind === "text_spacing" && page.targetedCheck.tested === true;
-  if (kind === "interaction") return page.targetedCheck?.kind === "interaction" && page.targetedCheck.tested === true;
   return kind === "dom" || kind === "content" || kind === "screenshot";
 }
 
