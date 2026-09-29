@@ -4,6 +4,7 @@ import {
   criterionEvidenceKinds,
   isScreenshotScorableCriterion,
   recaptureKindForCriterion,
+  supportsAccessibilityCriterion,
 } from "@/lib/criterion-evidence-policy";
 
 describe("canonical criterion evidence policy", () => {
@@ -45,5 +46,19 @@ describe("canonical criterion evidence policy", () => {
     expect(criterionEvidenceKinds("Performance", "PF10", "Layout shift")).toContain("performance");
     expect(criterionEvidenceKinds("Screen Reader Support", "SR09", "Error announcements")).toContain("form_state");
     expect(criterionEvidenceKinds("Navigation & Findability", "NF01", "Primary navigation")).not.toContain("keyboard");
+    expect(criterionEvidenceKinds("Color & Contrast", "CC03", "Component contrast")).toContain("contrast");
+    expect(criterionEvidenceKinds("Color & Contrast", "CC04", "Focus contrast")).toContain("keyboard");
+    expect(criterionEvidenceKinds("Color & Contrast", "CC05", "State contrast")).toContain("interaction");
+  });
+
+  it("accepts measured contrast for component and readable-pairing criteria", () => {
+    const record = {
+      status: "confirmed",
+      kind: "contrast",
+      testMethod: "deterministic_browser_measurement",
+      measuredValues: { samplesTested: 12 },
+    } as any;
+    expect(supportsAccessibilityCriterion("Color & Contrast", "CC03", record)).toBe(true);
+    expect(supportsAccessibilityCriterion("Color & Contrast", "CC06", record)).toBe(true);
   });
 });

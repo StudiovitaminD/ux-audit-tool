@@ -11,13 +11,23 @@ export function supportsAccessibilityCriterion(bucket: string, questionId: strin
       if ([9, 10].includes(number)) return Number(record.measuredValues?.validationStateCount || 0) > 0;
       return false;
     }
-    return [1, 7, 8].includes(number) && record.kind === "interaction" && ["targeted_browser_measurement", "deterministic_browser_measurement"].includes(record.testMethod);
+    return record.kind === "interaction" && ["targeted_browser_measurement", "deterministic_browser_measurement"].includes(record.testMethod);
   }
   if (bucket === "Color & Contrast") {
     if (record.kind === "contrast") {
       if (number === 1) return Number(record.measuredValues?.normalTextTested || 0) > 0;
       if (number === 2) return Number(record.measuredValues?.largeTextTested || 0) > 0;
+      // The extension samples text and controls from their computed styles.
+      // That is valid evidence for component contrast and readable pairings;
+      // focus/state-specific checks still require their matching probes.
+      if ([3, 6].includes(number)) return Number(record.measuredValues?.samplesTested || 0) > 0;
       return false;
+    }
+    if (record.kind === "keyboard" && number === 4) {
+      return Number(record.measuredValues?.focusableCount || 0) > 0;
+    }
+    if (record.kind === "interaction" && number === 5) {
+      return Number(record.measuredValues?.controlsTested || 0) > 0;
     }
     return record.kind === "screenshot" && number >= 6;
   }
@@ -47,6 +57,8 @@ export function criterionEvidenceKinds(bucket: string, questionId: string, quest
     return ["interaction", "screenshot"];
   }
   if (bucket === "Color & Contrast") {
+    if ([4].includes(number)) return ["keyboard", "contrast", "screenshot"];
+    if ([5].includes(number)) return ["interaction", "contrast", "screenshot"];
     if (number <= 7) return ["contrast", "screenshot"];
     if (number === 8) return ["form_state", "accessibility_tree", "screenshot"];
     return ["accessibility_tree", "screenshot"];
