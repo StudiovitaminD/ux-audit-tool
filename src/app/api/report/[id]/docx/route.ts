@@ -216,24 +216,6 @@ function buildDocxXml(report: unknown, reportId: string) {
   normalizeList(vm.roadmap.quarter_1, 12).forEach((item) => parts.push(bulletParagraph(item)));
   parts.push(spacer());
 
-  parts.push(paragraph("Methodology & Scope", "Heading1"));
-  parts.push(paragraph(vm.methodology.framework));
-  parts.push(paragraph(`Selected buckets: ${vm.methodology.selectedBuckets.join(", ") || "—"}`));
-  parts.push(paragraph(`Scored criteria: ${vm.methodology.questionsScoreable} of ${vm.methodology.questionsTotal}`));
-  parts.push(paragraph(`Capture status: ${vm.methodology.captureStatus}`));
-  parts.push(spacer());
-
-  parts.push(paragraph("Evidence Appendix", "Heading1"));
-  if (!vm.evidenceAppendix.length) {
-    parts.push(paragraph("No traceable evidence references were available."));
-  } else {
-    vm.evidenceAppendix.forEach((item) => {
-      parts.push(paragraph(`${item.evidenceId} — ${item.bucket} / ${item.questionId}`, "Heading2"));
-      parts.push(paragraph(item.observation || item.evidence || item.question));
-    });
-  }
-  parts.push(spacer());
-
   if (vm.closingNote) {
     parts.push(spacer());
     parts.push(paragraph("Closing Note", "Heading1"));

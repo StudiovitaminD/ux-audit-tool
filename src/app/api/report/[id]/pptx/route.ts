@@ -761,30 +761,6 @@ async function buildPptxResponse(req: Request, id: string) {
       });
     });
 
-    addSectionSlide(pptx, id, "Methodology & Scope", subtitle, (slide) => {
-      addCard(slide, pptx, { x: 0.65, y: 1.25, w: 11.75, h: 1.35, title: "Evidence policy", text: vm.methodology.framework, line: SOFT_LINE });
-      addCard(slide, pptx, { x: 0.65, y: 2.85, w: 5.7, h: 1.55, title: "Selected buckets", text: vm.methodology.selectedBuckets.join(" • ") || "None recorded", line: SOFT_LINE });
-      addCard(slide, pptx, { x: 6.7, y: 2.85, w: 5.7, h: 1.55, title: "Coverage", text: `${vm.methodology.questionsScoreable} of ${vm.methodology.questionsTotal} criteria scored\nCapture status: ${vm.methodology.captureStatus}`, line: SOFT_LINE });
-    });
-
-    chunk(vm.evidenceAppendix, 6).forEach((items, index) => {
-      addSectionSlide(pptx, id, "Evidence Appendix", `Traceable evidence ${index + 1}`, (slide) => {
-        items.forEach((item, itemIndex) => {
-          const column = itemIndex % 2;
-          const row = Math.floor(itemIndex / 2);
-          addCard(slide, pptx, {
-            x: 0.65 + column * 6.05,
-            y: 1.2 + row * 1.75,
-            w: 5.7,
-            h: 1.45,
-            title: `${item.evidenceId} · ${item.bucket}`,
-            text: truncate(item.observation || item.evidence || item.question, 240),
-            line: SOFT_LINE,
-          });
-        });
-      });
-    });
-
     const buf = (await pptx.write("nodebuffer")) as unknown as Buffer;
     return new Response(new Uint8Array(buf), {
       headers: {

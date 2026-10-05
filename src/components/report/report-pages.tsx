@@ -8,7 +8,6 @@ import { buildQuickWinsRoadmapPages } from "./sections/QuickWinsRoadmapSection";
 import { IntroPageSection } from "./sections/IntroPageSection";
 import { ThankYouPageSection } from "./sections/ThankYouPageSection";
 import { buildTestingLimitationsPages } from "./sections/TestingLimitationsSection";
-import { buildMethodologyEvidencePages } from "./sections/MethodologyEvidenceSection";
 import type { ReportPage } from "./sections/shared";
 
 export type BuildReportPagesOptions = {
@@ -123,10 +122,6 @@ export function buildReportPages({
     ...buildQuickWinsRoadmapPages({ vm }).map((page) => ({
       ...page,
       locked: isLocked("quick_wins_roadmap"),
-    })),
-    ...buildMethodologyEvidencePages(vm).map((page) => ({
-      ...page,
-      locked: isLocked("methodology_evidence"),
     })),
     ...buildTestingLimitationsPages(vm.testingLimitations).map((page) => ({
       ...page,
