@@ -177,6 +177,31 @@ function normalizeIntakePatch(patch: Record<string, unknown>) {
   return normalized;
 }
 
+function completeWebsiteAutofill(patch: Record<string, unknown>) {
+  const completed = { ...patch };
+  const hasText = (key: string) => typeof completed[key] === "string" && completed[key].trim().length > 0;
+  const setText = (key: string, value: string) => {
+    if (!hasText(key)) completed[key] = value;
+  };
+  const productName = hasText("productName") ? String(completed.productName).trim() : "this product";
+
+  // These are clearly editable planning defaults. They let URL-only autofill
+  // produce a usable draft without representing guesses as customer data.
+  setText("primaryUser", `Prospective customers evaluating ${productName}`);
+  setText("userAge", "Adults 25–54");
+  if (typeof completed.userGender !== "string" || !completed.userGender.trim()) completed.userGender = "both";
+  setText("userLanguage", "English");
+  setText("userGeography", "Online / global");
+  setText("primaryUserGoal", `Quickly understand whether ${productName} meets their needs and take the next step.`);
+  if (typeof completed.primaryUserIntent !== "string" || !completed.primaryUserIntent.trim()) completed.primaryUserIntent = "both";
+  setText("frequencyOfUse", "weekly");
+  setText("productStage", "Live product / website");
+  setText("primaryBusinessObjective", "Increase qualified customer interest and improve conversion through a clear, trustworthy digital experience.");
+  setText("businessFutureGoals", "Improve the digital experience, increase qualified enquiries or conversions, and strengthen the product's online presence.");
+  setText("differentiation", "A clear digital service or product experience tailored to the needs described on the website.");
+  return completed;
+}
+
 function extractOpenRouterContent(raw: string): string {
   const parsed = safeJsonParse<Record<string, unknown>>(raw);
   if (!parsed || typeof parsed !== "object") return raw;
@@ -259,6 +284,7 @@ export async function POST(req: Request) {
       "Prefer short strings. For arrays, include only items you are confident about.",
     ].join("\n");
 
+    const isWebsiteAutofill = Boolean(parsedBody.websiteUrl && !parsedBody.transcript?.trim());
     const user = `Extract as much as possible from this source into an intake PATCH object.
 
 Source:
@@ -306,9 +332,13 @@ Important:
 - Always select relevant selectedBuckets values using only these exact names: Visual Feedback, Color & Contrast, Typography & Readability, Keyboard Navigation, Screen Reader Support, Navigation & Findability, Consistency & UI Patterns, Content (Impact), Performance, Visual Consistency, Motion & Microinteractions, Content (Delight), Brand Expression, Icons & Imagery. Never return an empty selectedBuckets array.
 - The knownProblem field is displayed as "About the product". Write 1 to 3 plain, neutral sentences describing what the product offers, who it serves, and its main value. Do not write a UX problem, criticism, recommendation, vague challenge, or phrase beginning with "Complexity in".
 - productOneLiner must be one concise factual sentence describing the product, not an audit finding.
-- Fill Business Details only when the source supports them. Do not turn likely goals into confirmed company plans.
+- ${isWebsiteAutofill
+    ? "This is website autofill, so create a complete, editable audit brief. When the website does not state a required business or persona detail, use a conservative planning assumption rather than omitting it. Phrase business goals as a proposed direction, not a confirmed company plan. Use these defaults only when no evidence is available: userAge \"Adults 25–54\", userGender \"both\", userLanguage \"English\", userGeography \"Online / global\", primaryUserIntent \"both\", and frequencyOfUse \"weekly\". Always fill primaryUser, primaryUserGoal, primaryBusinessObjective, businessFutureGoals, differentiation, and productStage."
+    : "Fill Business Details only when the source supports them. Do not turn likely goals into confirmed company plans."}
 - Include competitors only when the source explicitly names them or their identity and public homepage can be verified from supplied material. Never guess a URL.
-- Fill persona fields only when supported by the source. Do not invent age, gender, language, geography, or intent. Use only women, men, or both for a supported userGender and desktop, mobile, or both for a supported primaryUserIntent.
+- ${isWebsiteAutofill
+    ? "For website autofill, use the editable planning defaults above for unknown persona fields."
+    : "Fill persona fields only when supported by the source. Do not invent age, gender, language, geography, or intent. Use only women, men, or both for a supported userGender and desktop, mobile, or both for a supported primaryUserIntent."}
 - Do not invent login credentials or private information. For optional fields not covered above, omit values you cannot support.`;
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -367,7 +397,10 @@ Important:
       );
     }
 
-    return NextResponse.json({ patch: normalizeIntakePatch(patch) }, { status: 200 });
+    const normalizedPatch = normalizeIntakePatch(patch);
+    return NextResponse.json({
+      patch: isWebsiteAutofill ? completeWebsiteAutofill(normalizedPatch) : normalizedPatch,
+    }, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 400 });
