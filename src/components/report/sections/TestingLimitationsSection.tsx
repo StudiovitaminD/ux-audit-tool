@@ -51,7 +51,9 @@ export function buildTestingLimitationsPages(limitations: AnyRecord[]): ReportPa
   let currentSize = 0;
   for (const limitation of summarizedLimitations) {
     const itemSize = `${asString(limitation.question)} ${asString(limitation.reason)}`.length + 160;
-    if (current.length && (current.length >= 4 || currentSize + itemSize > 1800)) {
+    // Limitation cards are compact summaries. The former four-card cap created
+    // mostly empty continuation pages despite enough printable space remaining.
+    if (current.length && (current.length >= 6 || currentSize + itemSize > 3000)) {
       chunks.push(current);
       current = [];
       currentSize = 0;
@@ -65,8 +67,8 @@ export function buildTestingLimitationsPages(limitations: AnyRecord[]): ReportPa
     const pageNumber = index;
     pages.push({
       key: `testing_limitations_${pageNumber + 1}`,
-      title: "Testing Limitations",
-      showTitle: pageNumber === 0,
+      title: pageNumber === 0 ? "Testing Limitations" : "Testing Limitations (continued)",
+      showTitle: true,
       variant: "standard",
       body: <TestingLimitationsSection limitations={chunks[index]} />,
     });

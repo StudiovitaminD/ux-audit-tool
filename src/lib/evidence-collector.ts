@@ -2890,7 +2890,7 @@ export async function collectEvidence(input: {
   const extensionEvidence = input.accessMode === "browser_extension_capture"
     ? extensionCapturesToEvidence(input)
     : null;
-  const manualEvidence = extensionEvidence && uploadedEvidence
+  let manualEvidence = extensionEvidence && uploadedEvidence
     ? mergeEvidenceBundles(extensionEvidence, uploadedEvidence)
     : extensionEvidence || uploadedEvidence || null;
 
@@ -2903,7 +2903,7 @@ export async function collectEvidence(input: {
       input.productType === "marketing_website" || input.productType === "ecommerce";
     if (isPublicAudit) {
       const fetched = await collectEvidenceViaFetch(input);
-      const merged = mergeEvidenceBundles(
+      manualEvidence = mergeEvidenceBundles(
         {
           ...fetched,
           visitedFlows: [],
@@ -2919,24 +2919,23 @@ export async function collectEvidence(input: {
             guidedStepsParsed: Array.isArray(input.guidedCaptureSteps) ? input.guidedCaptureSteps.length : 0,
             guidedStepsAttempted: 0,
             guidedStepsCompleted: 0,
-            guidedStepsSkippedReason: "Public website/ecommerce audits use direct page fetch plus uploaded evidence.",
+            guidedStepsSkippedReason: "Public website/ecommerce audit will also run deterministic browser checks.",
             internalRoutesReceived: Array.isArray(input.internalRoutes) ? input.internalRoutes.length : 0,
             internalRoutesAttempted: 0,
             internalRoutesCompleted: 0,
             loginAttempted: false,
             accessModeResolved: input.accessMode,
             browserFallbackAttempted: false,
-            browserFallbackEligible: false,
-            browserFallbackMode: "public_site_fetch_or_upload",
+            browserFallbackEligible: true,
+            browserFallbackMode: "public_site_fetch_then_browser",
           },
         } satisfies EvidenceBundle,
-        mergedEvidence,
+        manualEvidence,
       );
-      merged.debug = {
-        ...(merged.debug || {}),
-        evidenceSource: "public_fetch_or_upload",
+      manualEvidence.debug = {
+        ...(manualEvidence.debug || {}),
+        evidenceSource: "public_fetch_then_browser",
       };
-      return merged;
     }
     const canUseBrowserFallback =
       hasCredentials ||
@@ -2951,7 +2950,11 @@ export async function collectEvidence(input: {
       mergedCoverage?.status === "full_coverage" ||
       mergedCoverage?.status === "usable_coverage";
 
-    if (!manualCoverageStrongEnough && canUseBrowserFallback) {
+    if (isPublicAudit) {
+      // Public audits need a real browser session even when fetch/extension evidence is
+      // available: interaction, focus/hover, motion, contrast, and runtime metrics
+      // cannot be established from static HTML alone.
+    } else if (!manualCoverageStrongEnough && canUseBrowserFallback) {
       // Continue into the browser pipeline below and merge the captured browser evidence
       // with extension/uploaded evidence instead of returning early.
     } else {
@@ -3062,6 +3065,7 @@ export async function collectEvidence(input: {
   const shouldUseBrowser =
     normalizedAccessMode !== "public_fetch_fallback" && (
       (!isPublicAudit && mode === "browser") ||
+      (isPublicAudit && input.accessMode === "browser_extension_capture") ||
       requiresLogin ||
       explicitBrowserAccessMode ||
       (hasGuidedSteps || hasInternalRoutes) && !isPublicAudit
