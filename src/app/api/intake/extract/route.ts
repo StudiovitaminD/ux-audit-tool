@@ -59,6 +59,7 @@ function normalizePatchCandidate(value: unknown): Record<string, unknown> | null
     "auditFlows",
     "selectedBuckets",
     "primaryUser",
+    "userPersona",
     "userAge",
     "userGender",
     "userLanguage",
@@ -199,6 +200,42 @@ function completeWebsiteAutofill(patch: Record<string, unknown>) {
   setText("primaryBusinessObjective", "Increase qualified customer interest and improve conversion through a clear, trustworthy digital experience.");
   setText("businessFutureGoals", "Improve the digital experience, increase qualified enquiries or conversions, and strengthen the product's online presence.");
   setText("differentiation", "A clear digital service or product experience tailored to the needs described on the website.");
+  const personas = Array.isArray(completed.userPersona)
+    ? completed.userPersona.filter((value): value is string => typeof value === "string" && /primary users:/i.test(value))
+    : [];
+  const defaultPersonas = [
+    [
+      "Persona type: primary",
+      `Primary users: Business owners and decision-makers evaluating ${productName}`,
+      "Age group: Adults 25–54",
+      "User gender: both",
+      "User language: English",
+      "User preferred Platform: both",
+      "User geography: Online / global",
+      `User Goal: Quickly understand whether ${productName} is a good fit and make an informed next-step decision.`,
+    ].join("\n"),
+    [
+      "Persona type: secondary",
+      "Primary users: Marketing and brand leads researching digital-growth partners",
+      "Age group: Adults 25–54",
+      "User gender: both",
+      "User language: English",
+      "User preferred Platform: both",
+      "User geography: Online / global",
+      "User Goal: Compare capabilities, proof, and services before shortlisting a provider.",
+    ].join("\n"),
+    [
+      "Persona type: secondary",
+      "Primary users: Project leads coordinating a website or digital-experience initiative",
+      "Age group: Adults 25–54",
+      "User gender: both",
+      "User language: English",
+      "User preferred Platform: desktop",
+      "User geography: Online / global",
+      "User Goal: Find a credible partner and clarify the path from project requirements to delivery.",
+    ].join("\n"),
+  ];
+  completed.userPersona = [...personas, ...defaultPersonas].slice(0, 3);
   return completed;
 }
 
@@ -276,15 +313,17 @@ export async function POST(req: Request) {
       !normalizedModel.includes("nvidia/nemotron") &&
       !normalizedModel.includes("gpt-oss");
 
+    const isWebsiteAutofill = Boolean(parsedBody.websiteUrl && !parsedBody.transcript?.trim());
     const system = [
       "You are an expert UX researcher helping to fill a UX audit intake form from a transcript or product website.",
       "Return ONLY valid JSON. No markdown, no prose.",
-      "Use only facts supported by the supplied source. Never invent business plans, demographics, competitors, credentials, or product capabilities.",
+      isWebsiteAutofill
+        ? "Use supplied facts whenever available. You may create clearly editable planning defaults and market-competitor suggestions when facts are unavailable, but never present them as confirmed company facts.":
+        "Use only facts supported by the supplied source. Never invent business plans, demographics, competitors, credentials, or product capabilities.",
       "Never return undefined; omit keys instead.",
       "Prefer short strings. For arrays, include only items you are confident about.",
     ].join("\n");
 
-    const isWebsiteAutofill = Boolean(parsedBody.websiteUrl && !parsedBody.transcript?.trim());
     const user = `Extract as much as possible from this source into an intake PATCH object.
 
 Source:
@@ -306,6 +345,7 @@ Return JSON with this shape:
     "auditFlows": string[],
     "selectedBuckets": string[],
     "primaryUser": string,
+    "userPersona": string[],
     "userAge": string,
     "userGender": "women"|"men"|"both",
     "userLanguage": string,
@@ -333,7 +373,7 @@ Important:
 - The knownProblem field is displayed as "About the product". Write 1 to 3 plain, neutral sentences describing what the product offers, who it serves, and its main value. Do not write a UX problem, criticism, recommendation, vague challenge, or phrase beginning with "Complexity in".
 - productOneLiner must be one concise factual sentence describing the product, not an audit finding.
 - ${isWebsiteAutofill
-    ? "This is website autofill, so create a complete, editable audit brief. When the website does not state a required business or persona detail, use a conservative planning assumption rather than omitting it. Phrase business goals as a proposed direction, not a confirmed company plan. Use these defaults only when no evidence is available: userAge \"Adults 25–54\", userGender \"both\", userLanguage \"English\", userGeography \"Online / global\", primaryUserIntent \"both\", and frequencyOfUse \"weekly\". Always fill primaryUser, primaryUserGoal, primaryBusinessObjective, businessFutureGoals, differentiation, and productStage."
+    ? "This is website autofill, so create a complete, editable audit brief. When the website does not state a required business or persona detail, use a conservative planning assumption rather than omitting it. Phrase business goals as a proposed direction, not a confirmed company plan. Use these defaults only when no evidence is available: userAge \"Adults 25–54\", userGender \"both\", userLanguage \"English\", userGeography \"Online / global\", primaryUserIntent \"both\", and frequencyOfUse \"weekly\". Always fill primaryUser, primaryUserGoal, primaryBusinessObjective, businessFutureGoals, differentiation, productStage, and exactly three distinct userPersona entries. Each userPersona entry must use the labelled multi-line format from the schema and contain a primary or secondary persona type. Also provide exactly three plausible direct business competitors with official public homepage URLs and a short compareFocus. They are editable market suggestions, not claimed business facts."
     : "Fill Business Details only when the source supports them. Do not turn likely goals into confirmed company plans."}
 - Include competitors only when the source explicitly names them or their identity and public homepage can be verified from supplied material. Never guess a URL.
 - ${isWebsiteAutofill
