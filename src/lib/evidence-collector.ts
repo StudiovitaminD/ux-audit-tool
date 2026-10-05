@@ -246,6 +246,10 @@ export abstract class BaseExplorer {
         if (explorationDebug && typeof explorationDebug === "object") {
           this.debug = { ...this.debug, ...explorationDebug };
         }
+        this.debug = {
+          ...this.debug,
+          visualFeedback: await captureVisualFeedbackProbes(page, this.pages, this.warnings),
+        };
       } else if (this.input.loginRequired) {
         await this.capturePage(page, "Login failure state");
       }
@@ -1414,6 +1418,94 @@ async function captureCurrentPage(
   } catch (error) {
     warnings.push(`Failed to capture ${options.label || page.url()}: ${getErrorMessage(error)}`);
   }
+}
+
+/** Runs non-destructive Visual Feedback probes and records each result against
+ * its exact criterion. Risky workflow outcomes stay Not Tested until a guided
+ * flow explicitly supplies a safe action for them. */
+async function captureVisualFeedbackProbes(page: Page, pages: EvidencePage[], warnings: string[]) {
+  const results: Array<{ questionId: string; tested: boolean; outcome: string }> = [];
+  const record = async (
+    questionId: string,
+    kind: "interaction" | "form",
+    outcome: string,
+    mutate?: (entry: EvidencePage) => void,
+  ) => {
+    const entry = await extractPageEvidence(page);
+    mutate?.(entry);
+    entry.label = `Visual Feedback ${questionId}`;
+    entry.targetedCheck = {
+      tested: true,
+      taskId: `Visual Feedback:${questionId}`,
+      kind,
+      method: kind === "form" ? "native_validation_probe" : "safe_interaction_state_probe",
+      question: questionId,
+      outcome,
+    };
+    pages.push(entry);
+    results.push({ questionId, tested: true, outcome });
+  };
+
+  try {
+    const controls = page.locator("button:not([disabled]):not([type='submit']), [role='tab']:not([disabled]), [aria-expanded]:not([disabled])");
+    if (await controls.count().catch(() => 0)) {
+      const control = controls.first();
+      await control.scrollIntoViewIfNeeded().catch(() => {});
+      const before = await readPageFingerprint(page);
+      await control.click({ timeout: 3_000 }).catch(() => {});
+      await page.waitForTimeout(250);
+      const changed = before !== await readPageFingerprint(page);
+      const outcome = changed
+        ? "A safe control was activated and the page state changed."
+        : "A safe control was activated but no observable page-state change was detected.";
+      await record("VF01", "interaction", outcome);
+      await record("VF08", "interaction", outcome);
+      await page.keyboard.press("Escape").catch(() => {});
+    }
+
+    const stateControl = page.locator("a[href], button, input, select, textarea, [role='button'], [role='tab']").first();
+    if (await stateControl.count().catch(() => 0)) {
+      const readStyle = () => stateControl.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return `${style.backgroundColor}|${style.color}|${style.borderColor}|${style.outlineColor}|${style.boxShadow}`;
+      }).catch(() => "");
+      const before = await readStyle();
+      await stateControl.hover({ timeout: 3_000 }).catch(() => {});
+      const hover = await readStyle();
+      await stateControl.focus({ timeout: 3_000 }).catch(() => {});
+      const focus = await readStyle();
+      await record(
+        "VF07",
+        "interaction",
+        before !== hover || before !== focus
+          ? "Hover or focus produced a measurable visual style change."
+          : "The sampled control did not expose a measurable hover or focus style change.",
+      );
+    }
+
+    const validation = await page.evaluate(() => {
+      const form = Array.from(document.forms).find((candidate) => candidate.querySelector("input[required], textarea[required], select[required]"));
+      if (!form) return { tested: false, invalidCount: 0, messageCount: 0 };
+      const invalid = Array.from(form.querySelectorAll("input[required], textarea[required], select[required]"))
+        .filter((field) => !(field as HTMLInputElement).value && !(field as HTMLInputElement).disabled) as HTMLInputElement[];
+      if (!invalid.length) return { tested: false, invalidCount: 0, messageCount: 0 };
+      form.reportValidity();
+      return { tested: true, invalidCount: invalid.length, messageCount: invalid.filter((field) => Boolean(field.validationMessage)).length };
+    }).catch(() => ({ tested: false, invalidCount: 0, messageCount: 0 }));
+    if (validation.tested) {
+      const outcome = `${validation.invalidCount} required field${validation.invalidCount === 1 ? "" : "s"} tested; ${validation.messageCount} exposed native validation guidance.`;
+      const attachValidationState = (entry: EvidencePage) => {
+        if (entry.deterministic?.forms) {
+          entry.deterministic.forms.testedStates = [{ result: "validation_observed", invalidCount: validation.invalidCount, messageCount: validation.messageCount }];
+        }
+      };
+      await record("VF09", "form", outcome, attachValidationState);
+      await record("VF10", "form", outcome, attachValidationState);
+    }
+  } catch (error) {
+    warnings.push(`Visual Feedback probes failed: ${getErrorMessage(error)}`);
+  }
+  return results;
 }
 
 async function clickCandidate(page: Page, keyword: string) {

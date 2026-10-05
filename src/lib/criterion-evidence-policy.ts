@@ -4,16 +4,16 @@ export function supportsAccessibilityCriterion(bucket: string, questionId: strin
   if (record.status !== "confirmed") return false;
   const number = Number(questionId.match(/\d+$/)?.[0] || 0);
   if (bucket === "Visual Feedback") {
-    // A generic page screenshot or form inventory is not a captured action outcome.
-    if (record.kind === "screenshot") return number === 7;
+    // A generic click scan, screenshot, or form inventory cannot establish a
+    // feedback outcome. Every scored criterion needs its own targeted probe.
+    if (record.testMethod !== "targeted_browser_measurement") return false;
     if (record.kind === "form_state") {
-      if ([4, 5].includes(number)) return Number(record.measuredValues?.submissionStateCount || 0) > 0;
-      if ([9, 10].includes(number)) return Number(record.measuredValues?.validationStateCount || 0) > 0;
-      return false;
+      return [9, 10].includes(number) && Number(record.measuredValues?.validationStateCount || 0) > 0;
     }
-    return record.kind === "interaction" && ["targeted_browser_measurement", "deterministic_browser_measurement"].includes(record.testMethod);
+    return record.kind === "interaction";
   }
   if (bucket === "Color & Contrast") {
+    if (record.kind === "lighthouse") return [1, 6].includes(number);
     if (record.kind === "contrast") {
       if (number === 1) return Number(record.measuredValues?.normalTextTested || 0) > 0;
       if (number === 2) return Number(record.measuredValues?.largeTextTested || 0) > 0;
@@ -44,7 +44,6 @@ const VISUAL_BUCKETS = new Set([
 // A screenshot can score a criterion only when the criterion is observable in
 // one captured state. Interaction and runtime behavior still require a probe.
 const SCREENSHOT_SCOREABLE_BY_BUCKET: Record<string, number[]> = {
-  "Visual Feedback": [7],
   "Color & Contrast": [6, 7, 8, 9, 10],
   "Motion & Microinteractions": [1, 5, 7],
 };
@@ -53,8 +52,8 @@ export function criterionEvidenceKinds(bucket: string, questionId: string, quest
   const number = Number(questionId.match(/\d+$/)?.[0] || 0);
 
   if (bucket === "Visual Feedback") {
-    if ([3, 4, 5, 9, 10].includes(number)) return ["form_state", "interaction", "screenshot"];
-    return ["interaction", "screenshot"];
+    if ([9, 10].includes(number)) return ["form_state"];
+    return ["interaction"];
   }
   if (bucket === "Color & Contrast") {
     if ([4].includes(number)) return ["keyboard", "contrast", "screenshot"];

@@ -19,7 +19,7 @@ describe("Phase 2 evidence depth", () => {
       warnings: [],
       visitedFlows: [],
     } as EvidenceBundle;
-    const plan = buildEvidencePlan(["Visual Feedback"]);
+    const plan = buildEvidencePlan(["Brand Expression"]);
     const result = attachEvidenceDepth(bundle, plan);
     const screenshotRecord = result.evidenceRecords?.find((record) => record.kind === "screenshot");
 
@@ -109,5 +109,37 @@ describe("Phase 2 evidence depth", () => {
     const firstVisual = result.evidenceRecords?.find((record) => record.kind === "screenshot");
     expect(firstVisual?.pageUrl).toBe("https://example.com/a");
     expect(firstVisual?.screenshotUrl).toBe("https://cdn.example.com/a.png");
+  });
+
+  it("turns Lighthouse audits into criterion-level performance and contrast evidence", () => {
+    const bundle = {
+      pages: [{ url: "https://example.com", title: "Home", h1: [], h2: [], h3: [], topNavLinks: [], textSnippet: "Home" }],
+      screenshotDataUrl: null,
+      screenshots: [],
+      warnings: [],
+      visitedFlows: [],
+      debug: {
+        lighthouse: {
+          performance: 0.96,
+          audits: {
+            "largest-contentful-paint": { score: 1, numericValue: 1800, displayValue: "1.8 s" },
+            "total-blocking-time": { score: 1, numericValue: 100, displayValue: "100 ms" },
+            "uses-optimized-images": { score: 1 },
+            "unused-javascript": { score: 1 },
+            "render-blocking-resources": { score: 1 },
+            "cumulative-layout-shift": { score: 1, numericValue: 0.02, displayValue: "0.02" },
+            "color-contrast": { score: 1 },
+          },
+        },
+      },
+    } as EvidenceBundle;
+    const result = attachEvidenceDepth(bundle, buildEvidencePlan(["Performance", "Color & Contrast"]));
+
+    expect(result.evidenceRecords).toEqual(expect.arrayContaining([
+      expect.objectContaining({ questionId: "PF01", kind: "lighthouse", testMethod: "lighthouse_audit" }),
+      expect.objectContaining({ questionId: "PF08", kind: "lighthouse" }),
+      expect.objectContaining({ questionId: "CC01", kind: "lighthouse" }),
+      expect.objectContaining({ questionId: "CC06", kind: "lighthouse" }),
+    ]));
   });
 });

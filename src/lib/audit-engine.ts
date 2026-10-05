@@ -189,6 +189,7 @@ function hasDirectMeasuredEvidence(evidence: EvidenceBundle | null, bucket: stri
     (record) => {
       if (!supportsAccessibilityCriterion(bucket, questionId, record)) return false;
       if (record.testMethod === "targeted_browser_measurement") return true;
+      if (record.testMethod === "lighthouse_audit") return true;
       if (record.testMethod !== "deterministic_browser_measurement") return false;
       if (record.kind === "form_state" && Number(record.measuredValues?.testedStateCount || 0) > 0) return true;
       const genericProof: Record<string, string[]> = {

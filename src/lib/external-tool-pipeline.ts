@@ -24,7 +24,19 @@ type LighthouseSummary = {
   accessibility?: number;
   bestPractices?: number;
   seo?: number;
+  audits?: Record<string, { score: number | null; numericValue?: number; displayValue?: string }>;
 };
+
+const LIGHTHOUSE_SCORING_AUDITS = [
+  "largest-contentful-paint",
+  "total-blocking-time",
+  "uses-optimized-images",
+  "uses-responsive-images",
+  "unused-javascript",
+  "render-blocking-resources",
+  "cumulative-layout-shift",
+  "color-contrast",
+] as const;
 
 const loadRuntimeModule = new Function(
   "specifier",
@@ -140,11 +152,24 @@ export async function runExternalToolPipeline(bundle: EvidenceBundle, url: strin
         onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
       });
       const categories = result?.lhr?.categories;
+      const rawAudits = result?.lhr?.audits || {};
+      const audits = Object.fromEntries(
+        LIGHTHOUSE_SCORING_AUDITS.flatMap((id) => {
+          const audit = rawAudits[id];
+          if (!audit || (typeof audit.score !== "number" && audit.score !== null)) return [];
+          return [[id, {
+            score: audit.score,
+            ...(typeof audit.numericValue === "number" ? { numericValue: audit.numericValue } : {}),
+            ...(typeof audit.displayValue === "string" ? { displayValue: audit.displayValue } : {}),
+          }]];
+        }),
+      );
       const summary: LighthouseSummary = {
         performance: categories?.performance?.score ?? undefined,
         accessibility: categories?.accessibility?.score ?? undefined,
         bestPractices: categories?.["best-practices"]?.score ?? undefined,
         seo: categories?.seo?.score ?? undefined,
+        audits,
       };
       const providers = pipeline.providers.map((provider) => provider.name === "lighthouse"
         ? { ...provider, status: "ready" as const, evidenceCount: 1, message: "Lighthouse completed.", summary }

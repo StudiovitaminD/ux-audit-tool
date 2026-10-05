@@ -27,7 +27,7 @@ describe("canonical criterion evidence policy", () => {
     expect(isScreenshotScorableCriterion("Icons & Imagery", "II10")).toBe(true);
     expect(isScreenshotScorableCriterion("Navigation & Findability", "NF01")).toBe(true);
     expect(isScreenshotScorableCriterion("Visual Feedback", "VF04")).toBe(false);
-    expect(isScreenshotScorableCriterion("Visual Feedback", "VF07")).toBe(true);
+    expect(isScreenshotScorableCriterion("Visual Feedback", "VF07")).toBe(false);
     expect(isScreenshotScorableCriterion("Visual Feedback", "VF03")).toBe(false);
     expect(isScreenshotScorableCriterion("Color & Contrast", "CC06")).toBe(true);
     expect(isScreenshotScorableCriterion("Color & Contrast", "CC04")).toBe(false);
@@ -60,5 +60,12 @@ describe("canonical criterion evidence policy", () => {
     } as any;
     expect(supportsAccessibilityCriterion("Color & Contrast", "CC03", record)).toBe(true);
     expect(supportsAccessibilityCriterion("Color & Contrast", "CC06", record)).toBe(true);
+  });
+
+  it("requires an exact targeted probe for visual-feedback scoring", () => {
+    const genericInteraction = { status: "confirmed", kind: "interaction", testMethod: "deterministic_browser_measurement" } as any;
+    const targetedInteraction = { status: "confirmed", kind: "interaction", testMethod: "targeted_browser_measurement" } as any;
+    expect(supportsAccessibilityCriterion("Visual Feedback", "VF01", genericInteraction)).toBe(false);
+    expect(supportsAccessibilityCriterion("Visual Feedback", "VF01", targetedInteraction)).toBe(true);
   });
 });

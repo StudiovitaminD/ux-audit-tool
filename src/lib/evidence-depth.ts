@@ -15,7 +15,8 @@ export type EvidenceKind =
   | "text_spacing"
   | "interaction"
   | "reduced_motion"
-  | "performance";
+  | "performance"
+  | "lighthouse";
 
 export type EvidenceRequirement = {
   bucketId: string;
@@ -256,7 +257,69 @@ export function attachEvidenceDepth(bundle: EvidenceBundle, plan: EvidencePlan):
       });
     }
   }
+  records.push(...lighthouseEvidenceRecords(bundle, plan));
   return { ...bundle, evidencePlan: plan, evidenceRecords: records };
+}
+
+type LighthouseAudit = { score: number | null; numericValue?: number; displayValue?: string };
+
+function lighthouseEvidenceRecords(bundle: EvidenceBundle, plan: EvidencePlan): EvidenceRecord[] {
+  const lighthouse = bundle.debug?.lighthouse;
+  if (!lighthouse || typeof lighthouse !== "object" || Array.isArray(lighthouse)) return [];
+  const summary = lighthouse as { performance?: unknown; audits?: unknown };
+  const rawAudits = summary.audits;
+  if (!rawAudits || typeof rawAudits !== "object" || Array.isArray(rawAudits)) return [];
+  const audits = rawAudits as Record<string, LighthouseAudit>;
+  const page = bundle.pages?.[0];
+  const observedAt = plan.generatedAt;
+  const sourceUrl = page?.url || "";
+  const toRecord = (bucketId: string, questionId: string, auditId: string, observation: string, measuredValues: EvidenceRecord["measuredValues"]): EvidenceRecord | null => {
+    const audit = audits[auditId];
+    if (!audit || typeof audit.score !== "number") return null;
+    return {
+      evidenceId: `ev-${questionId.toLowerCase()}-lighthouse`,
+      bucketId,
+      questionId,
+      kind: "lighthouse",
+      pageUrl: sourceUrl,
+      testMethod: "lighthouse_audit",
+      observedAt,
+      status: "confirmed",
+      observation,
+      measuredValues,
+    };
+  };
+  const status = (passes: boolean) => passes ? "passes" : "needs improvement";
+  const lcp = audits["largest-contentful-paint"];
+  const tbt = audits["total-blocking-time"];
+  const cls = audits["cumulative-layout-shift"];
+  const performance = typeof summary.performance === "number" ? summary.performance : null;
+  const records = [
+    lcp && toRecord("Performance", "PF01", "largest-contentful-paint", `Lighthouse Largest Contentful Paint: ${lcp.displayValue || "measured"}; ${status((lcp.numericValue ?? Infinity) <= 2500)} against the 2.5 s good threshold.`, { lcpMs: lcp.numericValue ?? "not reported", thresholdMs: 2500 }),
+    tbt && toRecord("Performance", "PF02", "total-blocking-time", `Lighthouse Total Blocking Time: ${tbt.displayValue || "measured"}; ${status((tbt.numericValue ?? Infinity) <= 200)} against the 200 ms good threshold.`, { totalBlockingTimeMs: tbt.numericValue ?? "not reported", thresholdMs: 200 }),
+    toRecord("Performance", "PF03", "uses-optimized-images", `Lighthouse image optimization audit ${status(audits["uses-optimized-images"]?.score === 1)}.`, { score: audits["uses-optimized-images"]?.score ?? "not reported" }),
+    toRecord("Performance", "PF04", "unused-javascript", `Lighthouse unused JavaScript audit ${status(audits["unused-javascript"]?.score === 1)}.`, { score: audits["unused-javascript"]?.score ?? "not reported" }),
+    toRecord("Performance", "PF05", "render-blocking-resources", `Lighthouse render-blocking resources audit ${status(audits["render-blocking-resources"]?.score === 1)}.`, { score: audits["render-blocking-resources"]?.score ?? "not reported" }),
+    performance !== null
+      ? {
+          evidenceId: "ev-pf08-lighthouse",
+          bucketId: "Performance",
+          questionId: "PF08",
+          kind: "lighthouse" as const,
+          pageUrl: sourceUrl,
+          testMethod: "lighthouse_audit",
+          observedAt,
+          status: "confirmed" as const,
+          observation: `Lighthouse mobile performance category score: ${Math.round(performance * 100)}/100; ${status(performance >= 0.9)} against the 90/100 good threshold.`,
+          measuredValues: { performanceScore: Math.round(performance * 100), threshold: 90 },
+        }
+      : null,
+    cls && toRecord("Performance", "PF09", "cumulative-layout-shift", `Lighthouse Cumulative Layout Shift: ${cls.displayValue || "measured"}; ${status((cls.numericValue ?? Infinity) <= 0.1)} against the 0.1 good threshold.`, { cls: cls.numericValue ?? "not reported", threshold: 0.1 }),
+    cls && toRecord("Performance", "PF10", "cumulative-layout-shift", `Lighthouse Cumulative Layout Shift: ${cls.displayValue || "measured"}; ${status((cls.numericValue ?? Infinity) <= 0.1)} against the 0.1 good threshold.`, { cls: cls.numericValue ?? "not reported", threshold: 0.1 }),
+    toRecord("Color & Contrast", "CC01", "color-contrast", `Lighthouse text contrast audit ${status(audits["color-contrast"]?.score === 1)}. This is limited to automatically detectable text contrast violations.`, { score: audits["color-contrast"]?.score ?? "not reported" }),
+    toRecord("Color & Contrast", "CC06", "color-contrast", `Lighthouse foreground/background contrast audit ${status(audits["color-contrast"]?.score === 1)}. This is limited to automatically detectable text contrast violations.`, { score: audits["color-contrast"]?.score ?? "not reported" }),
+  ];
+  return records.filter((record): record is EvidenceRecord => Boolean(record));
 }
 
 export function questionEvidence(bundle: EvidenceBundle | null, bucket: string, questionId: string) {
