@@ -73,10 +73,10 @@ function pageObservation(page: EvidencePage, kind: EvidenceKind) {
   }
   if (kind === "contrast" && measured?.contrast?.tested) {
     const groups = measured.contrast;
-    return { status: "confirmed" as const, text: `${groups.samplesTested} visible text samples checked; ${groups.failures} failed the computed contrast threshold. Normal text: ${JSON.stringify(groups.normalText || "not separately measured")}; large text: ${JSON.stringify(groups.largeText || "not separately measured")}. Text measurements do not test focus indicators, component boundaries, or hover states.` };
+    return { status: "confirmed" as const, text: `${groups.samplesTested} visible text samples checked; ${groups.failures} failed the computed contrast threshold. ${groups.componentSamplesTested || 0} control boundaries or fills were also measured (${groups.componentFailures || 0} below the 3:1 threshold). Normal text: ${JSON.stringify(groups.normalText || "not separately measured")}; large text: ${JSON.stringify(groups.largeText || "not separately measured")}. These measurements do not test hover or selected states.` };
   }
   if (kind === "keyboard" && measured?.keyboard?.tested) {
-    return { status: "confirmed" as const, text: `${measured.keyboard.focusableCount} focusable controls found; visible focus observed on ${measured.keyboard.visibleFocusCount} tab stops.` };
+    return { status: "confirmed" as const, text: `${measured.keyboard.focusableCount} focusable controls found; visible focus observed on ${measured.keyboard.visibleFocusCount} tab stops; focus contrast measured on ${measured.keyboard.focusContrastTested || 0} stops, with ${measured.keyboard.focusContrastFailures || 0} below 3:1.` };
   }
   if (kind === "interaction" && measured?.interaction?.tested) {
     return { status: "confirmed" as const, text: `${measured.interaction.controlsTested} safe interactive controls were tested; ${measured.interaction.stateChanges} changed state and ${measured.interaction.activations} produced activation feedback.` };
@@ -127,12 +127,16 @@ function measuredValuesFor(
       normalTextFailures: deterministic.contrast.normalText?.failures ?? 0,
       largeTextTested: deterministic.contrast.largeText?.tested ?? 0,
       largeTextFailures: deterministic.contrast.largeText?.failures ?? 0,
+      componentSamplesTested: deterministic.contrast.componentSamplesTested ?? 0,
+      componentFailures: deterministic.contrast.componentFailures ?? 0,
     };
   }
   if (kind === "keyboard" && deterministic.keyboard?.tested) {
     return {
       focusableCount: deterministic.keyboard.focusableCount,
       visibleFocusCount: deterministic.keyboard.visibleFocusCount,
+      focusContrastTested: deterministic.keyboard.focusContrastTested ?? 0,
+      focusContrastFailures: deterministic.keyboard.focusContrastFailures ?? 0,
     };
   }
   if (kind === "interaction" && deterministic.interaction?.tested) {

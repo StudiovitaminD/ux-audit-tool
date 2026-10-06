@@ -47,6 +47,7 @@ export type BrowserSessionMeta = {
   sessionId?: string;
   replayUrl?: string;
   liveUrl?: string;
+  fallbackReason?: string;
 };
 
 export type BrowserProvider = {
@@ -63,6 +64,23 @@ export type BrowserProvider = {
     fn: (page: Page, context: BrowserContext, meta: BrowserSessionMeta) => Promise<T>,
   ): Promise<T>;
 };
+
+export async function runWithBrowserProviderFallback<T>(
+  primaryAttempt: () => Promise<T>,
+  fallbackAttempt: (primaryError: unknown) => Promise<T>,
+) {
+  try {
+    return await primaryAttempt();
+  } catch (primaryError) {
+    try {
+      return await fallbackAttempt(primaryError);
+    } catch (fallbackError) {
+      const primaryMessage = primaryError instanceof Error ? primaryError.message : String(primaryError);
+      const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      throw new Error(`Primary browser capture failed (${primaryMessage}); local Playwright fallback failed (${fallbackMessage}).`);
+    }
+  }
+}
 
 async function ignoreAfter<T>(promise: Promise<T>, timeoutMs: number) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -317,7 +335,7 @@ class BrowserbaseProvider implements BrowserProvider {
     return loadAuthStateForDomain(domain);
   }
 
-  async runWithPage<T>(
+  private async runRemoteWithPage<T>(
     options: { domain: string; storageState?: BrowserStorageState | null; timeoutMs?: number },
     fn: (page: Page, context: BrowserContext, meta: BrowserSessionMeta) => Promise<T>,
   ) {
@@ -328,6 +346,9 @@ class BrowserbaseProvider implements BrowserProvider {
       page?: Page;
     } = {};
     let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timeoutMs = options.timeoutMs && options.timeoutMs > 0
+      ? Math.min(options.timeoutMs, 45_000)
+      : 45_000;
     try {
       const task = (async () => {
         resources.meta = await this.createSession();
@@ -336,13 +357,12 @@ class BrowserbaseProvider implements BrowserProvider {
         resources.page = await resources.context.newPage();
         return fn(resources.page, resources.context, resources.meta);
       })();
-      if (!options.timeoutMs || options.timeoutMs <= 0) return await task;
       return await Promise.race([
         task,
         new Promise<T>((_resolve, reject) => {
           timeout = setTimeout(
-            () => reject(new Error(`Browser evidence capture exceeded ${Math.round(options.timeoutMs! / 1000)} seconds.`)),
-            options.timeoutMs,
+            () => reject(new Error(`Browser evidence capture exceeded ${Math.round(timeoutMs / 1000)} seconds.`)),
+            timeoutMs,
           );
         }),
       ]);
@@ -355,6 +375,31 @@ class BrowserbaseProvider implements BrowserProvider {
       ]);
       if (resources.meta) await ignoreAfter(this.closeSession(resources.meta), 5_000);
     }
+  }
+
+  async runWithPage<T>(
+    options: { domain: string; storageState?: BrowserStorageState | null; timeoutMs?: number },
+    fn: (page: Page, context: BrowserContext, meta: BrowserSessionMeta) => Promise<T>,
+  ) {
+    return runWithBrowserProviderFallback(
+      () => this.runRemoteWithPage(options, fn),
+      (remoteError) => {
+      // Browserbase can be temporarily unavailable even when the app's bundled
+      // Chromium is healthy. Retry once locally so provider startup failures do
+      // not turn into an empty evidence bundle. Keep this bounded; callers still
+      // receive a clear failure if both providers fail.
+      const fallback = new LocalPlaywrightProvider();
+      return fallback.runWithPage(
+        { ...options, timeoutMs: Math.min(options.timeoutMs || 15_000, 15_000) },
+        async (page, context, meta) => fn(page, context, {
+          ...meta,
+          liveUrl: "",
+          replayUrl: "",
+          fallbackReason: remoteError instanceof Error ? remoteError.message : String(remoteError),
+        }),
+      );
+      },
+    );
   }
 }
 

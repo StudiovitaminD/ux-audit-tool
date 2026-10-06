@@ -56,10 +56,20 @@ describe("canonical criterion evidence policy", () => {
       status: "confirmed",
       kind: "contrast",
       testMethod: "deterministic_browser_measurement",
-      measuredValues: { samplesTested: 12 },
+      measuredValues: { samplesTested: 12, componentSamplesTested: 4 },
     } as any;
     expect(supportsAccessibilityCriterion("Color & Contrast", "CC03", record)).toBe(true);
     expect(supportsAccessibilityCriterion("Color & Contrast", "CC06", record)).toBe(true);
+    expect(supportsAccessibilityCriterion("Color & Contrast", "CC04", {
+      ...record,
+      kind: "keyboard",
+      measuredValues: { focusableCount: 8, visibleFocusCount: 3 },
+    } as any)).toBe(false);
+    expect(supportsAccessibilityCriterion("Color & Contrast", "CC04", {
+      ...record,
+      kind: "keyboard",
+      measuredValues: { focusableCount: 8, visibleFocusCount: 3, focusContrastTested: 2 },
+    } as any)).toBe(true);
   });
 
   it("requires an exact targeted probe for visual-feedback scoring", () => {

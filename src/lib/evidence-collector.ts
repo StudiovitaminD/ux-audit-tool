@@ -41,9 +41,9 @@ export type EvidencePage = {
     [key: string]: unknown;
   };
   deterministic?: {
-    contrast?: { tested: boolean; samplesTested: number; failures: number; normalText?: { tested: number; failures: number }; largeText?: { tested: number; failures: number } };
+    contrast?: { tested: boolean; samplesTested: number; failures: number; componentSamplesTested?: number; componentFailures?: number; normalText?: { tested: number; failures: number }; largeText?: { tested: number; failures: number } };
     semantics?: { tested: boolean; landmarks: number; unlabeledControls: number; imagesMissingAlt: number; headingOrderIssues: number };
-    keyboard?: { tested: boolean; focusableCount: number; visibleFocusCount: number; trapDetected: boolean };
+    keyboard?: { tested: boolean; focusableCount: number; visibleFocusCount: number; focusContrastTested?: number; focusContrastFailures?: number; trapDetected: boolean };
     interaction?: { tested: boolean; controlsTested: number; stateChanges: number; activations: number };
     responsive?: { tested: boolean; horizontalOverflow: boolean; overflowPixels: number };
     zoom?: { tested: boolean; scale: number; horizontalOverflow: boolean; overflowPixels: number };
@@ -166,7 +166,19 @@ export type ExplorerInput = {
     required?: boolean;
   }>;
   internalRoutes?: string[];
+  selectedBuckets?: string[];
 };
+
+const LIVE_MEASUREMENT_BUCKETS = new Set([
+  "Visual Feedback",
+  "Color & Contrast",
+  "Performance",
+  "Motion & Microinteractions",
+]);
+
+export function requiresLiveMeasurementCapture(selectedBuckets: string[] = []) {
+  return selectedBuckets.some((bucket) => LIVE_MEASUREMENT_BUCKETS.has(bucket));
+}
 
 function normalizeScreenType(value: unknown) {
   const text = typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -246,10 +258,16 @@ export abstract class BaseExplorer {
         if (explorationDebug && typeof explorationDebug === "object") {
           this.debug = { ...this.debug, ...explorationDebug };
         }
-        this.debug = {
-          ...this.debug,
-          visualFeedback: await captureVisualFeedbackProbes(page, this.pages, this.warnings),
-        };
+        const selected = this.input.selectedBuckets;
+        if (!selected || selected.includes("Visual Feedback")) {
+          this.debug.visualFeedback = await captureVisualFeedbackProbes(page, this.pages, this.warnings);
+        }
+        if (!selected || selected.includes("Motion & Microinteractions")) {
+          this.debug.motion = await captureMotionProbes(page, this.pages, this.warnings);
+        }
+        if (!selected || selected.includes("Performance")) {
+          this.debug.performance = await capturePerformanceProbes(page, this.pages, this.warnings);
+        }
       } else if (this.input.loginRequired) {
         await this.capturePage(page, "Login failure state");
       }
@@ -1114,8 +1132,14 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
           : "") ||
         element.textContent || "").trim();
     const parseColor = (value: string) => {
-      const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-      return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+      const match = value.match(/rgba?\(\s*([\d.]+)(%)?\s*[, ]+\s*([\d.]+)(%)?\s*[, ]+\s*([\d.]+)(%)?(?:\s*[,/]\s*([\d.]+)(%)?)?\s*\)/i);
+      if (!match) return null;
+      const channels = [1, 3, 5].map((index) => {
+        const raw = Number(match[index]);
+        return Math.max(0, Math.min(255, match[index + 1] === "%" ? raw * 2.55 : raw));
+      });
+      const alpha = match[7] === undefined ? 1 : Math.max(0, Math.min(1, Number(match[7]) / (match[8] === "%" ? 100 : 1)));
+      return { channels, alpha };
     };
     const luminance = (rgb: number[]) => {
       const channels = rgb.map((channel) => {
@@ -1129,6 +1153,8 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
       const b = luminance(background);
       return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
     };
+    const composite = (top: number[], bottom: number[], alpha: number) =>
+      top.map((channel, index) => channel * alpha + bottom[index] * (1 - alpha));
     const contrastSamples = Array.from(document.querySelectorAll("p, li, a, button, label, h1, h2, h3"))
       .filter(visible)
       .slice(0, 120)
@@ -1136,17 +1162,51 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
         const style = getComputedStyle(element);
         const foreground = parseColor(style.color);
         let backgroundElement: Element | null = element;
-        let background: number[] | null = null;
+        let background: ReturnType<typeof parseColor> = null;
         while (backgroundElement && !background) {
           const candidate = parseColor(getComputedStyle(backgroundElement).backgroundColor);
-          if (candidate && getComputedStyle(backgroundElement).backgroundColor !== "rgba(0, 0, 0, 0)") background = candidate;
+          if (candidate && candidate.alpha > 0) background = candidate;
           backgroundElement = backgroundElement.parentElement;
         }
+        // Transparent pages still render against the browser canvas. Treating
+        // that canvas as white allows normal sites to produce real samples
+        // instead of silently reporting zero contrast measurements.
+        background ||= { channels: [255, 255, 255], alpha: 1 };
         if (!foreground || !background) return null;
+        const backgroundChannels = composite(background.channels, [255, 255, 255], background.alpha);
+        const foregroundChannels = composite(foreground.channels, backgroundChannels, foreground.alpha);
         const fontSize = Number.parseFloat(style.fontSize || "16");
         const fontWeight = Number.parseInt(style.fontWeight || "400", 10);
         const large = fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700);
-        return { ratio: contrastRatio(foreground, background), threshold: large ? 3 : 4.5 };
+        return { ratio: contrastRatio(foregroundChannels, backgroundChannels), threshold: large ? 3 : 4.5 };
+      })
+      .filter((sample): sample is { ratio: number; threshold: number } => Boolean(sample));
+    const componentSamples = Array.from(document.querySelectorAll("button, input, select, textarea, [role='button'], [role='checkbox'], [role='radio']"))
+      .filter(visible)
+      .slice(0, 80)
+      .map((element) => {
+        const style = getComputedStyle(element);
+        const ownBackground = parseColor(style.backgroundColor);
+        let parent: Element | null = element.parentElement;
+        let parentBackground: ReturnType<typeof parseColor> = null;
+        while (parent && !parentBackground) {
+          const candidate = parseColor(getComputedStyle(parent).backgroundColor);
+          if (candidate && candidate.alpha > 0) parentBackground = candidate;
+          parent = parent.parentElement;
+        }
+        const background = ownBackground && ownBackground.alpha > 0
+          ? composite(ownBackground.channels, parentBackground?.channels || [255, 255, 255], ownBackground.alpha)
+          : parentBackground?.channels || [255, 255, 255];
+        const border = parseColor(style.borderTopColor);
+        const borderVisible = style.borderTopStyle !== "none" && Number.parseFloat(style.borderTopWidth) > 0;
+        if (borderVisible && border && border.alpha > 0) {
+          const borderColor = composite(border.channels, background, border.alpha);
+          return { ratio: contrastRatio(borderColor, background), threshold: 3 };
+        }
+        if (ownBackground && ownBackground.alpha > 0) {
+          return { ratio: contrastRatio(background, parentBackground?.channels || [255, 255, 255]), threshold: 3 };
+        }
+        return null;
       })
       .filter((sample): sample is { ratio: number; threshold: number } => Boolean(sample));
     const interactive = Array.from(document.querySelectorAll("a[href], button, input, select, textarea, [role='button'], [role='link'], [tabindex]"));
@@ -1178,6 +1238,7 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
       viewport: `${window.innerWidth}x${window.innerHeight}`,
       deterministic: {
         contrast: { tested: contrastSamples.length > 0, samplesTested: contrastSamples.length, failures: contrastSamples.filter((sample) => sample.ratio < sample.threshold).length,
+          componentSamplesTested: componentSamples.length, componentFailures: componentSamples.filter((sample) => sample.ratio < sample.threshold).length,
           normalText: { tested: contrastSamples.filter((sample) => sample.threshold === 4.5).length, failures: contrastSamples.filter((sample) => sample.threshold === 4.5 && sample.ratio < sample.threshold).length },
           largeText: { tested: contrastSamples.filter((sample) => sample.threshold === 3).length, failures: contrastSamples.filter((sample) => sample.threshold === 3 && sample.ratio < sample.threshold).length } },
         semantics: {
@@ -1201,7 +1262,7 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
     };
   });
 
-  const keyboard = { tested: true, focusableCount: 0, visibleFocusCount: 0, trapDetected: false };
+  const keyboard = { tested: true, focusableCount: 0, visibleFocusCount: 0, focusContrastTested: 0, focusContrastFailures: 0, trapDetected: false };
   try {
     keyboard.focusableCount = await page.locator("a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])").count();
     const seen = new Set<string>();
@@ -1212,9 +1273,38 @@ async function extractPageEvidence(page: Page): Promise<EvidencePage> {
         if (!element || element === document.body) return { key: "body", visible: false };
         const style = getComputedStyle(element);
         const rect = element.getBoundingClientRect();
-        return { key: `${element.tagName}:${element.id}:${element.textContent?.trim().slice(0, 30)}`, visible: rect.width > 0 && rect.height > 0 && (style.outlineStyle !== "none" || style.boxShadow !== "none") };
+        const color = (value: string) => {
+          const match = value.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+          return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+        };
+        const luminance = (rgb: number[]) => {
+          const channels = rgb.map((channel) => {
+            const value = channel / 255;
+            return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+        };
+        let backgroundElement: Element | null = element;
+        let background: number[] | null = null;
+        while (backgroundElement && !background) {
+          const candidate = color(getComputedStyle(backgroundElement).backgroundColor);
+          if (candidate && getComputedStyle(backgroundElement).backgroundColor !== "rgba(0, 0, 0, 0)") background = candidate;
+          backgroundElement = backgroundElement.parentElement;
+        }
+        const outline = color(style.outlineColor);
+        const hasVisibleIndicator = rect.width > 0 && rect.height > 0 && (style.outlineStyle !== "none" || style.boxShadow !== "none");
+        const outlineVisible = style.outlineStyle !== "none" && Number.parseFloat(style.outlineWidth) > 0 &&
+          !/rgba?\([^)]*[,/]\s*0(?:\.0+)?\s*\)$/i.test(style.outlineColor);
+        const focusContrastRatio = hasVisibleIndicator && outlineVisible && outline && background
+          ? (Math.max(luminance(outline), luminance(background)) + 0.05) / (Math.min(luminance(outline), luminance(background)) + 0.05)
+          : null;
+        return { key: `${element.tagName}:${element.id}:${element.textContent?.trim().slice(0, 30)}`, visible: hasVisibleIndicator, focusContrastRatio };
       });
       if (focus.visible) keyboard.visibleFocusCount += 1;
+      if (typeof focus.focusContrastRatio === "number") {
+        keyboard.focusContrastTested += 1;
+        if (focus.focusContrastRatio < 3) keyboard.focusContrastFailures += 1;
+      }
       if (seen.has(focus.key) && seen.size < Math.min(3, keyboard.focusableCount)) keyboard.trapDetected = true;
       seen.add(focus.key);
     }
@@ -1427,7 +1517,7 @@ async function captureVisualFeedbackProbes(page: Page, pages: EvidencePage[], wa
   };
 
   try {
-    const controls = page.locator("button:not([disabled]):not([type='submit']), [role='tab']:not([disabled]), [aria-expanded]:not([disabled])");
+    const controls = page.locator("[aria-expanded='false']:not([disabled]), [role='tab']:not([disabled]), summary");
     if (await controls.count().catch(() => 0)) {
       const control = controls.first();
       await control.scrollIntoViewIfNeeded().catch(() => {});
@@ -1482,8 +1572,178 @@ async function captureVisualFeedbackProbes(page: Page, pages: EvidencePage[], wa
       await record("VF09", "form", outcome, attachValidationState);
       await record("VF10", "form", outcome, attachValidationState);
     }
+
+    // State-only checks are safe because they observe states already present;
+    // they never submit a form or trigger a purchase/account mutation.
+    const visibleState = await page.evaluate(() => {
+      const isVisible = (element: Element) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+      };
+      const loading = Array.from(document.querySelectorAll(
+        '[aria-busy="true"], [role="progressbar"], progress, [data-loading="true"]',
+      )).filter(isVisible).length;
+      const successMessages = Array.from(document.querySelectorAll(
+        '[role="status"], [aria-live], [class*="success" i], [data-state="success"]',
+      )).filter(isVisible).map((element) => (element.textContent || "").trim()).filter((text) =>
+        /success|saved|sent|complete|thank you|submitted|updated|added to/i.test(text),
+      );
+      const progress = Array.from(document.querySelectorAll(
+        'progress, [role="progressbar"], [aria-valuenow], [class*="stepper" i]',
+      )).filter(isVisible).length;
+      const busyForms = Array.from(document.forms).filter((form) =>
+        form.getAttribute("aria-busy") === "true" &&
+        Boolean(form.querySelector("button[type=submit]:disabled, input[type=submit]:disabled, [aria-disabled=true]")),
+      ).length;
+      return { loading, successMessages, progress, busyForms };
+    }).catch(() => ({ loading: 0, successMessages: [] as string[], progress: 0, busyForms: 0 }));
+    if (visibleState.loading) {
+      await record("VF02", "interaction", `${visibleState.loading} visible loading or progress state(s) were observed.`);
+    }
+    if (visibleState.busyForms) {
+      await record("VF03", "interaction", "A form is visibly busy and its submit control is disabled, preventing another submission during processing.");
+    }
+    if (visibleState.successMessages.length) {
+      const message = visibleState.successMessages[0]!.slice(0, 240);
+      await record("VF04", "interaction", `Visible success message observed: ${message}`);
+      if (/next|continue|now you can|go to|view your|check your|you can now/i.test(message)) {
+        await record("VF05", "interaction", `Visible success message includes next-step guidance: ${message}`);
+      }
+    }
+    if (visibleState.progress) {
+      await record("VF06", "interaction", `${visibleState.progress} visible progress or step indicator(s) were observed.`);
+    }
   } catch (error) {
     warnings.push(`Visual Feedback probes failed: ${getErrorMessage(error)}`);
+  }
+  return results;
+}
+
+async function captureMotionProbes(page: Page, pages: EvidencePage[], warnings: string[]) {
+  const results: Array<{ questionId: string; tested: boolean }> = [];
+  const safeControl = page.locator("[aria-expanded='false']:not([disabled]), [role='tab']:not([disabled]), summary").filter({ visible: true }).first();
+  if (await safeControl.count().catch(() => 0)) {
+    try {
+      const before = await readPageFingerprint(page);
+      await safeControl.click({ timeout: 2_000 });
+      await page.waitForTimeout(150);
+      const changed = before !== await readPageFingerprint(page);
+      const afterAnimations = await page.evaluate(() => document.getAnimations().map((animation) => ({
+        duration: Number((animation.effect as KeyframeEffect | null)?.getTiming().duration || 0),
+        playState: animation.playState,
+      })).slice(0, 20)).catch(() => []);
+      const entry = await extractPageEvidence(page);
+      entry.label = "Motion & Microinteractions · state transition";
+      entry.targetedCheck = {
+        tested: true,
+        taskId: "Motion & Microinteractions:MM02",
+        kind: "interaction",
+        method: "safe_disclosure_transition_probe",
+        question: "MM02",
+        stateChanged: changed,
+        animationsObserved: afterAnimations.length,
+        maximumAnimationDurationMs: Math.max(0, ...afterAnimations.map((item) => item.duration)),
+      };
+      // Exact question evidence is attached to the page, rather than inferred
+      // from the mere presence of CSS transitions.
+      pages.push(entry);
+      results.push({ questionId: "MM02", tested: true });
+      await page.keyboard.press("Escape").catch(() => {});
+    } catch (error) {
+      warnings.push(`Motion transition probe was incomplete: ${getErrorMessage(error)}`);
+    }
+  }
+  let motion = await page.evaluate(() => {
+    const active = document.getAnimations().length;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const durations = Array.from(document.querySelectorAll("*")).slice(0, 250).flatMap((element) => {
+      const style = getComputedStyle(element);
+      return [style.animationDuration, style.transitionDuration].flatMap((value) =>
+        value.split(",").map((item) => {
+          const duration = item.trim();
+          if (duration.endsWith("ms")) return Number.parseFloat(duration);
+          if (duration.endsWith("s")) return Number.parseFloat(duration) * 1000;
+          return 0;
+        }),
+      );
+    }).filter((duration) => Number.isFinite(duration) && duration > 0);
+    return { active, reduced, maximumDurationMs: Math.max(0, ...durations) };
+  }).catch(() => null);
+  if (motion) {
+    const defaultDuration = motion.maximumDurationMs;
+    try {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.waitForTimeout(50);
+      const reduced = await page.evaluate(() => ({
+        preferenceMatched: matchMedia("(prefers-reduced-motion: reduce)").matches,
+        maximumDurationMs: Math.max(0, ...Array.from(document.querySelectorAll("*"))
+          .slice(0, 250)
+          .flatMap((element) => {
+            const style = getComputedStyle(element);
+            return [style.animationDuration, style.transitionDuration].flatMap((value) => value.split(",").map((item) => {
+              const text = item.trim();
+              return text.endsWith("ms") ? Number.parseFloat(text) : text.endsWith("s") ? Number.parseFloat(text) * 1000 : 0;
+            }));
+          })
+          .filter((duration) => Number.isFinite(duration) && duration > 0)),
+      })).catch(() => null);
+      if (reduced?.preferenceMatched) {
+        motion = { ...motion, reduced: reduced.preferenceMatched, maximumDurationMs: reduced.maximumDurationMs };
+      }
+    } catch {
+      // Some remote browser providers do not support media emulation; retain
+      // the ordinary animation inventory, but the result remains explicit.
+    } finally {
+      await page.emulateMedia({ reducedMotion: "no-preference" }).catch(() => {});
+    }
+    const entry = await extractPageEvidence(page);
+    entry.label = "Motion & Microinteractions · reduced motion";
+    entry.targetedCheck = {
+      tested: true,
+      taskId: "Motion & Microinteractions:MM10",
+      kind: "motion",
+      method: "reduced_motion_preference_probe",
+      question: "MM10",
+      reducedMotionPreferenceMatched: motion.reduced,
+      activeAnimations: motion.active,
+      maximumDeclaredDurationMs: motion.maximumDurationMs,
+      defaultMaximumDurationMs: defaultDuration,
+      reducedMotionEmulationApplied: motion.reduced,
+    };
+    pages.push(entry);
+    results.push({ questionId: "MM10", tested: true });
+  }
+  return results;
+}
+
+async function capturePerformanceProbes(page: Page, pages: EvidencePage[], warnings: string[]) {
+  const control = page.locator("[aria-expanded='false']:not([disabled]), [role='tab']:not([disabled]), summary").filter({ visible: true }).first();
+  if (!(await control.count().catch(() => 0))) return [];
+  const results: string[] = [];
+  try {
+    const before = await readPageFingerprint(page);
+    const startedAt = Date.now();
+    await control.click({ timeout: 2_000 });
+    const responseMs = Date.now() - startedAt;
+    const changed = before !== await readPageFingerprint(page);
+    for (const questionId of ["PF02", "PF07"]) {
+      const entry = await extractPageEvidence(page);
+      entry.label = `Performance ${questionId} · safe control response`;
+      entry.targetedCheck = {
+        tested: true,
+        taskId: `Performance:${questionId}`,
+        kind: "performance",
+        method: "safe_control_response_measurement",
+        question: questionId,
+        responseMs,
+        visibleStateChange: changed,
+      };
+      pages.push(entry);
+      results.push(questionId);
+    }
+  } catch (error) {
+    warnings.push(`Performance interaction timing probe was incomplete: ${getErrorMessage(error)}`);
   }
   return results;
 }
@@ -2861,6 +3121,7 @@ export async function collectEvidence(input: {
   extensionCaptureJson?: string;
   guidedCaptureSteps?: ExplorerInput["guidedCaptureSteps"];
   internalRoutes?: string[];
+  selectedBuckets?: string[];
 }) {
   const providerDiagnostics = getBrowserProviderDiagnostics();
   const uploadedScreenshotEvidence = Array.isArray(input.uploadedScreenshots) && input.uploadedScreenshots.length
@@ -2991,6 +3252,7 @@ export async function collectEvidence(input: {
   }
 
   if (input.accessMode === "screenshot_upload_only") {
+    const liveBuckets = (input.selectedBuckets || []).filter((bucket) => LIVE_MEASUREMENT_BUCKETS.has(bucket));
     return {
       ...(uploadedEvidence || {
         pages: [],
@@ -3006,6 +3268,12 @@ export async function collectEvidence(input: {
         },
         debug: {},
       }),
+      warnings: [
+        ...(uploadedEvidence?.warnings || []),
+        ...(liveBuckets.length
+          ? [`Live browser checks for ${liveBuckets.join(", ")} were not run because screenshot-upload-only mode disables Playwright capture.`]
+          : []),
+      ],
       debug: {
         ...(uploadedEvidence?.debug || {}),
         ...providerDiagnostics,
@@ -3020,6 +3288,7 @@ export async function collectEvidence(input: {
         guidedStepsAttempted: 0,
         guidedStepsCompleted: 0,
         guidedStepsSkippedReason: "Screenshot upload only mode selected.",
+        liveMeasurementBucketsSkipped: liveBuckets,
         internalRoutesReceived: Array.isArray(input.internalRoutes) ? input.internalRoutes.length : 0,
         internalRoutesAttempted: 0,
         internalRoutesCompleted: 0,
@@ -3032,6 +3301,7 @@ export async function collectEvidence(input: {
   const hasCredentials = Boolean(safeText(input.loginEmail) && safeText(input.loginPassword));
   const hasGuidedSteps = Array.isArray(input.guidedCaptureSteps) && input.guidedCaptureSteps.length > 0;
   const hasInternalRoutes = Array.isArray(input.internalRoutes) && input.internalRoutes.length > 0;
+  const needsLiveMeasurements = requiresLiveMeasurementCapture(input.selectedBuckets);
   const isPublicAudit =
     input.productType === "marketing_website" || input.productType === "ecommerce";
   const invalidInternalRoutesOnly =
@@ -3048,12 +3318,14 @@ export async function collectEvidence(input: {
   );
   const canAttemptLogin = requiresLogin && hasCredentials;
   const shouldUseBrowser =
-    normalizedAccessMode !== "public_fetch_fallback" && (
+    needsLiveMeasurements || (
+      normalizedAccessMode !== "public_fetch_fallback" && (
       (!isPublicAudit && mode === "browser") ||
       (isPublicAudit && input.accessMode === "browser_extension_capture") ||
       requiresLogin ||
       explicitBrowserAccessMode ||
       (hasGuidedSteps || hasInternalRoutes) && !isPublicAudit
+      )
     );
   const browserInput =
     requiresLogin === Boolean(input.loginRequired) && normalizedAccessMode === input.accessMode
@@ -3215,7 +3487,11 @@ export async function collectEvidence(input: {
         // Public reports must never wait indefinitely for a server browser. The
         // fetch/extension evidence gathered above remains available as a safe
         // fallback if the interactive checks cannot finish promptly.
-        timeoutMs: isPublicAudit && input.accessMode === "browser_extension_capture" ? 30_000 : undefined,
+        timeoutMs: needsLiveMeasurements
+          ? 25_000
+          : isPublicAudit && input.accessMode === "browser_extension_capture"
+            ? 30_000
+            : undefined,
       },
       async (page, context, sessionMeta) => {
         const explorer = createExplorer(browserInput);
@@ -3234,12 +3510,13 @@ export async function collectEvidence(input: {
         result.debug = {
           ...providerDiagnostics,
           ...(result.debug || {}),
-          provider: provider.name,
+          provider: sessionMeta.provider,
           requestedBrowserProvider: providerDiagnostics.requestedBrowserProvider,
-          actualBrowserProvider: provider.name,
+          actualBrowserProvider: sessionMeta.provider,
           browserProviderFallbackReason:
-            provider.name === "browserbase" ? "" : providerDiagnostics.browserProviderFallbackReason,
-          browserbaseSessionCreated: Boolean(sessionMeta.sessionId),
+            sessionMeta.fallbackReason || (sessionMeta.provider === "browserbase" ? "" : providerDiagnostics.browserProviderFallbackReason),
+          providerFallbackUsed: Boolean(sessionMeta.fallbackReason),
+          browserbaseSessionCreated: sessionMeta.provider === "browserbase" && Boolean(sessionMeta.sessionId),
           browserSessionId: sessionMeta.sessionId || "",
           browserbaseSessionId: sessionMeta.sessionId || "",
           sessionReplayUrl: provider.getSessionReplayUrl(sessionMeta),
@@ -3275,7 +3552,7 @@ export async function collectEvidence(input: {
         ...shot,
         source:
           shot.source ||
-          (provider.name === "browserbase" ? "browserbase" : "local_playwright"),
+          (sessionMeta.provider === "browserbase" ? "browserbase" : "local_playwright"),
         sessionReplayUrl: sessionMeta.replayUrl || sessionMeta.liveUrl || "",
       }));
         return result;
@@ -3296,7 +3573,8 @@ export async function collectEvidence(input: {
       uploadedVideoUsedForQuestions: uploadedVideoEvidence?.pages.length ?? 0,
       uploadedScreenshotErrors: [],
       evidenceItemsCount: (merged.pages?.length ?? 0) + (merged.screenshots?.length ?? 0),
-      browserFallbackAttempted: input.accessMode === "browser_extension_capture",
+      browserFallbackAttempted:
+        input.accessMode === "browser_extension_capture" || Boolean(merged.debug?.providerFallbackUsed),
     };
     if (
       Array.isArray(input.guidedCaptureSteps) &&

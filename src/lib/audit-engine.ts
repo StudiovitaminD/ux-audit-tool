@@ -2667,6 +2667,7 @@ export async function prepareEvidence(intake: Intake) {
       extensionCaptureJson: intake.artifacts?.extensionCaptureJson || "",
       guidedCaptureSteps: mergedGuidedSteps,
       internalRoutes: mergedInternalRoutes,
+      selectedBuckets: getSelectedBuckets(intake),
     });
   } catch {
     evidence = null;

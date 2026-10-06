@@ -20,11 +20,12 @@ export function supportsAccessibilityCriterion(bucket: string, questionId: strin
       // The extension samples text and controls from their computed styles.
       // That is valid evidence for component contrast and readable pairings;
       // focus/state-specific checks still require their matching probes.
-      if ([3, 6].includes(number)) return Number(record.measuredValues?.samplesTested || 0) > 0;
+      if (number === 3) return Number(record.measuredValues?.componentSamplesTested || 0) > 0;
+      if (number === 6) return Number(record.measuredValues?.samplesTested || 0) > 0;
       return false;
     }
     if (record.kind === "keyboard" && number === 4) {
-      return Number(record.measuredValues?.focusableCount || 0) > 0;
+      return Number(record.measuredValues?.focusContrastTested || 0) > 0;
     }
     if (record.kind === "interaction" && number === 5) {
       return Number(record.measuredValues?.controlsTested || 0) > 0;
