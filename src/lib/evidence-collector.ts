@@ -3060,7 +3060,14 @@ export async function collectEvidence(input: {
       ? input
       : { ...input, loginRequired: requiresLogin, accessMode: normalizedAccessMode as typeof input.accessMode };
   const provider = createBrowserProvider();
-  const savedAuthState = await loadContextAuthState(provider, input.productUrl).catch(() => null);
+  // Public sites do not use authentication state. Avoid unnecessary Firestore
+  // reads/writes in the report's critical path for extension captured public
+  // audits; a slow auth-session lookup must not stall evidence preparation.
+  const shouldLoadSavedAuth =
+    requiresLogin || normalizedAccessMode === "use_saved_session";
+  const savedAuthState = shouldLoadSavedAuth
+    ? await loadContextAuthState(provider, input.productUrl).catch(() => null)
+    : null;
   const canUseSavedSession = Boolean(savedAuthState?.state);
 
   if (normalizedAccessMode === "use_saved_session" && !canUseSavedSession) {
@@ -3214,7 +3221,7 @@ export async function collectEvidence(input: {
         const explorer = createExplorer(browserInput);
         await explorer.run(context);
         const result = explorer.getResult();
-        if (result.auth?.success) {
+        if (requiresLogin && result.auth?.success) {
           await saveContextAuthState(provider, input.productUrl, context).catch(() => {});
         } else if (input.accessMode === "use_saved_session" && result.auth?.required && !result.auth.success) {
           result.auth.message =

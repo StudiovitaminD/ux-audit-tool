@@ -64,6 +64,22 @@ export type BrowserProvider = {
   ): Promise<T>;
 };
 
+async function ignoreAfter<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      promise,
+      new Promise<void>((resolve) => {
+        timeout = setTimeout(resolve, timeoutMs);
+      }),
+    ]);
+  } catch {
+    // Cleanup errors should not keep an audit worker alive.
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 export function getBrowserProviderDiagnostics() {
   const browserbaseEnabledEnv = process.env.BROWSERBASE_ENABLED === "true";
   const browserbaseApiKeyPresent = Boolean(process.env.BROWSERBASE_API_KEY);
@@ -274,6 +290,7 @@ class BrowserbaseProvider implements BrowserProvider {
     await fetch(`https://www.browserbase.com/v1/sessions/${encodeURIComponent(meta.sessionId)}`, {
       method: "DELETE",
       headers: { "x-bb-api-key": apiKey },
+      signal: AbortSignal.timeout(5_000),
     }).catch(() => {});
   }
 
@@ -304,13 +321,21 @@ class BrowserbaseProvider implements BrowserProvider {
     options: { domain: string; storageState?: BrowserStorageState | null; timeoutMs?: number },
     fn: (page: Page, context: BrowserContext, meta: BrowserSessionMeta) => Promise<T>,
   ) {
-    const meta = await this.createSession();
-    const browser = await this.connect(meta);
-    const context = await this.createOrReuseContext(browser, options.storageState);
-    const page = await context.newPage();
+    const resources: {
+      meta?: BrowserSessionMeta;
+      browser?: Browser;
+      context?: BrowserContext;
+      page?: Page;
+    } = {};
     let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      const task = fn(page, context, meta);
+      const task = (async () => {
+        resources.meta = await this.createSession();
+        resources.browser = await this.connect(resources.meta);
+        resources.context = await this.createOrReuseContext(resources.browser, options.storageState);
+        resources.page = await resources.context.newPage();
+        return fn(resources.page, resources.context, resources.meta);
+      })();
       if (!options.timeoutMs || options.timeoutMs <= 0) return await task;
       return await Promise.race([
         task,
@@ -323,10 +348,12 @@ class BrowserbaseProvider implements BrowserProvider {
       ]);
     } finally {
       if (timeout) clearTimeout(timeout);
-      await page.close().catch(() => {});
-      await context.close().catch(() => {});
-      await browser.close().catch(() => {});
-      await this.closeSession(meta);
+      await Promise.all([
+        resources.page ? ignoreAfter(resources.page.close({ runBeforeUnload: false }), 2_000) : Promise.resolve(),
+        resources.context ? ignoreAfter(resources.context.close(), 2_000) : Promise.resolve(),
+        resources.browser ? ignoreAfter(resources.browser.close(), 2_000) : Promise.resolve(),
+      ]);
+      if (resources.meta) await ignoreAfter(this.closeSession(resources.meta), 5_000);
     }
   }
 }

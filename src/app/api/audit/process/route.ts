@@ -69,6 +69,16 @@ function asRecord(v: unknown): Record<string, unknown> | null {
   return v as Record<string, unknown>;
 }
 
+function withDeadline<T>(task: Promise<T>, timeoutMs: number, label: string) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => reject(new Error(`${label} exceeded ${Math.round(timeoutMs / 1000)} seconds.`)), timeoutMs);
+  });
+  return Promise.race([task, deadline]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+  });
+}
+
 function isCancelledDoc(doc: Record<string, unknown>) {
   const status = typeof doc.status === "string" ? doc.status : "";
   return (
@@ -732,14 +742,31 @@ export async function POST(req: Request) {
         },
         { merge: true },
       );
-      evidence = await prepareEvidence(intakeObj);
-      evidence = await persistEvidenceScreenshots(ref.id, evidence as EvidenceBundle | null);
+      currentPhase = "prepare_evidence";
+      evidence = await withDeadline(prepareEvidence(intakeObj), 120_000, "Evidence preparation");
+      currentPhase = "persist_evidence_screenshots";
+      try {
+        evidence = await withDeadline(
+          persistEvidenceScreenshots(ref.id, evidence as EvidenceBundle | null),
+          15_000,
+          "Evidence screenshot storage",
+        );
+      } catch (error) {
+        if (evidence && typeof evidence === "object") {
+          (evidence as EvidenceBundle).warnings.push(getErrorMessage(error));
+        }
+      }
       const latestAfterPrepare = await ref.get();
       if (isCancelledDoc(latestAfterPrepare.data() ?? {})) {
         return Response.json({ status: "cancelled" });
       }
       if (!evidence) throw new Error("No audit evidence was prepared.");
-      const evidenceStorage = await storeFullReportBlob(`${ref.id}-evidence`, { evidence });
+      currentPhase = "persist_evidence_blob";
+      const evidenceStorage = await withDeadline(
+        storeFullReportBlob(`${ref.id}-evidence`, { evidence }),
+        30_000,
+        "Evidence report storage",
+      );
       if (!evidenceStorage.ok) {
         throw new Error(`Complete audit evidence could not be persisted: ${evidenceStorage.error}`);
       }

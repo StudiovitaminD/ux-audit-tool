@@ -133,20 +133,23 @@ export async function runExternalToolPipeline(bundle: EvidenceBundle, url: strin
   const pipeline = prepared.debug?.externalToolPipeline as ExternalToolPipelineResult;
   if (process.env.LIGHTHOUSE_ENABLED !== "true") return prepared;
 
+  const runtime: { chrome?: { port: number; kill: () => void } } = {};
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    const [{ default: lighthouse }, chromeLauncher, chromiumModule] = await Promise.all([
-      loadRuntimeModule("lighthouse"),
-      loadRuntimeModule("chrome-launcher"),
-      loadRuntimeModule("@sparticuz/chromium"),
-    ]);
-    const chromePath = await chromiumModule.default.executablePath();
-    const chrome = await chromeLauncher.launch({
-      chromePath: chromePath || undefined,
-      chromeFlags: ["--headless", "--no-sandbox", "--disable-dev-shm-usage"],
-    });
-    try {
+    const task = (async () => {
+      const [{ default: lighthouse }, chromeLauncher, chromiumModule] = await Promise.all([
+        loadRuntimeModule("lighthouse"),
+        loadRuntimeModule("chrome-launcher"),
+        loadRuntimeModule("@sparticuz/chromium"),
+      ]);
+      const chromePath = await chromiumModule.default.executablePath();
+      const launchedChrome = await chromeLauncher.launch({
+        chromePath: chromePath || undefined,
+        chromeFlags: ["--headless", "--no-sandbox", "--disable-dev-shm-usage"],
+      });
+      runtime.chrome = launchedChrome;
       const result = await lighthouse(url, {
-        port: chrome.port,
+        port: launchedChrome.port,
         output: "json",
         logLevel: "silent",
         onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
@@ -182,13 +185,14 @@ export async function runExternalToolPipeline(bundle: EvidenceBundle, url: strin
           lighthouse: summary,
         },
       };
-    } finally {
-      try {
-        chrome.kill();
-      } catch {
-        // Cleanup failure must not replace the audit result.
-      }
-    }
+    })();
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timeout = setTimeout(() => {
+        try { runtime.chrome?.kill(); } catch { /* best effort */ }
+        reject(new Error("Lighthouse exceeded its 30 second audit budget."));
+      }, 30_000);
+    });
+    return await Promise.race([task, deadline]);
   } catch (error) {
     const providers = pipeline.providers.map((provider) => provider.name === "lighthouse"
       ? { ...provider, status: "failed" as const, message: `Lighthouse failed: ${error instanceof Error ? error.message : String(error)}` }
@@ -198,5 +202,8 @@ export async function runExternalToolPipeline(bundle: EvidenceBundle, url: strin
       warnings: [...(prepared.warnings || []), "Lighthouse failed; Playwright and axe evidence were retained."],
       debug: { ...(prepared.debug || {}), externalToolPipeline: { ...pipeline, providers } },
     };
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    try { runtime.chrome?.kill(); } catch { /* best effort cleanup */ }
   }
 }
