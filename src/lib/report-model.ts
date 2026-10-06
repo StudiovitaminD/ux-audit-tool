@@ -163,6 +163,8 @@ export function specificFindingLabel(value: unknown) {
   const genericLabels = new Set([
     "content", "navigation", "interface", "typography", "contact form",
     "buttons & ctas", "system feedback", "ui components", "loading & performance",
+    "page content", "page element", "page headings", "page text", "page wording",
+    "shift+tab navigation", "tab order", "keyboard selection", "pop-up window",
     "color & contrast", "motion", "brand", "icons & imagery", "typography & readability",
     "keyboard navigation", "visual feedback", "screen reader support", "navigation & findability",
     "content (impact)", "content (delight)", "performance", "motion & microinteractions",
@@ -183,28 +185,41 @@ export function specificFindingLabel(value: unknown) {
     return `“${unquotedButton[1].trim()}” Button`;
   }
 
-  if (/contact\s+us\s+(?:page|form)|contact page/.test(text)) return "Contact Us Page";
-  if (/shift\s*\+\s*tab/.test(text)) return "Shift+Tab Navigation";
-  if (/modal|pop[ -]?up|dialog/.test(text)) return "Pop-up Window";
+  const pageContext =
+    /\b(?:homepage|home page|home screen)\b/i.test(text) ? "Homepage" :
+    /\bcontact\s+us\s+(?:page|form)|\bcontact page\b/i.test(text) ? "Contact Us Page" :
+    /\babout(?: us)? page\b/i.test(text) ? "About Page" :
+    /\b(?:product|pricing|services|checkout|cart) page\b/i.test(text)
+      ? text.match(/\b(?:product|pricing|services|checkout|cart) page\b/i)?.[0].replace(/\b\w/g, (letter) => letter.toUpperCase()) || ""
+      : "";
+  const pagePrefix = pageContext ? `${pageContext} — ` : "";
+
+  if (/shift\s*\+\s*tab/.test(text)) return "Moving Back with Shift+Tab";
+  if (/modal|pop[ -]?up|dialog/.test(text)) return `${pagePrefix}Keyboard Access to Pop-up Windows`;
   if (/sticky.{0,24}(?:bar|header|footer|menu|navigation|ui element|control)|fixed (?:bar|header|menu)/.test(text)) return "Sticky Bar";
   if (/focus (?:indicator|style|highlight)|highlight.{0,30}(?:focus|selected)|selected item/.test(text)) return "Keyboard Highlight";
-  if (/focus.{0,35}(?:jump|skip)|(?:jump|skip).{0,35}focus/.test(text)) return "Keyboard Selection";
-  if (/tab order|sequentially through|moves? sequentially|keyboard.{0,25}(?:order|sequence)/.test(text)) return "Tab Order";
-  if (/mobile|on a phone|small screen/.test(text)) return "Text on Phones";
+  if (/focus.{0,35}(?:jump|skip)|(?:jump|skip).{0,35}focus/.test(text)) return "Keyboard Focus Order";
+  if (/tab order|sequentially through|moves? sequentially|keyboard.{0,25}(?:order|sequence)|focus order/.test(text)) return "Keyboard Focus Order";
+  if (/mobile|on a phone|small screen/.test(text)) return `${pagePrefix}Text on Phones`;
   if (/line spacing|line height|space between lines|adequate spacing|spacing.{0,20}lines|lines?.{0,20}spacing/.test(text)) return "Space Between Lines";
-  if (/heading|content levels|section titles/.test(text)) return "Page Headings";
-  if (/content sections|split into|segmented|digestible|easy to scan|quick scanning/.test(text)) return "Content Sections";
-  if (/contact|enquiry|inquiry|form field|validation|input field/.test(text)) return "Contact Form";
-  if (/checkout|cart|payment|purchase/.test(text)) return "Checkout";
+  if (/heading|content levels|section titles/.test(text)) return `${pagePrefix}Headings`;
+  if (/content sections|split into|segmented|digestible|easy to scan|quick scanning/.test(text)) return `${pagePrefix}Content Sections`;
+  if (/contact|enquiry|inquiry|form field|validation|input field/.test(text)) return `${pagePrefix}Contact Form`;
+  if (/checkout|cart|payment|purchase/.test(text)) return `${pagePrefix}Checkout`;
   if (/loading|spinner|processing|response time|performance/.test(text)) return "Loading Indicator";
   if (/error|success message|feedback|confirmation|system status/.test(text)) return "Status Message";
   if (/color|contrast|colour/.test(text)) return "Text Color";
   if (/motion|animation|transition|microinteraction/.test(text)) return "Animation";
   if (/icon|imagery|image|illustration|photograph/.test(text)) return "Image";
   if (/menu|navigation|navbar|nav bar|wayfinding|findability/.test(text)) return "Navigation Menu";
-  if (/typography|readability|font|text size/.test(text)) return "Page Text";
-  if (/content|copy|terminology|language|message/.test(text)) return "Page Content";
-  return existingLabel && !genericLabels.has(existingLabel.toLowerCase()) ? existingLabel : "Page Element";
+  if (/body text|paragraph|text block/.test(text)) {
+    if (/long|lengthy|excessive|too much|hard to read/.test(text)) return `${pagePrefix}Long Text Blocks`;
+    return `${pagePrefix}Body Text`;
+  }
+  if (/typography|readability|font|text size/.test(text)) return `${pagePrefix}Text Size and Style`;
+  if (/language|wording|copy|terminology/.test(text)) return `${pagePrefix}Page Wording`;
+  if (/content|message/.test(text)) return `${pagePrefix}Page Content`;
+  return existingLabel && !genericLabels.has(existingLabel.toLowerCase()) ? existingLabel : "Page Area Not Identified";
 }
 
 export function bucketPillarFromName(value: unknown, fallback = "Impact") {

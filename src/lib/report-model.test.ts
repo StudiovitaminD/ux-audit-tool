@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { buildReportViewModel } from "./report-model";
+import { buildReportViewModel, specificFindingLabel } from "./report-model";
+
+describe("plain-language finding titles", () => {
+  it("names the actual content instead of using a vague page label", () => {
+    expect(
+      specificFindingLabel("Page Content: Some text blocks are excessively long, which may discourage users from reading fully."),
+    ).toBe("Long Text Blocks");
+  });
+
+  it("adds the page when the evidence identifies it", () => {
+    expect(
+      specificFindingLabel("Page Element: Body text on the homepage is sized and spaced for comfortable reading."),
+    ).toBe("Homepage — Body Text");
+  });
+
+  it("describes keyboard and pop-up findings in everyday terms", () => {
+    expect(
+      specificFindingLabel("Shift+Tab Navigation: Users pressing Shift+Tab may experience unexpected jumps in focus order."),
+    ).toBe("Moving Back with Shift+Tab");
+    expect(
+      specificFindingLabel("Pop-up Window: Keyboard users may be unable to reliably open or close modal dialogs."),
+    ).toBe("Keyboard Access to Pop-up Windows");
+  });
+});
 
 describe("report scorecard normalization", () => {
   it("keeps a tested zero score instead of relabeling it as Not Tested", () => {
