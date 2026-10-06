@@ -3343,10 +3343,12 @@ export async function collectEvidence(input: {
           uploadedVideoUsedForQuestions: uploadedVideoEvidence?.pages.length ?? 0,
           uploadedScreenshotErrors: [],
           evidenceItemsCount:
-            (uploadedScreenshotEvidence?.pages.length ?? 0) +
-            (uploadedScreenshotEvidence?.screenshots.length ?? 0) +
-            (uploadedVideoEvidence?.pages.length ?? 0) +
-            (uploadedVideoEvidence?.screenshots.length ?? 0),
+            // Fetch and extension evidence are still valid capture work when
+            // the optional remote browser cannot start. Preserve their count
+            // so the audit proceeds with clearly labelled limited evidence
+            // instead of failing before any bucket can be scored.
+            (manualEvidence?.pages.length ?? 0) +
+            (manualEvidence?.screenshots.length ?? 0),
           loginAttempted: false,
         },
       } satisfies EvidenceBundle,

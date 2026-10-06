@@ -228,6 +228,7 @@ class BrowserbaseProvider implements BrowserProvider {
     const projectId = process.env.BROWSERBASE_PROJECT_ID!;
     const response = await fetch("https://www.browserbase.com/v1/sessions", {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         "Content-Type": "application/json",
         "x-bb-api-key": apiKey,
@@ -262,7 +263,9 @@ class BrowserbaseProvider implements BrowserProvider {
     if (!meta.sessionId) throw new Error("Browserbase session id missing for connect");
     const apiKey = process.env.BROWSERBASE_API_KEY!;
     const wsEndpoint = `wss://connect.browserbase.com?apiKey=${encodeURIComponent(apiKey)}&sessionId=${encodeURIComponent(meta.sessionId)}`;
-    return pwChromium.connectOverCDP(wsEndpoint, { timeout: 60_000 });
+    // A queued or unreachable remote browser must not hold the report worker
+    // indefinitely before evidence collection has even started.
+    return pwChromium.connectOverCDP(wsEndpoint, { timeout: 20_000 });
   }
 
   async closeSession(meta: BrowserSessionMeta): Promise<void> {
