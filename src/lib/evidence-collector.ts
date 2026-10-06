@@ -2211,6 +2211,7 @@ async function discoverPublicTargets(
   try {
     const res = await fetch(startUrl, {
       redirect: "follow",
+      signal: AbortSignal.timeout(8_000),
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121 Safari/537.36",
@@ -2264,7 +2265,10 @@ async function collectEvidenceViaFetch(input: {
     if (m?.length) extraTargets.push(...m);
   }
   const discoveredTargets = await discoverPublicTargets(startUrl, input.productType);
-  const maxPages = Number(process.env.EVIDENCE_MAX_PAGES || 5);
+  // Keep the synchronous report worker responsive. The browser collector can
+  // inspect interaction states; fetch capture only needs a small structural
+  // sample as its fallback.
+  const maxPages = Number(process.env.EVIDENCE_MAX_PAGES || 3);
   const targets = uniq([startUrl, ...extraTargets, ...discoveredTargets]).slice(
     0,
     Number.isFinite(maxPages) ? Math.max(1, Math.min(8, maxPages)) : 5,
@@ -2278,6 +2282,7 @@ async function collectEvidenceViaFetch(input: {
     try {
       const res = await fetch(url, {
         redirect: "follow",
+        signal: AbortSignal.timeout(8_000),
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121 Safari/537.36",
@@ -3203,7 +3208,7 @@ export async function collectEvidence(input: {
         // Public reports must never wait indefinitely for a server browser. The
         // fetch/extension evidence gathered above remains available as a safe
         // fallback if the interactive checks cannot finish promptly.
-        timeoutMs: isPublicAudit && input.accessMode === "browser_extension_capture" ? 75_000 : undefined,
+        timeoutMs: isPublicAudit && input.accessMode === "browser_extension_capture" ? 30_000 : undefined,
       },
       async (page, context, sessionMeta) => {
         const explorer = createExplorer(browserInput);
