@@ -350,17 +350,19 @@ export class SaaSExplorer extends BaseExplorer {
 
 export class WebsiteExplorer extends BaseExplorer {
   protected async exploreProduct(page: Page) {
-    await this.capturePage(page, "Homepage");
     this.addVisitedUrl(page.url());
 
     const candidates = await collectNavigationCandidates(page, this.input.auditFlows);
     let visited = 0;
     for (const candidate of candidates) {
-      if (visited >= 3) break;
+      // The start page was already captured by BaseExplorer. One focused
+      // follow-up page gives public audits interaction coverage without making
+      // Browserbase spend several minutes traversing a marketing site.
+      if (visited >= 1) break;
       if (!candidate.href || this.pageAlreadyVisited(candidate.href)) continue;
       if (!/pricing|features|about|contact|demo|learn|product|services/i.test(candidate.text + " " + candidate.href)) continue;
       try {
-        await page.goto(candidate.href, { waitUntil: "domcontentloaded", timeout: 60_000 });
+        await page.goto(candidate.href, { waitUntil: "domcontentloaded", timeout: 15_000 });
         await settlePage(page);
         await this.capturePage(page, candidate.text || candidate.href);
         this.addVisitedUrl(page.url());
@@ -375,46 +377,21 @@ export class WebsiteExplorer extends BaseExplorer {
 
 export class EcommerceExplorer extends BaseExplorer {
   protected async exploreProduct(page: Page) {
-    await this.capturePage(page, "Homepage");
     this.addVisitedUrl(page.url());
 
     const sitemapCandidates = await collectNavigationCandidates(page, this.input.auditFlows);
-    const listingLink = sitemapCandidates.find((item) => /shop|products|collections|category|browse/i.test(item.text + " " + item.href));
-    if (listingLink?.href && !this.pageAlreadyVisited(listingLink.href)) {
+    const followUpLink = sitemapCandidates.find((item) =>
+      /product|item|collection|details|view|shop|products|collections|category|browse/i.test(item.text + " " + item.href),
+    );
+    if (followUpLink?.href && !this.pageAlreadyVisited(followUpLink.href)) {
       try {
-        await page.goto(listingLink.href, { waitUntil: "domcontentloaded", timeout: 60_000 });
+        await page.goto(followUpLink.href, { waitUntil: "domcontentloaded", timeout: 15_000 });
         await settlePage(page);
-        await this.capturePage(page, "Category / listing");
+        await this.capturePage(page, "Product or category page");
         this.addVisitedUrl(page.url());
       } catch (error) {
-        console.error("Ecommerce listing navigation failed:", error);
-        this.warnings.push(`Ecommerce listing navigation failed: ${getErrorMessage(error)}`);
-      }
-    }
-
-    const productLink = sitemapCandidates.find((item) => /product|item|collection|details|view/i.test(item.text + " " + item.href));
-    if (productLink?.href && !this.pageAlreadyVisited(productLink.href)) {
-      try {
-        await page.goto(productLink.href, { waitUntil: "domcontentloaded", timeout: 60_000 });
-        await settlePage(page);
-        await this.capturePage(page, "Product detail");
-        this.addVisitedUrl(page.url());
-      } catch (error) {
-        console.error("Ecommerce product page capture failed:", error);
-        this.warnings.push(`Ecommerce product page capture failed: ${getErrorMessage(error)}`);
-      }
-    }
-
-    const cartLink = sitemapCandidates.find((item) => /cart|basket|checkout|purchase/i.test(item.text + " " + item.href));
-    if (cartLink?.href && !this.pageAlreadyVisited(cartLink.href)) {
-      try {
-        await page.goto(cartLink.href, { waitUntil: "domcontentloaded", timeout: 60_000 });
-        await settlePage(page);
-        await this.capturePage(page, "Cart / checkout entry");
-        this.addVisitedUrl(page.url());
-      } catch (error) {
-        console.error("Ecommerce cart/checkout navigation failed:", error);
-        this.warnings.push(`Ecommerce cart/checkout navigation failed: ${getErrorMessage(error)}`);
+        console.error("Ecommerce follow-up navigation failed:", error);
+        this.warnings.push(`Ecommerce follow-up navigation failed: ${getErrorMessage(error)}`);
       }
     }
   }
