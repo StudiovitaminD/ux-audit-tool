@@ -156,7 +156,7 @@ export function displayBucketName(value: unknown) {
 export function specificFindingLabel(value: unknown) {
   const raw = asString(value);
   if (!raw) return "";
-  const match = raw.match(/^([^:]{2,48}):\s*(.*)$/s);
+  const match = raw.match(/^([^:]{2,48}):\s*([\s\S]*)$/);
   const existingLabel = match?.[1]?.trim() || "";
   const body = (match?.[2] || raw).trim();
   const text = `${existingLabel} ${body}`.toLowerCase();
