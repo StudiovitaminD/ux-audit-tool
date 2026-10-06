@@ -152,6 +152,61 @@ export function displayBucketName(value: unknown) {
   return legacyMap[text] || text;
 }
 
+/** Derive the bold, plain-language element title used before summary finding text. */
+export function specificFindingLabel(value: unknown) {
+  const raw = asString(value);
+  if (!raw) return "";
+  const match = raw.match(/^([^:]{2,48}):\s*(.*)$/s);
+  const existingLabel = match?.[1]?.trim() || "";
+  const body = (match?.[2] || raw).trim();
+  const text = `${existingLabel} ${body}`.toLowerCase();
+  const genericLabels = new Set([
+    "content", "navigation", "interface", "typography", "contact form",
+    "buttons & ctas", "system feedback", "ui components", "loading & performance",
+    "color & contrast", "motion", "brand", "icons & imagery", "typography & readability",
+    "keyboard navigation", "visual feedback", "screen reader support", "navigation & findability",
+    "content (impact)", "content (delight)", "performance", "motion & microinteractions",
+    "visual consistency", "brand expression", "consistency & ui patterns",
+  ]);
+
+  if (existingLabel && !genericLabels.has(existingLabel.toLowerCase())) return existingLabel;
+
+  const namedButton = raw.match(
+    /(?:button|cta|call to action|action)[^.!?]{0,45}?[‘'“"]([^’'”"]{1,40})[’'”"]|[‘'“"]([^’'”"]{1,40})[’'”"][^.!?]{0,30}?(?:button|cta|call to action|action)/i,
+  );
+  const buttonName = (namedButton?.[1] || namedButton?.[2] || "").trim();
+  if (buttonName && !/^(primary|secondary|generic|button|cta|action)$/i.test(buttonName)) {
+    return `“${buttonName}” Button`;
+  }
+  const unquotedButton = body.match(/\b(?:the\s+)?([A-Z][A-Za-z0-9 &'/-]{1,36})\s+button\b/);
+  if (unquotedButton?.[1] && !/^(primary|secondary|generic)$/i.test(unquotedButton[1].trim())) {
+    return `“${unquotedButton[1].trim()}” Button`;
+  }
+
+  if (/contact\s+us\s+(?:page|form)|contact page/.test(text)) return "Contact Us Page";
+  if (/shift\s*\+\s*tab/.test(text)) return "Shift+Tab Navigation";
+  if (/modal|pop[ -]?up|dialog/.test(text)) return "Pop-up Window";
+  if (/sticky.{0,24}(?:bar|header|footer|menu|navigation|ui element|control)|fixed (?:bar|header|menu)/.test(text)) return "Sticky Bar";
+  if (/focus (?:indicator|style|highlight)|highlight.{0,30}(?:focus|selected)|selected item/.test(text)) return "Keyboard Highlight";
+  if (/focus.{0,35}(?:jump|skip)|(?:jump|skip).{0,35}focus/.test(text)) return "Keyboard Selection";
+  if (/tab order|sequentially through|moves? sequentially|keyboard.{0,25}(?:order|sequence)/.test(text)) return "Tab Order";
+  if (/mobile|on a phone|small screen/.test(text)) return "Text on Phones";
+  if (/line spacing|line height|space between lines|adequate spacing|spacing.{0,20}lines|lines?.{0,20}spacing/.test(text)) return "Space Between Lines";
+  if (/heading|content levels|section titles/.test(text)) return "Page Headings";
+  if (/content sections|split into|segmented|digestible|easy to scan|quick scanning/.test(text)) return "Content Sections";
+  if (/contact|enquiry|inquiry|form field|validation|input field/.test(text)) return "Contact Form";
+  if (/checkout|cart|payment|purchase/.test(text)) return "Checkout";
+  if (/loading|spinner|processing|response time|performance/.test(text)) return "Loading Indicator";
+  if (/error|success message|feedback|confirmation|system status/.test(text)) return "Status Message";
+  if (/color|contrast|colour/.test(text)) return "Text Color";
+  if (/motion|animation|transition|microinteraction/.test(text)) return "Animation";
+  if (/icon|imagery|image|illustration|photograph/.test(text)) return "Image";
+  if (/menu|navigation|navbar|nav bar|wayfinding|findability/.test(text)) return "Navigation Menu";
+  if (/typography|readability|font|text size/.test(text)) return "Page Text";
+  if (/content|copy|terminology|language|message/.test(text)) return "Page Content";
+  return existingLabel && !genericLabels.has(existingLabel.toLowerCase()) ? existingLabel : "Page Element";
+}
+
 export function bucketPillarFromName(value: unknown, fallback = "Impact") {
   const normalized = displayBucketName(value).toLowerCase();
   const raw = asString(value).trim().toLowerCase();

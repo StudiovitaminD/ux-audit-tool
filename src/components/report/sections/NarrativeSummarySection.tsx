@@ -1,6 +1,6 @@
 import type { ReportPage, SharedSectionProps } from "./shared";
 import { normalizeList, placeholderText } from "./shared";
-import { asArray, asNumber, asRecord, asString, displayBucketName } from "@/lib/report-model";
+import { asArray, asNumber, asRecord, asString, displayBucketName, specificFindingLabel } from "@/lib/report-model";
 import { QUESTION_BANK, formatBucketOption } from "../../../../worker/src/question-bank";
 
 const SUMMARY_PILLARS = {
@@ -154,37 +154,11 @@ function dedupeSimilarSignals(items: readonly string[], limit: number) {
   return kept;
 }
 
-function signalContextLabel(value: string) {
-  const text = normalizeKey(value);
-  if (/^[^:]{2,42}:\s/.test(value)) return "";
-  const namedButton = value.match(
-    /(?:button|cta|call to action|label|action)[^.!?]{0,45}?[‘'“"]([^’'”"]{1,32})[’'”"]|[‘'“"]([^’'”"]{1,32})[’'”"][^.!?]{0,30}?(?:button|cta|call to action|label|action)/i,
-  );
-  const buttonName = (namedButton?.[1] || namedButton?.[2] || "").trim();
-  if (buttonName && !/^(primary|secondary|generic|button|cta|action)$/i.test(buttonName)) {
-    return `“${buttonName}” Button`;
-  }
-  if (/contact|enquiry|inquiry|submit|form field|validation|input field/.test(text)) return "Contact Form";
-  if (/homepage|home page|hero|landing page/.test(text)) return "Homepage";
-  if (/navigation|navbar|nav bar|menu|wayfinding|findability/.test(text)) return "Navigation";
-  if (/checkout|cart|payment|purchase/.test(text)) return "Checkout";
-  if (/button|call to action|\bcta\b|primary action|secondary action/.test(text)) return "Buttons & CTAs";
-  if (/loading|spinner|processing|response time|performance/.test(text)) return "Loading & Performance";
-  if (/error|success message|feedback|confirmation|system status/.test(text)) return "System Feedback";
-  if (/typography|readability|font|line height|text size/.test(text)) return "Typography";
-  if (/color|contrast|colour/.test(text)) return "Color & Contrast";
-  if (/motion|animation|transition|microinteraction/.test(text)) return "Motion";
-  if (/brand|tone of voice|visual identity/.test(text)) return "Brand";
-  if (/icon|imagery|image|illustration|photograph/.test(text)) return "Icons & Imagery";
-  if (/layout|spacing|component|visual hierarchy|alignment/.test(text)) return "UI Components";
-  if (/content|copy|terminology|language|message/.test(text)) return "Content";
-  return "Interface";
-}
-
 function contextualizeSignal(value: string) {
   const item = cleanNarrativeText(value);
-  const label = signalContextLabel(item);
-  return label ? `${label}: ${item}` : item;
+  const label = specificFindingLabel(item);
+  const body = item.replace(/^[^:]{2,48}:\s*/, "").trim();
+  return label && body ? `${label}: ${body}` : item;
 }
 
 function isIncompleteNarrative(text: unknown) {
