@@ -1344,11 +1344,16 @@ export function ReportView() {
         : null;
     const progressPercent =
       totalBuckets && totalBuckets > 0
-        ? Math.min(100, Math.round(((completedBuckets ?? 0) / totalBuckets) * 100))
+        ? Math.max(
+            currentStage === "Preparing Evidence" || currentStage === "Capturing Evidence" ? 12 : 0,
+            Math.min(100, Math.round(((completedBuckets ?? 0) / totalBuckets) * 100)),
+          )
         : 8;
     const progressMessage =
       currentStage === "Scoring"
         ? `Reviewing ${currentBucketName || "the current audit area"}…`
+        : currentStage === "Preparing Evidence" || currentStage === "Capturing Evidence"
+          ? "Running live browser checks and collecting evidence…"
         : currentStage === "Evidence prepared"
           ? "Organizing the evidence we found…"
           : currentStage === "Finalizing"
@@ -1358,7 +1363,11 @@ export function ReportView() {
       {
         label: "Reviewing your evidence",
         complete: (completedBuckets ?? 0) > 0,
-        active: currentStage === "Evidence prepared" || currentStage === "Scoring",
+        active:
+          currentStage === "Preparing Evidence" ||
+          currentStage === "Capturing Evidence" ||
+          currentStage === "Evidence prepared" ||
+          currentStage === "Scoring",
       },
       {
         label: "Checking the selected audit areas",

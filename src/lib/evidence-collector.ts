@@ -234,7 +234,7 @@ export abstract class BaseExplorer {
     const startUrl = this.input.productUrl;
     try {
       await page.goto(startUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
-      await settlePage(page);
+      await settlePage(page, this.input.productType !== "saas");
       await this.capturePage(page, this.input.loginRequired ? "Login" : "Homepage");
 
       if (this.input.loginRequired) {
@@ -363,7 +363,7 @@ export class WebsiteExplorer extends BaseExplorer {
       if (!/pricing|features|about|contact|demo|learn|product|services/i.test(candidate.text + " " + candidate.href)) continue;
       try {
         await page.goto(candidate.href, { waitUntil: "domcontentloaded", timeout: 15_000 });
-        await settlePage(page);
+        await settlePage(page, true);
         await this.capturePage(page, candidate.text || candidate.href);
         this.addVisitedUrl(page.url());
         visited += 1;
@@ -386,7 +386,7 @@ export class EcommerceExplorer extends BaseExplorer {
     if (followUpLink?.href && !this.pageAlreadyVisited(followUpLink.href)) {
       try {
         await page.goto(followUpLink.href, { waitUntil: "domcontentloaded", timeout: 15_000 });
-        await settlePage(page);
+        await settlePage(page, true);
         await this.capturePage(page, "Product or category page");
         this.addVisitedUrl(page.url());
       } catch (error) {
@@ -1019,9 +1019,12 @@ function keywordsForFlow(flow: string) {
     .filter((part) => part.length >= 3);
 }
 
-async function settlePage(page: Page) {
-  await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(1200);
+async function settlePage(page: Page, quick = false) {
+  // Public pages often keep analytics and chat connections open indefinitely.
+  // Waiting 20 seconds for network-idle on every public page spends the entire
+  // browser-evidence budget without improving the DOM checks we run below.
+  await page.waitForLoadState("networkidle", { timeout: quick ? 4_000 : 20_000 }).catch(() => {});
+  await page.waitForTimeout(quick ? 400 : 1200);
   await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
   await page.waitForTimeout(200);
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => {});
