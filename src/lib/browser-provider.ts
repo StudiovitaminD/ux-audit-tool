@@ -59,7 +59,7 @@ export type BrowserProvider = {
   saveAuthState(domain: string, storageState: BrowserStorageState): Promise<StoredAuthState | null>;
   loadAuthState(domain: string): Promise<StoredAuthState | null>;
   runWithPage<T>(
-    options: { domain: string; storageState?: BrowserStorageState | null },
+    options: { domain: string; storageState?: BrowserStorageState | null; timeoutMs?: number },
     fn: (page: Page, context: BrowserContext, meta: BrowserSessionMeta) => Promise<T>,
   ): Promise<T>;
 };
@@ -181,16 +181,28 @@ class LocalPlaywrightProvider implements BrowserProvider {
   }
 
   async runWithPage<T>(
-    options: { domain: string; storageState?: BrowserStorageState | null },
+    options: { domain: string; storageState?: BrowserStorageState | null; timeoutMs?: number },
     fn: (page: Page, context: BrowserContext, meta: BrowserSessionMeta) => Promise<T>,
   ) {
     const meta = await this.createSession();
     const browser = await this.connect(meta);
     const context = await this.createOrReuseContext(browser, options.storageState);
     const page = await context.newPage();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await fn(page, context, meta);
+      const task = fn(page, context, meta);
+      if (!options.timeoutMs || options.timeoutMs <= 0) return await task;
+      return await Promise.race([
+        task,
+        new Promise<T>((_resolve, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error(`Browser evidence capture exceeded ${Math.round(options.timeoutMs! / 1000)} seconds.`)),
+            options.timeoutMs,
+          );
+        }),
+      ]);
     } finally {
+      if (timeout) clearTimeout(timeout);
       await page.close().catch(() => {});
       await context.close().catch(() => {});
       await browser.close().catch(() => {});
@@ -286,16 +298,28 @@ class BrowserbaseProvider implements BrowserProvider {
   }
 
   async runWithPage<T>(
-    options: { domain: string; storageState?: BrowserStorageState | null },
+    options: { domain: string; storageState?: BrowserStorageState | null; timeoutMs?: number },
     fn: (page: Page, context: BrowserContext, meta: BrowserSessionMeta) => Promise<T>,
   ) {
     const meta = await this.createSession();
     const browser = await this.connect(meta);
     const context = await this.createOrReuseContext(browser, options.storageState);
     const page = await context.newPage();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await fn(page, context, meta);
+      const task = fn(page, context, meta);
+      if (!options.timeoutMs || options.timeoutMs <= 0) return await task;
+      return await Promise.race([
+        task,
+        new Promise<T>((_resolve, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error(`Browser evidence capture exceeded ${Math.round(options.timeoutMs! / 1000)} seconds.`)),
+            options.timeoutMs,
+          );
+        }),
+      ]);
     } finally {
+      if (timeout) clearTimeout(timeout);
       await page.close().catch(() => {});
       await context.close().catch(() => {});
       await browser.close().catch(() => {});

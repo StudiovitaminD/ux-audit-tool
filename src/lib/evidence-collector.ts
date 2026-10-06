@@ -3217,7 +3217,14 @@ export async function collectEvidence(input: {
 
   try {
     const browserResult = await provider.runWithPage(
-      { domain: productDomain(input.productUrl), storageState: savedAuthState?.state ?? null },
+      {
+        domain: productDomain(input.productUrl),
+        storageState: savedAuthState?.state ?? null,
+        // Public reports must never wait indefinitely for a server browser. The
+        // fetch/extension evidence gathered above remains available as a safe
+        // fallback if the interactive checks cannot finish promptly.
+        timeoutMs: isPublicAudit && input.accessMode === "browser_extension_capture" ? 75_000 : undefined,
+      },
       async (page, context, sessionMeta) => {
         const explorer = createExplorer(browserInput);
         await explorer.run(context);

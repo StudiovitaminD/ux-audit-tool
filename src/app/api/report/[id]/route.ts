@@ -12,6 +12,7 @@ import { isResourceExhaustedError } from "@/lib/error-utils";
 import { FieldValue } from "firebase-admin/firestore";
 
 const AUTO_CONTINUE_STAGES = new Set([
+  "preparing_evidence",
   "queued_next_bucket",
   "finalizing",
   "retrying_primary_model",
@@ -134,10 +135,15 @@ async function maybeAutoContinueQueuedReport(req: Request, id: string) {
     const status = asString(data.status) ?? "processing";
     const currentStage = progress.currentStage ?? null;
     const leaseUntil = asNumber(progressRecord.autoContinueLeaseUntil) ?? 0;
+    const processingLeaseUntil = asNumber(data.processingLeaseUntil) ?? 0;
     const now = Date.now();
 
     if (status === "complete" || status === "error") return;
     if (!currentStage || !AUTO_CONTINUE_STAGES.has(currentStage)) return;
+    // The active worker owns this stage until its lease expires. Once it is
+    // stale, polling the report safely restarts the job instead of leaving the
+    // customer on a permanent 0% progress screen.
+    if (currentStage === "preparing_evidence" && processingLeaseUntil > now) return;
     if (leaseUntil > now) return;
 
     shouldKick = true;
